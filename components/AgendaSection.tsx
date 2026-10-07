@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CalendarEvent, Client, AgendaViewMode } from '@/types';
+import { CalendarEvent, Client, AgendaViewMode, CalendarEventStatus } from '@/types';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -15,6 +15,12 @@ import {
   CheckCircle2,
   User,
   Repeat,
+  RotateCcw,
+  XCircle,
+  AlertCircle,
+  CalendarClock,
+  Check,
+  Filter,
 } from 'lucide-react';
 
 interface AgendaSectionProps {
@@ -56,6 +62,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(null);
 
+  // Status Filter State
+  const [statusFilter, setStatusFilter] = useState<'todos' | CalendarEventStatus>('todos');
+
   // Form State
   const [selectedClientId, setSelectedClientId] = useState<string>(
     clients[0]?.id || ''
@@ -66,6 +75,18 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [eventDate, setEventDate] = useState('2026-10-02');
   const [recurringDays, setRecurringDays] = useState<number[]>([1, 3, 5]); // Seg, Qua, Sex
   const [eventNotes, setEventNotes] = useState('');
+  const [eventStatus, setEventStatus] = useState<CalendarEventStatus>('confirmado');
+  const [rescheduledDate, setRescheduledDate] = useState('');
+  const [rescheduledTime, setRescheduledTime] = useState('');
+
+  // Quick 1-tap Status Change Handler
+  const handleQuickStatusChange = (event: CalendarEvent, newStatus: CalendarEventStatus) => {
+    const updated: CalendarEvent = {
+      ...event,
+      status: newStatus,
+    };
+    onUpdateEvent(updated);
+  };
 
   const openNewModal = (defaultDate?: string, defaultHour?: string) => {
     setEditingEvent(null);
@@ -76,6 +97,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setEventDate(defaultDate || selectedDate);
     setRecurringDays([]);
     setEventNotes('');
+    setEventStatus('confirmado');
+    setRescheduledDate('');
+    setRescheduledTime('');
     setIsModalOpen(true);
   };
 
@@ -88,6 +112,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setEventDate(event.date);
     setRecurringDays(event.recurringDays || []);
     setEventNotes(event.notes || '');
+    setEventStatus(event.status || 'confirmado');
+    setRescheduledDate(event.rescheduledDate || '');
+    setRescheduledTime(event.rescheduledTime || '');
     setIsModalOpen(true);
   };
 
@@ -115,6 +142,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         endTime,
         recurringDays,
         notes: eventNotes.trim(),
+        status: eventStatus,
+        rescheduledDate: eventStatus === 'reagendado' ? rescheduledDate : undefined,
+        rescheduledTime: eventStatus === 'reagendado' ? rescheduledTime : undefined,
       };
       onUpdateEvent(updated);
     } else {
@@ -128,7 +158,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         endTime,
         recurringDays,
         notes: eventNotes.trim(),
-        status: 'confirmado',
+        status: eventStatus,
+        rescheduledDate: eventStatus === 'reagendado' ? rescheduledDate : undefined,
+        rescheduledTime: eventStatus === 'reagendado' ? rescheduledTime : undefined,
       };
       onAddEvent(newEvt);
     }
@@ -164,9 +196,16 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     DAYS_NAMES[currentDateObj.getDay()]
   }, ${currentDateObj.getDate()} de ${MONTHS_NAMES[currentDateObj.getMonth()]} de ${currentDateObj.getFullYear()}`;
 
+  // Filter events by status if requested
+  const filteredEvents = events.filter((e) => {
+    if (statusFilter === 'todos') return true;
+    if (statusFilter === 'confirmado') return !e.status || e.status === 'confirmado';
+    return e.status === statusFilter;
+  });
+
   // Filter events for the current date (single date or matching recurring day)
   const currentDayOfWeek = currentDateObj.getDay();
-  const dayEvents = events.filter((e) => {
+  const dayEvents = filteredEvents.filter((e) => {
     const isDirectDate = e.date === selectedDate;
     const isRecurring = e.recurringDays && e.recurringDays.includes(currentDayOfWeek);
     return isDirectDate || isRecurring;
@@ -250,6 +289,64 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         <h2 className="text-xs font-bold text-slate-300 capitalize sm:hidden">
           {formattedDayStr}
         </h2>
+
+        {/* Attendance Status Filter & Counters Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-slate-800/80">
+          <span className="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1 flex-shrink-0">
+            <Filter className="w-3 h-3 text-purple-400" />
+            Status:
+          </span>
+          {[
+            {
+              id: 'todos',
+              label: 'Todos',
+              count: events.length,
+              badgeActive: 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400',
+              badgeInactive: 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white',
+            },
+            {
+              id: 'realizado',
+              label: 'Realizado',
+              count: events.filter((e) => e.status === 'realizado').length,
+              badgeActive: 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400',
+              badgeInactive: 'bg-emerald-950/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-950/40',
+            },
+            {
+              id: 'reagendado',
+              label: 'Reagendado',
+              count: events.filter((e) => e.status === 'reagendado').length,
+              badgeActive: 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400',
+              badgeInactive: 'bg-amber-950/20 text-amber-300 border border-amber-500/30 hover:bg-amber-950/40',
+            },
+            {
+              id: 'falta',
+              label: 'Falta',
+              count: events.filter((e) => e.status === 'falta').length,
+              badgeActive: 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400',
+              badgeInactive: 'bg-rose-950/20 text-rose-300 border border-rose-500/30 hover:bg-rose-950/40',
+            },
+            {
+              id: 'confirmado',
+              label: 'Agendado',
+              count: events.filter((e) => !e.status || e.status === 'confirmado').length,
+              badgeActive: 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400',
+              badgeInactive: 'bg-purple-950/20 text-purple-300 border border-purple-500/30 hover:bg-purple-950/40',
+            },
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setStatusFilter(f.id as any)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5 flex-shrink-0 active:scale-95 ${
+                statusFilter === f.id ? f.badgeActive : f.badgeInactive
+              }`}
+            >
+              <span>{f.label}</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-900/80 font-mono font-bold">
+                {f.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* VIEW: DIA (Hour-by-hour schedule grid) */}
@@ -306,67 +403,178 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                         <div className="space-y-2">
                           {hourEvents.map((evt) => {
                             const client = clients.find((c) => c.id === evt.clientId);
+                            const isRealizado = evt.status === 'realizado';
+                            const isReagendado = evt.status === 'reagendado';
+                            const isFalta = evt.status === 'falta';
+
+                            const cardBgBorder = isRealizado
+                              ? 'bg-gradient-to-r from-emerald-950/40 to-slate-900 border-emerald-600/50'
+                              : isReagendado
+                              ? 'bg-gradient-to-r from-amber-950/40 to-slate-900 border-amber-600/50'
+                              : isFalta
+                              ? 'bg-gradient-to-r from-rose-950/40 to-slate-900 border-rose-600/50'
+                              : 'bg-gradient-to-r from-purple-950/60 to-slate-900 border-purple-800/50';
 
                             return (
                               <div
                                 key={evt.id}
-                                className="p-3 rounded-xl bg-gradient-to-r from-purple-950/60 to-slate-900 border border-purple-800/50 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                className={`p-3 rounded-xl border shadow-md space-y-2.5 transition ${cardBgBorder}`}
                               >
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-sm text-white">
-                                      {evt.clientName}
-                                    </span>
-                                    {evt.recurringDays && evt.recurringDays.length > 0 && (
-                                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                        <Repeat className="w-2.5 h-2.5" />
-                                        Recorrente
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-bold text-sm text-white">
+                                        {evt.clientName}
                                       </span>
+
+                                      {/* Status Badge */}
+                                      {isRealizado && (
+                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          Realizado
+                                        </span>
+                                      )}
+                                      {isReagendado && (
+                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                          <RotateCcw className="w-3 h-3" />
+                                          Reagendado
+                                        </span>
+                                      )}
+                                      {isFalta && (
+                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                          <XCircle className="w-3 h-3" />
+                                          Falta
+                                        </span>
+                                      )}
+                                      {(!evt.status || evt.status === 'confirmado') && (
+                                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                          <CalendarIcon className="w-2.5 h-2.5" />
+                                          Agendado
+                                        </span>
+                                      )}
+
+                                      {evt.recurringDays && evt.recurringDays.length > 0 && (
+                                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                          <Repeat className="w-2.5 h-2.5" />
+                                          Recorrente
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                                      <span className="flex items-center gap-1 text-purple-300 font-mono font-semibold">
+                                        <Clock className="w-3.5 h-3.5 text-purple-400" />
+                                        {evt.startTime} - {evt.endTime}
+                                      </span>
+                                      <span>•</span>
+                                      <span className="font-medium text-slate-300">{evt.title}</span>
+                                    </div>
+
+                                    {/* Informações de Reagendamento */}
+                                    {isReagendado && (evt.rescheduledDate || evt.rescheduledTime) && (
+                                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-500/30">
+                                        <CalendarClock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                                        <span>
+                                          Novo horário agendado: {evt.rescheduledDate ? evt.rescheduledDate : ''}{' '}
+                                          {evt.rescheduledTime ? `às ${evt.rescheduledTime}` : ''}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {evt.notes && (
+                                      <p className="text-[11px] text-slate-400 italic">
+                                        &ldquo;{evt.notes}&rdquo;
+                                      </p>
                                     )}
                                   </div>
 
-                                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                                    <span className="flex items-center gap-1 text-purple-300 font-mono">
-                                      <Clock className="w-3.5 h-3.5 text-purple-400" />
-                                      {evt.startTime} - {evt.endTime}
-                                    </span>
-                                    <span>•</span>
-                                    <span>{evt.title}</span>
+                                  {/* Options on Card: Iniciar Treino, Editar, Excluir */}
+                                  <div className="flex items-center gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 self-end sm:self-center">
+                                    {client && (
+                                      <button
+                                        onClick={() => onStartWorkoutForClient(client)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition"
+                                        title="Iniciar Treino Imediatamente"
+                                      >
+                                        <Play className="w-3.5 h-3.5 fill-white" />
+                                        <span>Treinar</span>
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => openEditModal(evt)}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95"
+                                      title="Editar Compromisso"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => setEventToDelete(evt)}
+                                      className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95"
+                                      title="Excluir Compromisso"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
                                   </div>
-
-                                  {evt.notes && (
-                                    <p className="text-[11px] text-slate-400 italic">
-                                      {evt.notes}
-                                    </p>
-                                  )}
                                 </div>
 
-                                {/* Options on Card: Iniciar Treino, Editar, Excluir */}
-                                <div className="flex items-center gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
-                                  {client && (
+                                {/* Barra Rápida de Alteração de Status da Aula (1 Toque) */}
+                                <div className="flex items-center gap-1 flex-wrap pt-2 border-t border-slate-800/70">
+                                  <span className="text-[10px] font-bold text-slate-400 mr-1">
+                                    Alterar Status:
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(evt, 'realizado')}
+                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                                      isRealizado
+                                        ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                                        : 'bg-slate-900/90 hover:bg-emerald-950/50 text-slate-300 hover:text-emerald-300 border border-slate-800'
+                                    }`}
+                                    title="Marcar aula como Realizada"
+                                  >
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                    <span>Realizado</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(evt, 'reagendado')}
+                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                                      isReagendado
+                                        ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+                                        : 'bg-slate-900/90 hover:bg-amber-950/50 text-slate-300 hover:text-amber-300 border border-slate-800'
+                                    }`}
+                                    title="Marcar aula como Reagendada"
+                                  >
+                                    <RotateCcw className="w-2.5 h-2.5" />
+                                    <span>Reagendado</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(evt, 'falta')}
+                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                                      isFalta
+                                        ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
+                                        : 'bg-slate-900/90 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-slate-800'
+                                    }`}
+                                    title="Marcar falta do aluno"
+                                  >
+                                    <XCircle className="w-2.5 h-2.5" />
+                                    <span>Falta</span>
+                                  </button>
+
+                                  {evt.status !== 'confirmado' && (
                                     <button
-                                      onClick={() => onStartWorkoutForClient(client)}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition"
-                                      title="Iniciar Treino Imediatamente"
+                                      type="button"
+                                      onClick={() => handleQuickStatusChange(evt, 'confirmado')}
+                                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900/90 hover:bg-purple-950/50 border border-slate-800 transition active:scale-95 ml-auto"
+                                      title="Redefinir para Agendado"
                                     >
-                                      <Play className="w-3.5 h-3.5 fill-white" />
-                                      <span>Treinar</span>
+                                      <span>↺ Agendado</span>
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => openEditModal(evt)}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95"
-                                    title="Editar Compromisso"
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => setEventToDelete(evt)}
-                                    className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95"
-                                    title="Excluir Compromisso"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
                                 </div>
                               </div>
                             );
@@ -386,7 +594,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       {viewMode === 'semana' && (
         <div className="grid grid-cols-7 gap-1.5 overflow-x-auto pb-2">
           {DAYS_NAMES.map((dayName, idx) => {
-            const dayEvts = events.filter((e) => {
+            const dayEvts = filteredEvents.filter((e) => {
               if (e.recurringDays && e.recurringDays.includes(idx)) return true;
               const dateOfEvent = new Date(e.date + 'T12:00:00');
               return dateOfEvent.getDay() === idx;
@@ -405,18 +613,55 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 </div>
 
                 <div className="space-y-1.5 flex-1">
-                  {dayEvts.map((evt) => (
-                    <div
-                      key={evt.id}
-                      onClick={() => openEditModal(evt)}
-                      className="p-1.5 rounded-lg bg-purple-950/60 border border-purple-800/40 text-[11px] cursor-pointer hover:border-purple-400 transition"
-                    >
-                      <span className="font-mono text-purple-300 block text-[10px]">
-                        {evt.startTime}
-                      </span>
-                      <strong className="text-white block truncate">{evt.clientName}</strong>
-                    </div>
-                  ))}
+                  {dayEvts.map((evt) => {
+                    const isRealizado = evt.status === 'realizado';
+                    const isReagendado = evt.status === 'reagendado';
+                    const isFalta = evt.status === 'falta';
+
+                    const weekCardClass = isRealizado
+                      ? 'bg-emerald-950/40 border-emerald-600/50 hover:border-emerald-400'
+                      : isReagendado
+                      ? 'bg-amber-950/40 border-amber-600/50 hover:border-amber-400'
+                      : isFalta
+                      ? 'bg-rose-950/40 border-rose-600/50 hover:border-rose-400'
+                      : 'bg-purple-950/60 border-purple-800/40 hover:border-purple-400';
+
+                    return (
+                      <div
+                        key={evt.id}
+                        onClick={() => openEditModal(evt)}
+                        className={`p-2 rounded-lg border text-[11px] cursor-pointer transition space-y-1 ${weekCardClass}`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-mono text-purple-300 block text-[10px] font-bold">
+                            {evt.startTime}
+                          </span>
+                          {isRealizado && (
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" title="Realizado" />
+                          )}
+                          {isReagendado && (
+                            <span className="w-2 h-2 rounded-full bg-amber-400" title="Reagendado" />
+                          )}
+                          {isFalta && (
+                            <span className="w-2 h-2 rounded-full bg-rose-400" title="Falta" />
+                          )}
+                          {(!evt.status || evt.status === 'confirmado') && (
+                            <span className="w-2 h-2 rounded-full bg-purple-400" title="Agendado" />
+                          )}
+                        </div>
+                        <strong className="text-white block truncate">{evt.clientName}</strong>
+                        {isRealizado && (
+                          <span className="text-[9px] font-extrabold text-emerald-400 block">✓ Realizado</span>
+                        )}
+                        {isReagendado && (
+                          <span className="text-[9px] font-extrabold text-amber-400 block">↺ Reagendado</span>
+                        )}
+                        {isFalta && (
+                          <span className="text-[9px] font-extrabold text-rose-400 block">✕ Falta</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <button
@@ -505,53 +750,171 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-semibold">
             <span>Lista Cronológica de Aulas</span>
-            <span>Total: {events.length} compromissos cadastrados</span>
+            <span>
+              {filteredEvents.length} de {events.length} compromissos
+            </span>
           </div>
 
-          {events.map((evt) => {
-            const client = clients.find((c) => c.id === evt.clientId);
+          {filteredEvents.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-xs">
+              Nenhuma aula encontrada com o filtro selecionado.
+            </div>
+          ) : (
+            filteredEvents.map((evt) => {
+              const client = clients.find((c) => c.id === evt.clientId);
+              const isRealizado = evt.status === 'realizado';
+              const isReagendado = evt.status === 'reagendado';
+              const isFalta = evt.status === 'falta';
 
-            return (
-              <div
-                key={evt.id}
-                className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex items-center justify-between gap-3"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
-                      {evt.date} • {evt.startTime}
-                    </span>
-                    <strong className="text-sm font-bold text-white">{evt.clientName}</strong>
+              const cardBgBorder = isRealizado
+                ? 'bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border-emerald-600/50'
+                : isReagendado
+                ? 'bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border-amber-600/50'
+                : isFalta
+                ? 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-slate-900 border-rose-600/50'
+                : 'bg-slate-900 border-slate-800';
+
+              return (
+                <div
+                  key={evt.id}
+                  className={`p-4 rounded-2xl border shadow-md space-y-3 transition ${cardBgBorder}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
+                          {evt.date} • {evt.startTime} - {evt.endTime}
+                        </span>
+                        <strong className="text-sm font-bold text-white">{evt.clientName}</strong>
+
+                        {/* Status Badge */}
+                        {isRealizado && (
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Realizado
+                          </span>
+                        )}
+                        {isReagendado && (
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            <RotateCcw className="w-3 h-3" />
+                            Reagendado
+                          </span>
+                        )}
+                        {isFalta && (
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                            <XCircle className="w-3 h-3" />
+                            Falta
+                          </span>
+                        )}
+                        {(!evt.status || evt.status === 'confirmado') && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            <CalendarIcon className="w-2.5 h-2.5" />
+                            Agendado
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-300">{evt.title}</p>
+
+                      {isReagendado && (evt.rescheduledDate || evt.rescheduledTime) && (
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-500/30">
+                          <CalendarClock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                          <span>
+                            Novo horário: {evt.rescheduledDate ? evt.rescheduledDate : ''}{' '}
+                            {evt.rescheduledTime ? `às ${evt.rescheduledTime}` : ''}
+                          </span>
+                        </div>
+                      )}
+
+                      {evt.notes && (
+                        <p className="text-[11px] text-slate-400 italic">
+                          &ldquo;{evt.notes}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      {client && (
+                        <button
+                          onClick={() => onStartWorkoutForClient(client)}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 active:scale-95 shadow-md"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-white" />
+                          <span>Iniciar</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openEditModal(evt)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteEvent(evt.id)}
+                        className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400">{evt.title}</p>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  {client && (
+                  {/* Barra Rápida de Alteração de Status */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] font-bold text-slate-400 mr-1">
+                      Status da Aula:
+                    </span>
                     <button
-                      onClick={() => onStartWorkoutForClient(client)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 active:scale-95"
+                      type="button"
+                      onClick={() => handleQuickStatusChange(evt, 'realizado')}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                        isRealizado
+                          ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                          : 'bg-slate-900 hover:bg-emerald-950/50 text-slate-300 hover:text-emerald-300 border border-slate-800'
+                      }`}
                     >
-                      <Play className="w-3.5 h-3.5 fill-white" />
-                      <span>Iniciar</span>
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                      <span>Realizado</span>
                     </button>
-                  )}
-                  <button
-                    onClick={() => openEditModal(evt)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onDeleteEvent(evt.id)}
-                    className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickStatusChange(evt, 'reagendado')}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                        isReagendado
+                          ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+                          : 'bg-slate-900 hover:bg-amber-950/50 text-slate-300 hover:text-amber-300 border border-slate-800'
+                      }`}
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>Reagendado</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickStatusChange(evt, 'falta')}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                        isFalta
+                          ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
+                          : 'bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-slate-800'
+                      }`}
+                    >
+                      <XCircle className="w-2.5 h-2.5" />
+                      <span>Falta</span>
+                    </button>
+                    {evt.status !== 'confirmado' && (
+                      <button
+                        type="button"
+                        onClick={() => handleQuickStatusChange(evt, 'confirmado')}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900 border border-slate-800 transition active:scale-95 ml-auto"
+                      >
+                        <span>↺ Agendado</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
@@ -680,6 +1043,95 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Status da Aula (Realizado, Reagendado, Falta, Agendado) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Status da Aula *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {
+                      value: 'realizado',
+                      label: 'Realizado',
+                      icon: CheckCircle2,
+                      activeClass: 'bg-emerald-600 text-white ring-2 ring-emerald-400 shadow-md',
+                      inactiveClass:
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-emerald-500/50',
+                    },
+                    {
+                      value: 'reagendado',
+                      label: 'Reagendado',
+                      icon: RotateCcw,
+                      activeClass: 'bg-amber-600 text-white ring-2 ring-amber-400 shadow-md',
+                      inactiveClass:
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-amber-500/50',
+                    },
+                    {
+                      value: 'falta',
+                      label: 'Falta',
+                      icon: XCircle,
+                      activeClass: 'bg-rose-600 text-white ring-2 ring-rose-400 shadow-md',
+                      inactiveClass:
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-rose-500/50',
+                    },
+                    {
+                      value: 'confirmado',
+                      label: 'Agendado',
+                      icon: CalendarIcon,
+                      activeClass: 'bg-purple-600 text-white ring-2 ring-purple-400 shadow-md',
+                      inactiveClass:
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-purple-500/50',
+                    },
+                  ].map((opt) => {
+                    const isSelected = eventStatus === opt.value;
+                    const IconComp = opt.icon;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setEventStatus(opt.value as CalendarEventStatus)}
+                        className={`p-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 ${
+                          isSelected ? opt.activeClass : opt.inactiveClass
+                        }`}
+                      >
+                        <IconComp className="w-3.5 h-3.5" />
+                        <span>{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Campos adicionais quando status for 'Reagendado' */}
+                {eventStatus === 'reagendado' && (
+                  <div className="mt-2.5 p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-2 animate-in fade-in duration-150">
+                    <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                      <CalendarClock className="w-3.5 h-3.5 text-amber-400" />
+                      Novo Horário da Aula Reagendada (Opcional):
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-0.5">Nova Data</label>
+                        <input
+                          type="date"
+                          value={rescheduledDate}
+                          onChange={(e) => setRescheduledDate(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-0.5">Novo Horário</label>
+                        <input
+                          type="time"
+                          value={rescheduledTime}
+                          onChange={(e) => setRescheduledTime(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Observações */}

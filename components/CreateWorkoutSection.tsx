@@ -11,6 +11,9 @@ import {
   MUSCLE_GROUPS,
   ExtraBlock,
   DatabaseExercise,
+  WORKOUT_METHODS,
+  ExerciseSetDetail,
+  ExerciseSubSetDetail,
 } from '@/types';
 import { storage } from '@/lib/storage';
 import {
@@ -40,6 +43,9 @@ import {
   Filter,
   RotateCcw,
   AlertTriangle,
+  Link2,
+  Unlink,
+  ArrowDown,
 } from 'lucide-react';
 
 interface CreateWorkoutSectionProps {
@@ -107,6 +113,78 @@ const COMMON_EXERCISES: Record<MuscleGroup, string[]> = {
   Panturrilha: ['Gêmeos em Pé no Degrau', 'Gêmeos Sentado na Máquina', 'Panturrilha no Leg Press'],
   Trapézio: ['Encolhimento com Barra', 'Encolhimento com Halteres'],
   Abdômen: ['Abdominal Supra no Solo', 'Abdominal na Polia / Corda', 'Elevação de Pernas na Barra', 'Prancha Isométrica'],
+};
+
+// Helper to detect if a method requires automatic subsérie generation
+const isMethodWithSubsets = (method: string | undefined): boolean => {
+  if (!method) return false;
+  const m = method.trim().toLowerCase();
+  return (
+    m === '3/7' ||
+    m === 'cluster-set' ||
+    m === 'cluster set' ||
+    m === 'drop-set tradicional' ||
+    m === 'drop-set adaptado' ||
+    m === 'fst-7' ||
+    m === 'parcial'
+  );
+};
+
+// Generates smart default data for a subsérie based on the chosen advanced method
+const getDefaultSubSetData = (
+  method: string,
+  subSetNumber: number,
+  mainRepZone?: string,
+  mainWeight?: number
+): ExerciseSubSetDetail => {
+  const m = method.trim().toLowerCase();
+  let repZone = 'Até a falha';
+  let suggestedWeightKg: number | undefined = mainWeight;
+  let note = '';
+
+  if (m === '3/7') {
+    const stepReps = Math.min(3 + subSetNumber, 7);
+    repZone = `${stepReps} reps`;
+    suggestedWeightKg = mainWeight;
+    note = `Passo ${subSetNumber + 1} (${stepReps} reps) • 15s intervalo`;
+  } else if (m === 'cluster-set' || m === 'cluster set') {
+    repZone = '3-5 reps';
+    suggestedWeightKg = mainWeight;
+    note = `Cluster ${subSetNumber} • 10-15s pausa intra-série`;
+  } else if (m === 'drop-set tradicional') {
+    repZone = 'Até a falha';
+    if (mainWeight && mainWeight > 0) {
+      const reduction = 0.2 * subSetNumber;
+      suggestedWeightKg = Math.max(1, Math.round(mainWeight * (1 - reduction)));
+    }
+    note = `Drop ${subSetNumber} • Redução ~20-25% sem descanso`;
+  } else if (m === 'drop-set adaptado') {
+    repZone = 'Até a falha';
+    if (mainWeight && mainWeight > 0) {
+      const reduction = 0.15 * subSetNumber;
+      suggestedWeightKg = Math.max(1, Math.round(mainWeight * (1 - reduction)));
+    }
+    note = `Drop adaptado ${subSetNumber} • Redução sem descanso`;
+  } else if (m === 'fst-7') {
+    repZone = '10-12 reps';
+    suggestedWeightKg = mainWeight;
+    note = `Série FST-7 #${subSetNumber + 1} • 30s descanso + alongamento`;
+  } else if (m === 'parcial') {
+    repZone = 'Parciais até a falha';
+    suggestedWeightKg = mainWeight;
+    note = `Repetições parciais imediatas sem descanso`;
+  } else {
+    repZone = mainRepZone || '8-10';
+    note = 'Subsérie complementar';
+  }
+
+  return {
+    id: `subset-${Date.now()}-${subSetNumber}-${Math.random().toString(36).substring(2, 6)}`,
+    subSetNumber,
+    repZone,
+    suggestedWeightKg,
+    note,
+  };
 };
 
 export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
@@ -196,6 +274,14 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   const [newExName, setNewExName] = useState('');
   const [newExMuscleGroup, setNewExMuscleGroup] = useState<MuscleGroup>('Peitoral');
   const [exerciseToDeleteFromDb, setExerciseToDeleteFromDb] = useState<DatabaseExercise | null>(null);
+
+  // EXERCISES EXPANSION STATE (DEFAULT: COLLAPSED)
+  const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
+
+  // COMBINE EXERCISES MODAL STATE
+  const [isCombineModalOpen, setIsCombineModalOpen] = useState(false);
+  const [selectedExerciseIdsToCombine, setSelectedExerciseIdsToCombine] = useState<string[]>([]);
+  const [combinationLabel, setCombinationLabel] = useState<string>('Bi-Set');
 
   // Handle client change via user selection
   const handleClientChange = (newClientId: string) => {
@@ -626,8 +712,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         );
         return { ...prev, splits: updatedSplits };
       } else {
+        const newExId = `ex-${dbExercise.id}-${Date.now()}-${currentSplit.exercises.length + 1}`;
         const newExItem: ExerciseItem = {
-          id: `ex-${dbExercise.id}-${currentSplit.exercises.length + 1}`,
+          id: newExId,
           name: dbExercise.name,
           muscleGroup: dbExercise.muscleGroup,
           sets: 4,
@@ -636,7 +723,14 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
           method: 'Normal',
           observations: '',
           extraBlocks: [],
+          setDetails: [
+            { id: `s-${newExId}-1`, setNumber: 1, repZone: '8-12', method: 'Normal' },
+            { id: `s-${newExId}-2`, setNumber: 2, repZone: '8-12', method: 'Normal' },
+            { id: `s-${newExId}-3`, setNumber: 3, repZone: '8-12', method: 'Normal' },
+            { id: `s-${newExId}-4`, setNumber: 4, repZone: '8-12', method: 'Normal' },
+          ],
         };
+        setExpandedExerciseIds((exp) => ({ ...exp, [newExId]: true }));
         const updatedSplits = prev.splits.map((s) =>
           s.id === currentSplit.id ? { ...s, exercises: [...s.exercises, newExItem] } : s
         );
@@ -724,6 +818,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
       if (!currentSplit) return prev;
 
+      const target = currentSplit.exercises[index];
+      if (target) {
+        setExpandedExerciseIds((exp) => {
+          const next = { ...exp };
+          delete next[target.id];
+          return next;
+        });
+      }
+
       const updatedExercises = currentSplit.exercises.filter((_, i) => i !== index);
       const updatedSplits = prev.splits.map((s) =>
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
@@ -733,22 +836,69 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     });
   };
 
-  const addExtraBlock = (exIndex: number) => {
-    const newBlock: ExtraBlock = {
-      id: `block-${exIndex}-${Math.random().toString(36).substring(2, 8)}`,
-      type: 'Drop-set',
-      repsText: '6-8 reps + falha',
-      note: 'Reduzir 20-30% da carga imediatamente sem descanso.',
-    };
+  // Helper to guarantee setDetails exists for an exercise
+  const getExerciseSetDetails = (ex: ExerciseItem): ExerciseSetDetail[] => {
+    if (ex.setDetails && ex.setDetails.length > 0) {
+      return ex.setDetails;
+    }
+    const count = Math.max(1, ex.sets || 3);
+    return Array.from({ length: count }).map((_, i) => ({
+      id: `s-${ex.id}-${i + 1}`,
+      setNumber: i + 1,
+      repZone: ex.repZone || '8-12',
+      method: ex.method || 'Normal',
+    }));
+  };
 
+  const handleToggleExerciseExpand = (exId: string) => {
+    setExpandedExerciseIds((prev) => ({
+      ...prev,
+      [exId]: !prev[exId],
+    }));
+  };
+
+  const handleExpandAllExercises = () => {
+    if (!activeSplit) return;
+    const allExpanded: Record<string, boolean> = {};
+    activeSplit.exercises.forEach((ex) => {
+      allExpanded[ex.id] = true;
+    });
+    setExpandedExerciseIds(allExpanded);
+  };
+
+  const handleCollapseAllExercises = () => {
+    setExpandedExerciseIds({});
+  };
+
+  // Add individual set to exercise
+  const handleAddSetToExercise = (exIndex: number) => {
     setEditingProgram((prev) => {
       if (!prev) return null;
       const currentSplit =
         prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
       if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
 
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      const lastSet = currentSets[currentSets.length - 1];
+      const newSetNumber = currentSets.length + 1;
+      const newSet: ExerciseSetDetail = {
+        id: `s-${targetEx.id}-${Date.now()}-${newSetNumber}`,
+        setNumber: newSetNumber,
+        repZone: lastSet?.repZone || targetEx.repZone || '8-12',
+        suggestedWeightKg: lastSet?.suggestedWeightKg,
+        method: lastSet?.method || targetEx.method || 'Normal',
+      };
+
+      const updatedSets = [...currentSets, newSet];
       const updatedExercises = currentSplit.exercises.map((ex, i) =>
-        i === exIndex ? { ...ex, extraBlocks: [...ex.extraBlocks, newBlock] } : ex
+        i === exIndex
+          ? {
+              ...ex,
+              sets: updatedSets.length,
+              setDetails: updatedSets,
+            }
+          : ex
       );
 
       const updatedSplits = prev.splits.map((s) =>
@@ -759,11 +909,45 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     });
   };
 
-  const updateExtraBlock = (
+  // Remove individual set from exercise
+  const handleRemoveSetFromExercise = (exIndex: number, setIndex: number) => {
+    setEditingProgram((prev) => {
+      if (!prev) return null;
+      const currentSplit =
+        prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
+      if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
+
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      if (currentSets.length <= 1) return prev; // Keep at least 1 set
+
+      const filtered = currentSets.filter((_, idx) => idx !== setIndex);
+      const renumbered = filtered.map((s, idx) => ({ ...s, setNumber: idx + 1 }));
+
+      const updatedExercises = currentSplit.exercises.map((ex, i) =>
+        i === exIndex
+          ? {
+              ...ex,
+              sets: renumbered.length,
+              setDetails: renumbered,
+            }
+          : ex
+      );
+
+      const updatedSplits = prev.splits.map((s) =>
+        s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
+      );
+
+      return { ...prev, splits: updatedSplits };
+    });
+  };
+
+  // Update detail of an individual set (repZone, suggestedWeightKg, method, notes)
+  const handleUpdateSetDetail = (
     exIndex: number,
-    blockIndex: number,
-    field: keyof ExtraBlock,
-    value: string
+    setIndex: number,
+    field: keyof ExerciseSetDetail,
+    value: any
   ) => {
     setEditingProgram((prev) => {
       if (!prev) return null;
@@ -771,13 +955,88 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
       if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
 
-      const ex = currentSplit.exercises[exIndex];
-      const updatedBlocks = ex.extraBlocks.map((blk, i) =>
-        i === blockIndex ? { ...blk, [field]: value } : blk
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      const updatedSets = currentSets.map((s, idx) => {
+        if (idx !== setIndex) return s;
+
+        const updatedSet: ExerciseSetDetail = { ...s, [field]: value };
+        if (field === 'method') {
+          const newMethod = value as string;
+          if (isMethodWithSubsets(newMethod)) {
+            // Auto-create initial subsérie if none exists yet
+            if (!updatedSet.subSets || updatedSet.subSets.length === 0) {
+              updatedSet.subSets = [
+                getDefaultSubSetData(newMethod, 1, updatedSet.repZone, updatedSet.suggestedWeightKg),
+              ];
+            }
+          }
+        }
+        return updatedSet;
+      });
+
+      const updatedExercises = currentSplit.exercises.map((ex, i) => {
+        if (i === exIndex) {
+          const updatedEx = {
+            ...ex,
+            setDetails: updatedSets,
+          };
+          if (field === 'repZone' && setIndex === 0) {
+            updatedEx.repZone = value;
+          }
+          if (field === 'method') {
+            const firstSpecial = updatedSets.find((st) => st.method && st.method !== 'Normal');
+            updatedEx.method = firstSpecial ? firstSpecial.method : 'Normal';
+          }
+          return updatedEx;
+        }
+        return ex;
+      });
+
+      const updatedSplits = prev.splits.map((s) =>
+        s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
 
-      const updatedExercises = currentSplit.exercises.map((item, i) =>
-        i === exIndex ? { ...item, extraBlocks: updatedBlocks } : item
+      return { ...prev, splits: updatedSplits };
+    });
+  };
+
+  // Add a subsérie to a specific set
+  const handleAddSubSetToSet = (exIndex: number, setIndex: number) => {
+    setEditingProgram((prev) => {
+      if (!prev) return null;
+      const currentSplit =
+        prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
+      if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
+
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      const targetSet = currentSets[setIndex];
+      if (!targetSet) return prev;
+
+      const currentSubSets = targetSet.subSets || [];
+      const nextSubNumber = currentSubSets.length + 1;
+      const lastSub = currentSubSets[currentSubSets.length - 1];
+      const baseWeight = lastSub?.suggestedWeightKg ?? targetSet.suggestedWeightKg;
+
+      const newSubSet = getDefaultSubSetData(
+        targetSet.method || 'Drop-Set Tradicional',
+        nextSubNumber,
+        targetSet.repZone,
+        baseWeight
+      );
+
+      const updatedSets = currentSets.map((s, idx) =>
+        idx === setIndex
+          ? {
+              ...s,
+              subSets: [...currentSubSets, newSubSet],
+            }
+          : s
+      );
+
+      const updatedExercises = currentSplit.exercises.map((ex, i) =>
+        i === exIndex ? { ...ex, setDetails: updatedSets } : ex
       );
 
       const updatedSplits = prev.splits.map((s) =>
@@ -788,24 +1047,304 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     });
   };
 
-  const removeExtraBlock = (exIndex: number, blockIndex: number) => {
+  // Remove a subsérie from a specific set
+  const handleRemoveSubSetFromSet = (
+    exIndex: number,
+    setIndex: number,
+    subSetIndex: number
+  ) => {
     setEditingProgram((prev) => {
       if (!prev) return null;
       const currentSplit =
         prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
       if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
 
-      const ex = currentSplit.exercises[exIndex];
-      const updatedBlocks = ex.extraBlocks.filter((_, i) => i !== blockIndex);
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      const targetSet = currentSets[setIndex];
+      if (!targetSet || !targetSet.subSets) return prev;
 
-      const updatedExercises = currentSplit.exercises.map((item, i) =>
-        i === exIndex ? { ...item, extraBlocks: updatedBlocks } : item
+      const filteredSubSets = targetSet.subSets.filter((_, i) => i !== subSetIndex);
+      const renumberedSubSets = filteredSubSets.map((sub, i) => ({
+        ...sub,
+        subSetNumber: i + 1,
+      }));
+
+      const updatedSets = currentSets.map((s, idx) =>
+        idx === setIndex
+          ? {
+              ...s,
+              subSets: renumberedSubSets,
+            }
+          : s
+      );
+
+      const updatedExercises = currentSplit.exercises.map((ex, i) =>
+        i === exIndex ? { ...ex, setDetails: updatedSets } : ex
       );
 
       const updatedSplits = prev.splits.map((s) =>
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
 
+      return { ...prev, splits: updatedSplits };
+    });
+  };
+
+  // Update a field inside a subsérie
+  const handleUpdateSubSetDetail = (
+    exIndex: number,
+    setIndex: number,
+    subSetIndex: number,
+    field: keyof ExerciseSubSetDetail,
+    value: any
+  ) => {
+    setEditingProgram((prev) => {
+      if (!prev) return null;
+      const currentSplit =
+        prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
+      if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
+
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      const targetSet = currentSets[setIndex];
+      if (!targetSet || !targetSet.subSets) return prev;
+
+      const updatedSubSets = targetSet.subSets.map((sub, i) =>
+        i === subSetIndex ? { ...sub, [field]: value } : sub
+      );
+
+      const updatedSets = currentSets.map((s, idx) =>
+        idx === setIndex
+          ? {
+              ...s,
+              subSets: updatedSubSets,
+            }
+          : s
+      );
+
+      const updatedExercises = currentSplit.exercises.map((ex, i) =>
+        i === exIndex ? { ...ex, setDetails: updatedSets } : ex
+      );
+
+      const updatedSplits = prev.splits.map((s) =>
+        s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
+      );
+
+      return { ...prev, splits: updatedSplits };
+    });
+  };
+
+  // Apply method to all sets of an exercise
+  const handleApplyMethodToAllSets = (exIndex: number, method: string) => {
+    setEditingProgram((prev) => {
+      if (!prev) return null;
+      const currentSplit =
+        prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
+      if (!currentSplit || !currentSplit.exercises[exIndex]) return prev;
+
+      const targetEx = currentSplit.exercises[exIndex];
+      const currentSets = getExerciseSetDetails(targetEx);
+      const firstSetSubSets = currentSets[0]?.subSets;
+
+      const updatedSets = currentSets.map((s, idx) => {
+        const updated: ExerciseSetDetail = { ...s, method };
+        if (isMethodWithSubsets(method)) {
+          if (idx === 0 && firstSetSubSets && firstSetSubSets.length > 0) {
+            updated.subSets = firstSetSubSets;
+          } else if (firstSetSubSets && firstSetSubSets.length > 0) {
+            // Clone template from set 1
+            updated.subSets = firstSetSubSets.map((sub, subIdx) => ({
+              ...sub,
+              id: `subset-${s.id}-${Date.now()}-${subIdx + 1}`,
+              suggestedWeightKg: sub.suggestedWeightKg ?? s.suggestedWeightKg,
+            }));
+          } else {
+            updated.subSets = [
+              getDefaultSubSetData(method, 1, s.repZone, s.suggestedWeightKg),
+            ];
+          }
+        }
+        return updated;
+      });
+
+      const updatedExercises = currentSplit.exercises.map((ex, i) =>
+        i === exIndex
+          ? {
+              ...ex,
+              method,
+              setDetails: updatedSets,
+            }
+          : ex
+      );
+
+      const updatedSplits = prev.splits.map((s) =>
+        s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
+      );
+
+      return { ...prev, splits: updatedSplits };
+    });
+  };
+
+  // COMBINATION HANDLERS
+  const handleOpenCombineModal = () => {
+    setSelectedExerciseIdsToCombine([]);
+    setCombinationLabel('Bi-Set');
+    setIsCombineModalOpen(true);
+  };
+
+  const handleToggleSelectExerciseForCombine = (exId: string) => {
+    setSelectedExerciseIdsToCombine((prev) => {
+      const isSelected = prev.includes(exId);
+      const updated = isSelected ? prev.filter((id) => id !== exId) : [...prev, exId];
+      if (updated.length === 2) setCombinationLabel('Bi-Set');
+      else if (updated.length === 3) setCombinationLabel('Tri-Set');
+      else if (updated.length > 3) setCombinationLabel('Super-Série');
+      return updated;
+    });
+  };
+
+  const handleConfirmCombineExercises = () => {
+    if (!editingProgram || !activeSplit || selectedExerciseIdsToCombine.length < 2) return;
+
+    const comboId = `combo-${Date.now()}`;
+    const label =
+      combinationLabel ||
+      (selectedExerciseIdsToCombine.length === 2
+        ? 'Bi-Set'
+        : selectedExerciseIdsToCombine.length === 3
+        ? 'Tri-Set'
+        : 'Super-Série');
+
+    const selectedExs: ExerciseItem[] = [];
+    selectedExerciseIdsToCombine.forEach((id, idx) => {
+      const found = activeSplit.exercises.find((e) => e.id === id);
+      if (found) {
+        selectedExs.push({
+          ...found,
+          combinationGroupId: comboId,
+          combinationLabel: label,
+          combinationOrder: idx + 1,
+        });
+      }
+    });
+
+    const firstIndex = activeSplit.exercises.findIndex((e) =>
+      selectedExerciseIdsToCombine.includes(e.id)
+    );
+    const remaining = activeSplit.exercises.filter(
+      (e) => !selectedExerciseIdsToCombine.includes(e.id)
+    );
+
+    const insertAt = Math.max(0, firstIndex);
+    const newExercises = [
+      ...remaining.slice(0, insertAt),
+      ...selectedExs,
+      ...remaining.slice(insertAt),
+    ];
+
+    const updatedSplits = editingProgram.splits.map((s) =>
+      s.id === activeSplit.id ? { ...s, exercises: newExercises } : s
+    );
+
+    setEditingProgram({
+      ...editingProgram,
+      splits: updatedSplits,
+    });
+
+    setIsCombineModalOpen(false);
+    setSelectedExerciseIdsToCombine([]);
+  };
+
+  const handleUncombineGroup = (groupId: string) => {
+    if (!editingProgram || !activeSplit) return;
+
+    const updatedExercises = activeSplit.exercises.map((ex) =>
+      ex.combinationGroupId === groupId
+        ? {
+            ...ex,
+            combinationGroupId: undefined,
+            combinationLabel: undefined,
+            combinationOrder: undefined,
+          }
+        : ex
+    );
+
+    const updatedSplits = editingProgram.splits.map((s) =>
+      s.id === activeSplit.id ? { ...s, exercises: updatedExercises } : s
+    );
+
+    setEditingProgram({
+      ...editingProgram,
+      splits: updatedSplits,
+    });
+  };
+
+  const handleQuickCombineWithNext = (exIndex: number) => {
+    if (!editingProgram || !activeSplit) return;
+    if (exIndex >= activeSplit.exercises.length - 1) return;
+
+    const comboId = `combo-${Date.now()}`;
+    const updatedExercises = activeSplit.exercises.map((ex, idx) => {
+      if (idx === exIndex) {
+        return {
+          ...ex,
+          combinationGroupId: comboId,
+          combinationLabel: 'Bi-Set',
+          combinationOrder: 1,
+        };
+      }
+      if (idx === exIndex + 1) {
+        return {
+          ...ex,
+          combinationGroupId: comboId,
+          combinationLabel: 'Bi-Set',
+          combinationOrder: 2,
+        };
+      }
+      return ex;
+    });
+
+    const updatedSplits = editingProgram.splits.map((s) =>
+      s.id === activeSplit.id ? { ...s, exercises: updatedExercises } : s
+    );
+
+    setEditingProgram({
+      ...editingProgram,
+      splits: updatedSplits,
+    });
+  };
+
+  const handleAddQuickBlankExercise = () => {
+    setEditingProgram((prev) => {
+      if (!prev) return null;
+      const currentSplit =
+        prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
+      if (!currentSplit) return prev;
+
+      const newExId = `ex-custom-${Date.now()}-${currentSplit.exercises.length + 1}`;
+      const newExItem: ExerciseItem = {
+        id: newExId,
+        name: `Novo Exercício ${currentSplit.exercises.length + 1}`,
+        muscleGroup: 'Peitoral',
+        sets: 3,
+        repZone: '10-12',
+        restSeconds: 60,
+        method: 'Normal',
+        observations: '',
+        extraBlocks: [],
+        setDetails: [
+          { id: `s-${newExId}-1`, setNumber: 1, repZone: '10-12', method: 'Normal' },
+          { id: `s-${newExId}-2`, setNumber: 2, repZone: '10-12', method: 'Normal' },
+          { id: `s-${newExId}-3`, setNumber: 3, repZone: '10-12', method: 'Normal' },
+        ],
+      };
+
+      setExpandedExerciseIds((exp) => ({ ...exp, [newExId]: true }));
+
+      const updatedSplits = prev.splits.map((s) =>
+        s.id === currentSplit.id ? { ...s, exercises: [...s.exercises, newExItem] } : s
+      );
       return { ...prev, splits: updatedSplits };
     });
   };
@@ -863,6 +1402,599 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   );
 
   const totalSplitSets = Object.values(volumeByMuscle).reduce((a, b) => a + b, 0);
+
+  // Render individual exercise card with collapsed view and expanded per-set editor
+  const renderExerciseCard = (
+    ex: ExerciseItem,
+    exIndex: number,
+    comboInfo?: {
+      isCombined: boolean;
+      comboLabel: string;
+      comboOrder: number;
+      comboTotal: number;
+      comboGroupId: string;
+    }
+  ) => {
+    const isExpanded = !!expandedExerciseIds[ex.id];
+    const setDetails = getExerciseSetDetails(ex);
+
+    // Collect distinct non-normal methods across sets
+    const specialMethods = Array.from(
+      new Set(
+        setDetails
+          .map((s) => s.method)
+          .filter((m): m is string => !!m && m !== 'Normal')
+      )
+    );
+    const displayMethod =
+      specialMethods.length > 0
+        ? specialMethods.join(' • ')
+        : ex.method && ex.method !== 'Normal'
+        ? ex.method
+        : 'Normal';
+
+    return (
+      <div
+        key={ex.id}
+        className={`rounded-2xl border transition-all duration-200 shadow-md ${
+          isExpanded
+            ? 'bg-slate-950 border-cyan-500/60 ring-1 ring-cyan-500/30'
+            : 'bg-slate-950/80 border-slate-800/90 hover:border-slate-700'
+        }`}
+      >
+        {/* RECOLHIDO: BARRA DE RESUMO COMPACTA (CARD RECOLHIDO) */}
+        {!isExpanded ? (
+          <div
+            onClick={() => handleToggleExerciseExpand(ex.id)}
+            className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-slate-900/40 rounded-2xl transition"
+          >
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <span className="w-7 h-7 rounded-xl bg-slate-900 text-slate-300 font-black text-xs flex items-center justify-center border border-slate-800 flex-shrink-0">
+                {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
+              </span>
+
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-extrabold text-sm text-white truncate">
+                    {ex.name}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-800/80 text-emerald-400 font-bold text-[10px] border border-slate-700/60">
+                    {ex.muscleGroup}
+                  </span>
+                  {comboInfo && (
+                    <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-extrabold text-[10px] border border-purple-500/30 flex items-center gap-1">
+                      <Link2 className="w-3 h-3" />
+                      <span>
+                        {comboInfo.comboLabel} ({comboInfo.comboOrder}/{comboInfo.comboTotal})
+                      </span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
+                  <span className="font-mono font-bold text-slate-300">
+                    {setDetails.length} série{setDetails.length > 1 ? 's' : ''}
+                  </span>
+                  <span>•</span>
+                  <span className="font-mono text-cyan-300 font-semibold">
+                    Zona: {ex.repZone || '8-12'} reps
+                  </span>
+                  <span>•</span>
+                  {specialMethods.length > 0 || (ex.method && ex.method !== 'Normal') ? (
+                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-extrabold text-[11px] truncate max-w-[240px]">
+                      {displayMethod}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 font-semibold text-[10px]">
+                      Método Normal
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleExerciseExpand(ex.id);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold flex items-center gap-1 transition active:scale-95"
+              >
+                <span>Expandir</span>
+                <ChevronDown className="w-3.5 h-3.5 text-cyan-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeExercise(exIndex);
+                }}
+                className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                title="Remover exercício deste treino"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* EXPANDIDO: VISUALIZAÇÃO DETALHADA E EDIÇÃO COMPLETA */
+          <div className="p-3.5 sm:p-4 space-y-3.5">
+            {/* Row 1: Exercise Name, Muscle, Remove & Collapse Button */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-900 pb-3">
+              <div className="flex items-center gap-2 flex-1">
+                <span className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+                  {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
+                </span>
+                <input
+                  type="text"
+                  value={ex.name}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    const matched = exerciseDatabase.find(
+                      (d) => d.name.toLowerCase() === newName.trim().toLowerCase()
+                    );
+                    if (matched) {
+                      updateExercise(exIndex, {
+                        name: newName,
+                        muscleGroup: matched.muscleGroup,
+                      });
+                    } else {
+                      updateExercise(exIndex, 'name', newName);
+                    }
+                  }}
+                  placeholder="Nome do Exercício"
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                />
+                <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 font-bold text-xs border border-emerald-500/30 whitespace-nowrap">
+                  {ex.muscleGroup}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleToggleExerciseExpand(ex.id)}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold flex items-center gap-1 transition"
+                  title="Recolher detalhes deste exercício"
+                >
+                  <ChevronUp className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Recolher</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => removeExercise(exIndex)}
+                  className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                  title="Remover exercício"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: Muscle Group selection & Database Catalog Picker */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">
+                Músculo:
+              </label>
+              <select
+                value={ex.muscleGroup}
+                onChange={(e) => {
+                  const mg = e.target.value as MuscleGroup;
+                  const firstDbForMuscle = exerciseDatabase.find((item) => item.muscleGroup === mg);
+                  updateExercise(exIndex, {
+                    muscleGroup: mg,
+                    name: firstDbForMuscle ? firstDbForMuscle.name : ex.name,
+                  });
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 focus:outline-none focus:border-cyan-500"
+              >
+                {MUSCLE_GROUPS.map((mg) => (
+                  <option key={mg} value={mg}>
+                    {mg}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                onChange={(e) => {
+                  const selectedName = e.target.value;
+                  if (selectedName) {
+                    const found = exerciseDatabase.find((d) => d.name === selectedName);
+                    if (found) {
+                      updateExercise(exIndex, {
+                        name: found.name,
+                        muscleGroup: found.muscleGroup,
+                      });
+                    } else {
+                      updateExercise(exIndex, 'name', selectedName);
+                    }
+                  }
+                }}
+                value=""
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 max-w-[210px] truncate"
+              >
+                <option value="">
+                  Catálogo ({exerciseDatabase.filter((d) => d.muscleGroup === ex.muscleGroup).length} opções)...
+                </option>
+                {exerciseDatabase
+                  .filter((d) => d.muscleGroup === ex.muscleGroup)
+                  .map((item) => (
+                    <option key={item.id} value={item.name}>
+                      {item.name} {item.isCustom ? '★' : ''}
+                    </option>
+                  ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition active:scale-95"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+                <span>Trocar pelo Banco</span>
+              </button>
+
+              {/* Ações de Combinação Rápida */}
+              {comboInfo ? (
+                <button
+                  type="button"
+                  onClick={() => handleUncombineGroup(comboInfo.comboGroupId)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 text-xs font-bold transition ml-auto"
+                >
+                  <Unlink className="w-3 h-3" />
+                  <span>Descombinar deste grupo</span>
+                </button>
+              ) : exIndex < (activeSplit?.exercises.length || 0) - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => handleQuickCombineWithNext(exIndex)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition ml-auto"
+                  title="Combinar este exercício com o próximo em sequência (Bi-Set)"
+                >
+                  <Link2 className="w-3 h-3 text-purple-400" />
+                  <span>Combinar com o próximo (Bi-Set)</span>
+                </button>
+              ) : null}
+            </div>
+
+            {/* SEÇÃO DE SÉRIES INDIVIDUAIS: EDITAR E ADICIONAR UMA DE CADA VEZ COM MÉTODO POR SÉRIE */}
+            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                    Séries do Exercício ({setDetails.length})
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    • Edite repetições, carga sugerida e método avançado por série
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleAddSetToExercise(exIndex)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow active:scale-95 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar Série</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabela / Lista de Séries */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                  <span className="col-span-2 text-center">Série</span>
+                  <span className="col-span-3 text-center">Zona de Reps</span>
+                  <span className="col-span-2 text-center">Carga (kg)</span>
+                  <span className="col-span-4 text-center">Método Avançado da Série</span>
+                  <span className="col-span-1 text-center">Excluir</span>
+                </div>
+
+                {setDetails.map((set, sIdx) => {
+                  const hasSubsets = isMethodWithSubsets(set.method);
+
+                  return (
+                    <div
+                      key={set.id || sIdx}
+                      className={`p-2.5 rounded-xl bg-slate-950 border transition-all ${
+                        hasSubsets
+                          ? 'border-purple-500/50 ring-1 ring-purple-500/30 space-y-2'
+                          : 'border-slate-800/90 hover:border-slate-700'
+                      }`}
+                    >
+                      {/* Linha Principal da Série */}
+                      <div className="grid grid-cols-12 gap-1.5 items-center">
+                        {/* Col 1: Set Number */}
+                        <div className="col-span-2 flex items-center justify-center">
+                          <span
+                            className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center border ${
+                              hasSubsets
+                                ? 'bg-purple-600/30 text-purple-200 border-purple-500/50'
+                                : 'bg-slate-800 text-white border-slate-700'
+                            }`}
+                          >
+                            #{sIdx + 1}
+                          </span>
+                        </div>
+
+                        {/* Col 2: Zona de Repetições */}
+                        <div className="col-span-3">
+                          <input
+                            type="text"
+                            value={set.repZone}
+                            onChange={(e) =>
+                              handleUpdateSetDetail(exIndex, sIdx, 'repZone', e.target.value)
+                            }
+                            placeholder="8-12"
+                            className="w-full py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
+
+                        {/* Col 3: Carga Sugerida (kg) */}
+                        <div className="col-span-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={set.suggestedWeightKg ?? ''}
+                            onChange={(e) =>
+                              handleUpdateSetDetail(
+                                exIndex,
+                                sIdx,
+                                'suggestedWeightKg',
+                                e.target.value ? parseFloat(e.target.value) : undefined
+                              )
+                            }
+                            placeholder="kg"
+                            className="w-full py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
+
+                        {/* Col 4: Método Avançado da Série (Dropdown com todos os métodos) */}
+                        <div className="col-span-4">
+                          <select
+                            value={set.method || 'Normal'}
+                            onChange={(e) =>
+                              handleUpdateSetDetail(exIndex, sIdx, 'method', e.target.value)
+                            }
+                            className={`w-full py-1.5 px-2 rounded-lg bg-slate-900 border text-xs font-bold transition focus:outline-none ${
+                              hasSubsets
+                                ? 'border-purple-500/80 text-purple-200 ring-1 ring-purple-500/40 bg-purple-950/40 font-extrabold'
+                                : set.method && set.method !== 'Normal'
+                                ? 'border-amber-500/60 text-amber-300 ring-1 ring-amber-500/40'
+                                : 'border-slate-700 text-slate-300'
+                            }`}
+                          >
+                            {WORKOUT_METHODS.map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Col 5: Excluir Série Principal */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          <button
+                            type="button"
+                            disabled={setDetails.length <= 1}
+                            onClick={() => handleRemoveSetFromExercise(exIndex, sIdx)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                            title={
+                              setDetails.length <= 1
+                                ? 'O exercício deve ter pelo menos 1 série'
+                                : 'Excluir esta série'
+                            }
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* SUBSÉRIES ABAIXO DA SÉRIE PRINCIPAL (3/7, CLUSTER-SET, DROP-SET TRADICIONAL/ADAPTADO, FST-7, PARCIAL) */}
+                      {hasSubsets && (
+                        <div className="mt-2 pt-2 border-t border-purple-500/20 pl-2 sm:pl-4 space-y-2 bg-purple-950/15 p-2 rounded-lg">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <Layers className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                              <span className="text-[11px] font-bold text-purple-300">
+                                Subséries do {set.method} (Série #{sIdx + 1}):
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAddSubSetToSet(exIndex, sIdx)}
+                              className="px-2.5 py-1 rounded-lg bg-purple-600/40 hover:bg-purple-600/60 border border-purple-500/40 text-purple-200 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Adicionar Subsérie</span>
+                            </button>
+                          </div>
+
+                          {/* Lista de Subséries */}
+                          <div className="space-y-1.5">
+                            {(set.subSets || []).map((sub, subIdx) => (
+                              <div
+                                key={sub.id || subIdx}
+                                className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/30 grid grid-cols-12 gap-1.5 items-center text-xs"
+                              >
+                                {/* Subsérie Badge */}
+                                <div className="col-span-3 sm:col-span-2 flex items-center gap-1">
+                                  <span className="text-purple-400 font-bold font-mono">↳</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 font-extrabold text-[10px] border border-purple-500/40 whitespace-nowrap">
+                                    Sub #{sub.subSetNumber || subIdx + 1}
+                                  </span>
+                                </div>
+
+                                {/* Reps */}
+                                <div className="col-span-3 sm:col-span-3">
+                                  <input
+                                    type="text"
+                                    value={sub.repZone}
+                                    onChange={(e) =>
+                                      handleUpdateSubSetDetail(
+                                        exIndex,
+                                        sIdx,
+                                        subIdx,
+                                        'repZone',
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Reps"
+                                    className="w-full py-1 px-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-purple-400"
+                                  />
+                                </div>
+
+                                {/* Carga Sugerida (kg) */}
+                                <div className="col-span-3 sm:col-span-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    value={sub.suggestedWeightKg ?? ''}
+                                    onChange={(e) =>
+                                      handleUpdateSubSetDetail(
+                                        exIndex,
+                                        sIdx,
+                                        subIdx,
+                                        'suggestedWeightKg',
+                                        e.target.value ? parseFloat(e.target.value) : undefined
+                                      )
+                                    }
+                                    placeholder="kg"
+                                    className="w-full py-1 px-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-purple-400"
+                                  />
+                                </div>
+
+                                {/* Observação / Instrução */}
+                                <div className="col-span-10 sm:col-span-4 mt-1 sm:mt-0">
+                                  <input
+                                    type="text"
+                                    value={sub.note || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSubSetDetail(
+                                        exIndex,
+                                        sIdx,
+                                        subIdx,
+                                        'note',
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Ex: -20% carga / 15s descanso"
+                                    className="w-full py-1 px-2 rounded bg-slate-950 border border-slate-700 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-purple-400"
+                                  />
+                                </div>
+
+                                {/* Excluir subsérie */}
+                                <div className="col-span-2 sm:col-span-1 flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRemoveSubSetFromSet(exIndex, sIdx, subIdx)
+                                    }
+                                    className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                                    title="Excluir subsérie"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Ações Rápidas de Série */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-[11px] text-slate-400 font-semibold">
+                    Replicar método da Série 1 para todas:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMethodToAllSets(exIndex, setDetails[0]?.method || 'Normal')}
+                    className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-cyan-300 font-bold border border-slate-700 active:scale-95 transition"
+                  >
+                    Copiar &ldquo;{setDetails[0]?.method || 'Normal'}&rdquo; para todas
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddSetToExercise(exIndex)}
+                  className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 active:scale-95 self-end sm:self-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar Outra Série</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Descanso e Observações */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                  Descanso entre séries
+                </label>
+                <select
+                  value={ex.restSeconds}
+                  onChange={(e) =>
+                    updateExercise(exIndex, 'restSeconds', parseInt(e.target.value))
+                  }
+                  className="w-full py-1.5 px-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-cyan-500"
+                >
+                  <option value={30}>30s</option>
+                  <option value={45}>45s</option>
+                  <option value={60}>60s</option>
+                  <option value={75}>75s</option>
+                  <option value={90}>90s</option>
+                  <option value={120}>120s</option>
+                  <option value={180}>180s</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                  Observações biomecânicas / execução
+                </label>
+                <input
+                  type="text"
+                  value={ex.observations}
+                  onChange={(e) =>
+                    updateExercise(exIndex, 'observations', e.target.value)
+                  }
+                  placeholder="Ex: cadência controlada 3010, foco no pico de contração, pegada neutra"
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end pt-1 border-t border-slate-900">
+              <button
+                type="button"
+                onClick={() => handleToggleExerciseExpand(ex.id)}
+                className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 active:scale-95"
+              >
+                <ChevronUp className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Concluir e Recolher</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5 pb-24">
@@ -938,7 +2070,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md active:scale-95 transition"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Novo Programa</span>
+            <span>Novo Programa</span>
           </button>
         </div>
 
@@ -1126,9 +2258,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   setIsCreatingNewProgram(true);
                   setNewProgName(`Periodização de ${selectedClient?.name || 'Treino'}`);
                 }}
-                className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                className="mt-3 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5"
               >
-                + Criar Primeiro Programa
+                <Plus className="w-3.5 h-3.5" />
+                <span>Criar Primeiro Programa</span>
               </button>
             </div>
           )
@@ -1203,7 +2336,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs active:scale-95 shadow transition"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Adicionar Treino</span>
+                  <span>Adicionar Treino</span>
                 </button>
 
                 <button
@@ -1319,7 +2452,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
             {/* EXERCISE BUILDER FOR THIS SPLIT */}
             <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2">
                   <Dumbbell className="w-4 h-4 text-emerald-400" />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
@@ -1328,6 +2461,38 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* Botões de Expandir/Recolher Todos */}
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={handleExpandAllExercises}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition"
+                      title="Expandir todos os exercícios para ver e editar detalhes"
+                    >
+                      Expandir Todos
+                    </button>
+                    <span className="text-slate-700">|</span>
+                    <button
+                      type="button"
+                      onClick={handleCollapseAllExercises}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition"
+                      title="Recolher todos os exercícios para visão limpa e compacta"
+                    >
+                      Recolher Todos
+                    </button>
+                  </div>
+
+                  {/* Botão de Combinação de Exercícios (Bi-Set / Tri-Set) */}
+                  <button
+                    type="button"
+                    onClick={handleOpenCombineModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold shadow-sm active:scale-95 transition"
+                    title="Combinar 2 ou mais exercícios para serem realizados em sequência sem descanso"
+                  >
+                    <Link2 className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Combinar Exercícios (Bi-Set / Tri-Set)</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setIsVolumeDrawerOpen(true)}
@@ -1340,20 +2505,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   <button
                     type="button"
                     onClick={() => openExerciseDbModal(null)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/40 active:scale-95 transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
                     title="Acessar catálogo completo de exercícios e cadastrar novos"
                   >
-                    <BookOpen className="w-3.5 h-3.5" />
+                    <BookOpen className="w-3.5 h-3.5 text-purple-400" />
                     <span>Banco de Exercícios ({exerciseDatabase.length})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openExerciseDbModal(null)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow active:scale-95 transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Exercício</span>
                   </button>
                 </div>
               </div>
@@ -1390,347 +2546,183 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 )}
               </div>
 
-              {/* Exercise Cards */}
+              {/* Grouped Exercise Cards (Single or Combined in Sequence) */}
               <div className="space-y-3">
-                {activeSplit.exercises.map((ex, exIndex) => (
-                  <div
-                    key={ex.id}
-                    className="p-3.5 sm:p-4 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-slate-700 space-y-3 shadow-md"
-                  >
-                    {/* Row 1: Exercise Name, Muscle, Remove */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/20">
-                          {exIndex + 1}
-                        </span>
-                        <input
-                          type="text"
-                          value={ex.name}
-                          onChange={(e) => {
-                            const newName = e.target.value;
-                            const matched = exerciseDatabase.find(
-                              (d) => d.name.toLowerCase() === newName.trim().toLowerCase()
-                            );
-                            if (matched) {
-                              updateExercise(exIndex, {
-                                name: newName,
-                                muscleGroup: matched.muscleGroup,
-                              });
-                            } else {
-                              updateExercise(exIndex, 'name', newName);
-                            }
-                          }}
-                          placeholder="Nome do Exercício"
-                          className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
-                        />
-                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 font-bold text-[10px] border border-emerald-500/30 whitespace-nowrap">
-                          {ex.muscleGroup}
-                        </span>
-                      </div>
+                {(() => {
+                  type ExerciseGroup =
+                    | { type: 'single'; exercise: ExerciseItem; originalIndex: number }
+                    | {
+                        type: 'combined';
+                        groupId: string;
+                        label: string;
+                        items: { exercise: ExerciseItem; originalIndex: number }[];
+                      };
 
-                      <button
-                        type="button"
-                        onClick={() => removeExercise(exIndex)}
-                        className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
-                        title="Remover exercício"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  const groups: ExerciseGroup[] = [];
+                  let currentCombo: {
+                    groupId: string;
+                    label: string;
+                    items: { exercise: ExerciseItem; originalIndex: number }[];
+                  } | null = null;
 
-                    {/* Quick suggestion dropdown and Database picker for muscle exercises */}
-                    <div className="flex items-center gap-2 flex-wrap text-xs">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">
-                        Músculo:
-                      </label>
-                      <select
-                        value={ex.muscleGroup}
-                        onChange={(e) => {
-                          const mg = e.target.value as MuscleGroup;
-                          const firstDbForMuscle = exerciseDatabase.find((item) => item.muscleGroup === mg);
-                          updateExercise(exIndex, {
-                            muscleGroup: mg,
-                            name: firstDbForMuscle ? firstDbForMuscle.name : ex.name,
+                  activeSplit.exercises.forEach((ex, idx) => {
+                    if (ex.combinationGroupId) {
+                      if (currentCombo && currentCombo.groupId === ex.combinationGroupId) {
+                        currentCombo.items.push({ exercise: ex, originalIndex: idx });
+                      } else {
+                        if (currentCombo) {
+                          groups.push({
+                            type: 'combined',
+                            groupId: currentCombo.groupId,
+                            label: currentCombo.label,
+                            items: currentCombo.items,
                           });
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
-                      >
-                        {MUSCLE_GROUPS.map((mg) => (
-                          <option key={mg} value={mg}>
-                            {mg}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Dropdown with exercises from database for this muscle group */}
-                      <select
-                        onChange={(e) => {
-                          const selectedName = e.target.value;
-                          if (selectedName) {
-                            const found = exerciseDatabase.find((d) => d.name === selectedName);
-                            if (found) {
-                              updateExercise(exIndex, {
-                                name: found.name,
-                                muscleGroup: found.muscleGroup,
-                              });
-                            } else {
-                              updateExercise(exIndex, 'name', selectedName);
-                            }
-                          }
-                        }}
-                        value=""
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 max-w-[210px] truncate"
-                      >
-                        <option value="">
-                          Catálogo ({exerciseDatabase.filter((d) => d.muscleGroup === ex.muscleGroup).length} opções)...
-                        </option>
-                        {exerciseDatabase
-                          .filter((d) => d.muscleGroup === ex.muscleGroup)
-                          .map((item) => (
-                            <option key={item.id} value={item.name}>
-                              {item.name} {item.isCustom ? '★' : ''}
-                            </option>
-                          ))}
-                      </select>
-
-                      {/* Button to open Exercise Database modal specifically for this card */}
-                      <button
-                        type="button"
-                        onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition active:scale-95"
-                      >
-                        <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Trocar pelo Banco</span>
-                      </button>
-                    </div>
-
-                    {/* Row 2: Sets, Reps, Rest, Method */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-900">
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                          Séries
-                        </label>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateExercise(
-                                exIndex,
-                                'sets',
-                                Math.max(1, Number(ex.sets) - 1)
-                              )
-                            }
-                            className="w-7 h-7 rounded bg-slate-800 text-slate-300 font-bold text-xs"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            max="20"
-                            value={ex.sets}
-                            onChange={(e) =>
-                              updateExercise(
-                                exIndex,
-                                'sets',
-                                parseInt(e.target.value) || 1
-                              )
-                            }
-                            className="w-12 text-center py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateExercise(exIndex, 'sets', Number(ex.sets) + 1)
-                            }
-                            className="w-7 h-7 rounded bg-slate-800 text-slate-300 font-bold text-xs"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                          Zona de Reps
-                        </label>
-                        <input
-                          type="text"
-                          value={ex.repZone}
-                          onChange={(e) => updateExercise(exIndex, 'repZone', e.target.value)}
-                          placeholder="8-12"
-                          className="w-full py-1 px-2 rounded bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                          Descanso (segundos)
-                        </label>
-                        <select
-                          value={ex.restSeconds}
-                          onChange={(e) =>
-                            updateExercise(
-                              exIndex,
-                              'restSeconds',
-                              parseInt(e.target.value)
-                            )
-                          }
-                          className="w-full py-1 px-2 rounded bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center"
-                        >
-                          <option value={30}>30s</option>
-                          <option value={45}>45s</option>
-                          <option value={60}>60s</option>
-                          <option value={75}>75s</option>
-                          <option value={90}>90s</option>
-                          <option value={120}>120s</option>
-                          <option value={180}>180s</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
-                          Método Avançado
-                        </label>
-                        <select
-                          value={ex.method}
-                          onChange={(e) => updateExercise(exIndex, 'method', e.target.value)}
-                          className="w-full py-1 px-2 rounded bg-slate-900 border border-slate-700 text-xs font-bold text-amber-300"
-                        >
-                          <option value="Normal">Normal</option>
-                          <option value="Bi-set">Bi-set</option>
-                          <option value="Drop-set">Drop-set</option>
-                          <option value="Rest-Pause">Rest-Pause</option>
-                          <option value="Pirâmide">Pirâmide</option>
-                          <option value="FST-7">FST-7</option>
-                          <option value="Cluster Set">Cluster Set</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Observations */}
-                    <div>
-                      <input
-                        type="text"
-                        value={ex.observations}
-                        onChange={(e) =>
-                          updateExercise(exIndex, 'observations', e.target.value)
                         }
-                        placeholder="Observações biomecânicas (ex: pegada fechada, cadência 3010, pico de contração)"
-                        className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 focus:outline-none focus:border-slate-700"
-                      />
-                    </div>
+                        currentCombo = {
+                          groupId: ex.combinationGroupId,
+                          label: ex.combinationLabel || 'Bi-Set',
+                          items: [{ exercise: ex, originalIndex: idx }],
+                        };
+                      }
+                    } else {
+                      if (currentCombo) {
+                        groups.push({
+                          type: 'combined',
+                          groupId: currentCombo.groupId,
+                          label: currentCombo.label,
+                          items: currentCombo.items,
+                        });
+                        currentCombo = null;
+                      }
+                      groups.push({ type: 'single', exercise: ex, originalIndex: idx });
+                    }
+                  });
 
-                    {/* Extra blocks (Drop-set, Isometria, etc.) - TOTALMENTE EDITÁVEL */}
-                    {ex.extraBlocks.length > 0 && (
-                      <div className="space-y-2 pl-2 border-l-2 border-amber-500/60 bg-amber-500/5 p-2 rounded-r-xl">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-amber-400">
-                          <span className="flex items-center gap-1">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Variações de Método / Séries Extras ({ex.extraBlocks.length}):</span>
-                          </span>
-                        </div>
+                  if (currentCombo) {
+                    const finishedCombo: {
+                      groupId: string;
+                      label: string;
+                      items: { exercise: ExerciseItem; originalIndex: number }[];
+                    } = currentCombo;
+                    groups.push({
+                      type: 'combined',
+                      groupId: finishedCombo.groupId,
+                      label: finishedCombo.label,
+                      items: finishedCombo.items,
+                    });
+                  }
 
-                        {ex.extraBlocks.map((blk, blkIndex) => (
-                          <div
-                            key={blk.id}
-                            className="p-2.5 rounded-xl bg-slate-900 border border-amber-500/30 space-y-2 shadow-sm"
-                          >
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                              {/* Tipo da Variação */}
-                              <div className="flex items-center gap-1.5 flex-1">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Tipo:
-                                </label>
-                                <select
-                                  value={blk.type}
-                                  onChange={(e) =>
-                                    updateExtraBlock(
-                                      exIndex,
-                                      blkIndex,
-                                      'type',
-                                      e.target.value
-                                    )
-                                  }
-                                  className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-bold text-amber-400 focus:outline-none focus:border-amber-400"
-                                >
-                                  <option value="Drop-set">Drop-set</option>
-                                  <option value="Rest-Pause">Rest-Pause</option>
-                                  <option value="Isometria">Isometria</option>
-                                  <option value="Repetições Parciais">Repetições Parciais</option>
-                                  <option value="Outro">Outro</option>
-                                </select>
-                              </div>
+                  if (groups.length === 0) {
+                    return (
+                      <div className="p-8 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800 space-y-2">
+                        <Dumbbell className="w-8 h-8 text-slate-600 mx-auto" />
+                        <p className="text-xs text-slate-400">
+                          Nenhum exercício adicionado a este treino ainda.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openExerciseDbModal(null)}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs active:scale-95 transition inline-flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Adicionar Primeiro Exercício</span>
+                        </button>
+                      </div>
+                    );
+                  }
 
-                              {/* Repetições da Variação */}
-                              <div className="flex items-center gap-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Reps:
-                                </label>
-                                <input
-                                  type="text"
-                                  value={blk.repsText}
-                                  onChange={(e) =>
-                                    updateExtraBlock(
-                                      exIndex,
-                                      blkIndex,
-                                      'repsText',
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="Ex: 6-8 reps + falha"
-                                  className="w-36 px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-amber-400"
-                                />
-                              </div>
+                  return groups.map((group) => {
+                    if (group.type === 'single') {
+                      return renderExerciseCard(group.exercise, group.originalIndex);
+                    }
 
-                              {/* Botão de Remover Variação */}
-                              <button
-                                type="button"
-                                onClick={() => removeExtraBlock(exIndex, blkIndex)}
-                                className="p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition self-end sm:self-auto"
-                                title="Remover esta variação"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-
-                            {/* Descrição / Instrução da Variação (EDITÁVEL) */}
+                    // Combined Exercise Group
+                    return (
+                      <div
+                        key={group.groupId}
+                        className="p-3.5 sm:p-4 rounded-2xl bg-purple-950/20 border-2 border-purple-500/40 shadow-lg space-y-3"
+                      >
+                        {/* Header da Combinação */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-purple-500/30 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300">
+                              <Link2 className="w-4 h-4" />
+                            </span>
                             <div>
-                              <label className="text-[10px] font-bold text-slate-400 block mb-1">
-                                Descrição da Variação (Instrução ao Aluno):
-                              </label>
-                              <input
-                                type="text"
-                                value={blk.note}
-                                onChange={(e) =>
-                                  updateExtraBlock(
-                                    exIndex,
-                                    blkIndex,
-                                    'note',
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Descreva a variação (ex: Reduzir 25% da carga e executar até a falha)"
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400 placeholder-slate-600"
-                              />
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-purple-200 uppercase tracking-wider">
+                                  {group.label} • Exercício Combinado em Sequência ({group.items.length})
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full bg-purple-500/30 text-purple-200 text-[10px] font-bold">
+                                  Sem pausa entre eles
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-purple-300/80">
+                                Estes exercícios devem ser realizados em sequência contínua, formando um só bloco de estímulo.
+                              </p>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
 
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => addExtraBlock(exIndex)}
-                        className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 active:scale-95"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>+ Variação na Última Série (Drop-set/Isometria)</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                          <button
+                            type="button"
+                            onClick={() => handleUncombineGroup(group.groupId)}
+                            className="text-[11px] font-bold text-purple-300 hover:text-white flex items-center gap-1 bg-purple-900/40 hover:bg-purple-900/60 px-2.5 py-1 rounded-lg border border-purple-500/30 active:scale-95 transition self-end sm:self-auto"
+                            title="Desfazer combinação e separar em exercícios independentes"
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
+                            <span>Descombinar Exercícios</span>
+                          </button>
+                        </div>
+
+                        {/* Exercícios da Combinação em Sequência */}
+                        <div className="space-y-2.5">
+                          {group.items.map((item, itemIdx) => (
+                            <React.Fragment key={item.exercise.id}>
+                              {itemIdx > 0 && (
+                                <div className="flex items-center justify-center gap-2 py-1 text-purple-400">
+                                  <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+                                  <span className="text-[10px] font-extrabold uppercase tracking-widest bg-purple-900/50 px-2.5 py-0.5 rounded-full border border-purple-500/30">
+                                    Seguido imediatamente sem descanso por:
+                                  </span>
+                                  <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+                                </div>
+                              )}
+                              {renderExerciseCard(item.exercise, item.originalIndex, {
+                                isCombined: true,
+                                comboLabel: group.label,
+                                comboOrder: itemIdx + 1,
+                                comboTotal: group.items.length,
+                                comboGroupId: group.groupId,
+                              })}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* BOTÃO DE ADICIONAR EXERCÍCIO NA PARTE INFERIOR (SEMPRE ABAIXO DO ÚLTIMO EXERCÍCIO) */}
+              <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => openExerciseDbModal(null)}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 active:scale-95 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Adicionar Exercício (Abaixo do Último)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddQuickBlankExercise}
+                  className="w-full sm:w-auto px-4 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition"
+                  title="Adiciona um novo exercício em branco para você preencher rapidamente"
+                >
+                  <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Exercício Rápido em Branco</span>
+                </button>
               </div>
             </div>
 
@@ -1883,7 +2875,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 }`}
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Cadastrar Novo Exercício</span>
+                <span>Cadastrar Novo Exercício</span>
               </button>
             </div>
 
@@ -2294,6 +3286,135 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               >
                 Sim, Excluir
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE COMBINAÇÃO DE EXERCÍCIOS (BI-SET / TRI-SET) */}
+      {isCombineModalOpen && activeSplit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-purple-500/50 shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300">
+                  <Link2 className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Combinar Exercícios em Sequência
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Selecione 2 ou mais exercícios para criar um Bi-Set, Tri-Set ou Super-Série.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCombineModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tipo de Combinação */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-300 block mb-1.5 uppercase tracking-wider">
+                Tipo da Combinação:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {['Bi-Set', 'Tri-Set', 'Super-Série'].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setCombinationLabel(type)}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold border transition ${
+                      combinationLabel === type
+                        ? 'bg-purple-600 border-purple-400 text-white shadow-md'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Checklist dos Exercícios */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-300 block uppercase tracking-wider">
+                Selecione os Exercícios de {activeSplit.name}:
+              </label>
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                {activeSplit.exercises.map((ex, idx) => {
+                  const isChecked = selectedExerciseIdsToCombine.includes(ex.id);
+                  const isAlreadyCombined = !!ex.combinationGroupId;
+
+                  return (
+                    <div
+                      key={ex.id}
+                      onClick={() => handleToggleSelectExerciseForCombine(ex.id)}
+                      className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        isChecked
+                          ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`w-5 h-5 rounded-md flex items-center justify-center border ${
+                            isChecked
+                              ? 'bg-purple-600 border-purple-400 text-white'
+                              : 'bg-slate-900 border-slate-700 text-transparent'
+                          }`}
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-white block">
+                            #{idx + 1} {ex.name}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {ex.muscleGroup} • {ex.sets} séries ({ex.repZone})
+                          </span>
+                        </div>
+                      </div>
+
+                      {isAlreadyCombined && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                          Já combinado ({ex.combinationLabel || 'Combo'})
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <span className="text-xs text-slate-400">
+                {selectedExerciseIdsToCombine.length} exercício(s) selecionado(s)
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCombineModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedExerciseIdsToCombine.length < 2}
+                  onClick={handleConfirmCombineExercises}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition flex items-center gap-1.5"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span>Confirmar Combinação ({selectedExerciseIdsToCombine.length})</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

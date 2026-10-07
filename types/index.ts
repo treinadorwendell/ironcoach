@@ -55,6 +55,55 @@ export interface DatabaseExercise {
   createdAt?: string;
 }
 
+export const WORKOUT_METHODS = [
+  'Normal',
+  '3/7',
+  'Bi-set',
+  'Cluster-Set',
+  'Dead Stop',
+  'Dead Stop + Pico de Contração',
+  'Drop-Set Tradicional',
+  'Drop-Set Adaptado',
+  'Duplo Recrutamento',
+  'Excêntrico',
+  'FST-7',
+  'GVT',
+  'Ondulatório',
+  'Ondulatório 28',
+  'Parcial',
+  'Pico de Contração + Drop-Set',
+  'Pico de Contração + Excêntrica',
+  'Pico de Contração Intra-repetições',
+  'Pirâmide crescente',
+  'Pirâmide Decrescente',
+  'Ponto Zero',
+  'Pré-Exaustão',
+  'Progressão de Volume Linear',
+  'Rest-Pause',
+  'Super-série',
+  'Tri-set',
+] as const;
+
+export type WorkoutMethod = (typeof WORKOUT_METHODS)[number] | string;
+
+export interface ExerciseSubSetDetail {
+  id: string;
+  subSetNumber: number; // 1, 2, 3...
+  repZone: string; // e.g. "4 reps", "Até a falha", "8-10"
+  suggestedWeightKg?: number; // Carga sugerida em kg
+  note?: string; // Instrução/observação (ex: "-20% carga", "sem descanso", "pausa 15s")
+}
+
+export interface ExerciseSetDetail {
+  id: string;
+  setNumber: number;
+  repZone: string; // e.g. "8-12", "10", "15"
+  suggestedWeightKg?: number; // Carga sugerida em kg
+  method: string; // Método avançado específico desta série
+  notes?: string;
+  subSets?: ExerciseSubSetDetail[]; // Subséries disparadas por métodos como 3/7, Drop-set, Cluster, etc.
+}
+
 export interface ExtraBlock {
   id: string;
   type: 'Drop-set' | 'Repetições Parciais' | 'Isometria' | 'Rest-Pause' | 'Outro';
@@ -69,9 +118,13 @@ export interface ExerciseItem {
   sets: number;
   repZone: string; // e.g. "8-12"
   restSeconds: number; // in seconds, e.g. 60, 90
-  method: string; // 'Normal' | 'Bi-set' | 'Rest-Pause' | 'Drop-set' | 'Pirâmide'
+  method: string; // 'Normal' | 'Bi-set' | 'Drop-Set Tradicional' | etc.
   observations: string;
   extraBlocks: ExtraBlock[];
+  setDetails?: ExerciseSetDetail[]; // Séries individuais configuráveis
+  combinationGroupId?: string; // ID único do grupo de combinação (ex: combo-123)
+  combinationLabel?: string; // Ex: "Bi-set", "Tri-set", "Super-série", "Combinado"
+  combinationOrder?: number; // Ordem na sequência da combinação (1, 2, 3...)
 }
 
 export interface WorkoutSplit {
@@ -94,6 +147,17 @@ export interface WorkoutProgram {
   createdAt: string;
 }
 
+export interface ExecutionSubSet {
+  id: string;
+  subSetNumber: number;
+  repZone: string;
+  targetReps: number;
+  completedReps: number;
+  weightKg: number;
+  completed: boolean;
+  note?: string;
+}
+
 export interface ExecutionSet {
   setNumber: number;
   repZone: string;
@@ -103,6 +167,8 @@ export interface ExecutionSet {
   completed: boolean;
   completedAt?: string;
   extraVariation?: string;
+  method?: string;
+  subSets?: ExecutionSubSet[];
 }
 
 export interface ExecutionExerciseState {
@@ -113,6 +179,9 @@ export interface ExecutionExerciseState {
   observations: string;
   restSeconds: number;
   sets: ExecutionSet[];
+  combinationGroupId?: string;
+  combinationLabel?: string;
+  combinationOrder?: number;
 }
 
 export interface ActiveWorkoutSession {
@@ -125,6 +194,7 @@ export interface ActiveWorkoutSession {
   isPaused: boolean;
   isStarted?: boolean;
   exercises: ExecutionExerciseState[];
+  trainerNotes?: string;
 }
 
 export interface ExerciseHistoricalEntry {
@@ -133,6 +203,13 @@ export interface ExerciseHistoricalEntry {
   reps: number;
   setsCompleted: number;
 }
+
+export type CalendarEventStatus =
+  | 'confirmado'
+  | 'realizado'
+  | 'reagendado'
+  | 'falta'
+  | 'cancelado';
 
 export interface CalendarEvent {
   id: string;
@@ -144,9 +221,57 @@ export interface CalendarEvent {
   endTime: string; // "08:00"
   recurringDays?: number[]; // [1, 3, 5] for Mon, Wed, Fri
   notes?: string;
-  status: 'confirmado' | 'realizado' | 'cancelado';
+  status: CalendarEventStatus;
+  rescheduledDate?: string;
+  rescheduledTime?: string;
 }
 
 export type AgendaViewMode = 'dia' | 'semana' | 'mes' | 'ano' | 'programacao';
 
 export type MainNavSection = 'cliente' | 'agenda' | 'criar-treino' | 'execucao';
+
+export interface CompletedSubSetRecord {
+  subSetNumber: number;
+  completedReps: number;
+  weightKg: number;
+  repZone?: string;
+  completed: boolean;
+  note?: string;
+}
+
+export interface CompletedSetRecord {
+  setNumber: number;
+  completedReps: number;
+  weightKg: number;
+  repZone?: string;
+  completed: boolean;
+  method?: string;
+  subSets?: CompletedSubSetRecord[];
+}
+
+export interface CompletedExerciseRecord {
+  exerciseId: string;
+  name: string;
+  muscleGroup: MuscleGroup;
+  method?: string;
+  observations?: string;
+  sets: CompletedSetRecord[];
+}
+
+export interface CompletedWorkoutRecord {
+  id: string;
+  clientId: string;
+  clientName: string;
+  programId?: string;
+  programName: string;
+  splitId?: string;
+  splitName: string;
+  date: string; // e.g. "04/10/2026"
+  time?: string; // e.g. "15:30"
+  completedAt: string; // ISO
+  durationSeconds: number;
+  durationFormatted: string; // e.g. "52m 10s"
+  totalVolumeKg: number;
+  exercises: CompletedExerciseRecord[];
+  trainerNotes?: string;
+}

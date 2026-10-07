@@ -7,6 +7,7 @@ import {
   ActiveWorkoutSession,
   DatabaseExercise,
   MuscleGroup,
+  CompletedWorkoutRecord,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -379,7 +380,7 @@ export const INITIAL_CALENDAR: CalendarEvent[] = [
     endTime: '08:00',
     recurringDays: [1, 4],
     notes: 'Avaliar progressão de carga no Supino Reto.',
-    status: 'confirmado',
+    status: 'realizado',
   },
   {
     id: 'evt-2',
@@ -403,7 +404,9 @@ export const INITIAL_CALENDAR: CalendarEvent[] = [
     endTime: '19:00',
     recurringDays: [1, 3, 5],
     notes: 'Controle de frequência cardíaca.',
-    status: 'confirmado',
+    status: 'reagendado',
+    rescheduledDate: '2026-10-03',
+    rescheduledTime: '19:00',
   },
   {
     id: 'evt-4',
@@ -414,8 +417,190 @@ export const INITIAL_CALENDAR: CalendarEvent[] = [
     startTime: '09:00',
     endTime: '10:00',
     recurringDays: [6],
-    notes: 'Início do acompanhamento.',
-    status: 'confirmado',
+    notes: 'Início do acompanhamento. Aluno avisou imprevisto.',
+    status: 'falta',
+  },
+];
+
+export const INITIAL_COMPLETED_WORKOUTS: CompletedWorkoutRecord[] = [
+  {
+    id: 'comp-1',
+    clientId: 'client-1',
+    clientName: 'Carlos Silva',
+    programName: 'Periodização de Hipertrofia A/B',
+    splitName: 'Treino A - Peitoral e Tríceps',
+    date: '02/10/2026',
+    time: '16:45',
+    completedAt: '2026-10-02T16:45:00.000Z',
+    durationSeconds: 3120,
+    durationFormatted: '52m 00s',
+    totalVolumeKg: 4680,
+    trainerNotes: 'Ótima estabilização escapular no Supino Reto. No supino inclinado, manter os cotovelos a 75° do tronco para proteger a cápsula anterior do ombro.',
+    exercises: [
+      {
+        exerciseId: 'ex-1',
+        name: 'Supino Reto com Barra',
+        muscleGroup: 'Peitoral',
+        method: 'Normal',
+        observations: 'Pegada média, escápulas em retração.',
+        sets: [
+          { setNumber: 1, completedReps: 12, weightKg: 60, repZone: '8-12', completed: true },
+          { setNumber: 2, completedReps: 10, weightKg: 70, repZone: '8-12', completed: true },
+          { setNumber: 3, completedReps: 8, weightKg: 80, repZone: '8-12', completed: true },
+          { setNumber: 4, completedReps: 6, weightKg: 85, repZone: '8-12', completed: true },
+        ],
+      },
+      {
+        exerciseId: 'ex-2',
+        name: 'Supino Inclinado com Halteres',
+        muscleGroup: 'Peitoral',
+        method: 'Drop-Set Tradicional',
+        observations: 'Última série com drop imediato.',
+        sets: [
+          { setNumber: 1, completedReps: 10, weightKg: 28, repZone: '10', completed: true },
+          { setNumber: 2, completedReps: 10, weightKg: 28, repZone: '10', completed: true },
+          {
+            setNumber: 3,
+            completedReps: 8,
+            weightKg: 30,
+            repZone: '8-10',
+            completed: true,
+            method: 'Drop-Set Tradicional',
+            subSets: [
+              { subSetNumber: 1, completedReps: 6, weightKg: 22, repZone: 'Até a falha', completed: true, note: 'Drop 1 • Redução de 25%' },
+            ],
+          },
+        ],
+      },
+      {
+        exerciseId: 'ex-3',
+        name: 'Tríceps Corda no Cross',
+        muscleGroup: 'Tríceps',
+        method: '3/7',
+        observations: 'Abertura no final da fase concêntrica.',
+        sets: [
+          { setNumber: 1, completedReps: 12, weightKg: 25, repZone: '12', completed: true },
+          { setNumber: 2, completedReps: 10, weightKg: 27.5, repZone: '10', completed: true },
+          {
+            setNumber: 3,
+            completedReps: 3,
+            weightKg: 30,
+            repZone: '3 reps',
+            completed: true,
+            method: '3/7',
+            subSets: [
+              { subSetNumber: 1, completedReps: 4, weightKg: 30, repZone: '4 reps', completed: true, note: 'Passo 2 (4 reps) • 15s intervalo' },
+              { subSetNumber: 2, completedReps: 5, weightKg: 30, repZone: '5 reps', completed: true, note: 'Passo 3 (5 reps) • 15s intervalo' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'comp-2',
+    clientId: 'client-1',
+    clientName: 'Carlos Silva',
+    programName: 'Periodização de Hipertrofia A/B',
+    splitName: 'Treino B - Dorsal e Bíceps',
+    date: '29/09/2026',
+    time: '17:15',
+    completedAt: '2026-09-29T17:15:00.000Z',
+    durationSeconds: 2760,
+    durationFormatted: '46m 00s',
+    totalVolumeKg: 3950,
+    exercises: [
+      {
+        exerciseId: 'ex-4',
+        name: 'Puxada Frontal Aberta',
+        muscleGroup: 'Dorsal',
+        method: 'Normal',
+        sets: [
+          { setNumber: 1, completedReps: 12, weightKg: 50, repZone: '10-12', completed: true },
+          { setNumber: 2, completedReps: 10, weightKg: 55, repZone: '10-12', completed: true },
+          { setNumber: 3, completedReps: 10, weightKg: 60, repZone: '10-12', completed: true },
+        ],
+      },
+      {
+        exerciseId: 'ex-5',
+        name: 'Remada Curvada com Barra',
+        muscleGroup: 'Dorsal',
+        method: 'Normal',
+        sets: [
+          { setNumber: 1, completedReps: 10, weightKg: 50, repZone: '8-10', completed: true },
+          { setNumber: 2, completedReps: 8, weightKg: 60, repZone: '8-10', completed: true },
+          { setNumber: 3, completedReps: 8, weightKg: 60, repZone: '8-10', completed: true },
+        ],
+      },
+      {
+        exerciseId: 'ex-6',
+        name: 'Rosca Direta com Barra W',
+        muscleGroup: 'Bíceps',
+        method: 'Parcial',
+        sets: [
+          { setNumber: 1, completedReps: 10, weightKg: 20, repZone: '10', completed: true },
+          { setNumber: 2, completedReps: 10, weightKg: 25, repZone: '10', completed: true },
+          {
+            setNumber: 3,
+            completedReps: 8,
+            weightKg: 25,
+            repZone: '8',
+            completed: true,
+            method: 'Parcial',
+            subSets: [
+              { subSetNumber: 1, completedReps: 6, weightKg: 25, repZone: 'Parciais até a falha', completed: true, note: 'Repetições parciais imediatas sem descanso' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'comp-3',
+    clientId: 'client-2',
+    clientName: 'Mariana Oliveira',
+    programName: 'Fortalecimento & Postura',
+    splitName: 'Treino A - Inferiores & Glúteo',
+    date: '01/10/2026',
+    time: '08:30',
+    completedAt: '2026-10-01T08:30:00.000Z',
+    durationSeconds: 2940,
+    durationFormatted: '49m 00s',
+    totalVolumeKg: 5200,
+    exercises: [
+      {
+        exerciseId: 'ex-7',
+        name: 'Agachamento Livre com Barra',
+        muscleGroup: 'Quadríceps',
+        method: 'Normal',
+        sets: [
+          { setNumber: 1, completedReps: 12, weightKg: 40, repZone: '10-12', completed: true },
+          { setNumber: 2, completedReps: 10, weightKg: 50, repZone: '10-12', completed: true },
+          { setNumber: 3, completedReps: 10, weightKg: 55, repZone: '10-12', completed: true },
+        ],
+      },
+      {
+        exerciseId: 'ex-8',
+        name: 'Leg Press 45°',
+        muscleGroup: 'Quadríceps',
+        method: 'Cluster-Set',
+        sets: [
+          { setNumber: 1, completedReps: 12, weightKg: 120, repZone: '12', completed: true },
+          { setNumber: 2, completedReps: 12, weightKg: 140, repZone: '12', completed: true },
+          {
+            setNumber: 3,
+            completedReps: 5,
+            weightKg: 150,
+            repZone: '5 reps',
+            completed: true,
+            method: 'Cluster-Set',
+            subSets: [
+              { subSetNumber: 1, completedReps: 4, weightKg: 150, repZone: '4 reps', completed: true, note: 'Cluster 1 • 15s pausa intra-série' },
+            ],
+          },
+        ],
+      },
+    ],
   },
 ];
 
@@ -643,5 +828,64 @@ export const storage = {
   resetExerciseDatabase(): DatabaseExercise[] {
     this.saveExerciseDatabase(INITIAL_EXERCISE_DATABASE);
     return INITIAL_EXERCISE_DATABASE;
+  },
+
+  // COMPLETED WORKOUTS HISTORY METHODS
+  getCompletedWorkouts(clientId?: string): CompletedWorkoutRecord[] {
+    if (typeof window === 'undefined') {
+      return clientId
+        ? INITIAL_COMPLETED_WORKOUTS.filter((w) => w.clientId === clientId)
+        : INITIAL_COMPLETED_WORKOUTS;
+    }
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.COMPLETED_WORKOUTS);
+      if (!data) {
+        localStorage.setItem(
+          STORAGE_KEYS.COMPLETED_WORKOUTS,
+          JSON.stringify(INITIAL_COMPLETED_WORKOUTS)
+        );
+        return clientId
+          ? INITIAL_COMPLETED_WORKOUTS.filter((w) => w.clientId === clientId)
+          : INITIAL_COMPLETED_WORKOUTS;
+      }
+      const list: CompletedWorkoutRecord[] = JSON.parse(data);
+      return clientId ? list.filter((w) => w.clientId === clientId) : list;
+    } catch {
+      return clientId
+        ? INITIAL_COMPLETED_WORKOUTS.filter((w) => w.clientId === clientId)
+        : INITIAL_COMPLETED_WORKOUTS;
+    }
+  },
+
+  saveCompletedWorkout(record: CompletedWorkoutRecord): CompletedWorkoutRecord[] {
+    const list = this.getCompletedWorkouts();
+    const updated = [record, ...list];
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          STORAGE_KEYS.COMPLETED_WORKOUTS,
+          JSON.stringify(updated)
+        );
+      } catch (e) {
+        console.error('Error saving completed workout:', e);
+      }
+    }
+    return updated;
+  },
+
+  deleteCompletedWorkout(workoutId: string): CompletedWorkoutRecord[] {
+    const list = this.getCompletedWorkouts();
+    const updated = list.filter((w) => w.id !== workoutId);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          STORAGE_KEYS.COMPLETED_WORKOUTS,
+          JSON.stringify(updated)
+        );
+      } catch (e) {
+        console.error('Error deleting completed workout:', e);
+      }
+    }
+    return updated;
   },
 };
