@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Client, ContractType, Gender, CompletedWorkoutRecord } from '@/types';
 import { storage } from '@/lib/storage';
+import { WorkoutHistoryPage } from './WorkoutHistoryPage';
 import {
   UserPlus,
   Search,
@@ -23,6 +24,7 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Dumbbell,
   Clock,
   Flame,
@@ -65,6 +67,16 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   const [expandedHistoryClientIds, setExpandedHistoryClientIds] = useState<Set<string>>(new Set());
   const [expandedWorkoutIds, setExpandedWorkoutIds] = useState<Set<string>>(new Set());
   const [expandedExerciseKeys, setExpandedExerciseKeys] = useState<Set<string>>(new Set());
+
+  // Dedicated Workout History Page State
+  const [isHistoryPageOpen, setIsHistoryPageOpen] = useState(false);
+  const [historyPageClientId, setHistoryPageClientId] = useState<string | null>(null);
+
+  const openHistoryPage = (clientId?: string | null) => {
+    setHistoryPageClientId(clientId || null);
+    setIsHistoryPageOpen(true);
+    setCompletedWorkouts(storage.getCompletedWorkouts());
+  };
 
   useEffect(() => {
     const handleStorage = () => {
@@ -263,10 +275,22 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     return acc + c.contractValue;
   }, 0);
 
+  // Se a página de histórico estiver aberta, renderiza a página de consulta dedicada
+  if (isHistoryPageOpen) {
+    return (
+      <WorkoutHistoryPage
+        clients={clients}
+        initialClientId={historyPageClientId}
+        onBack={() => setIsHistoryPageOpen(false)}
+        onStartWorkoutForClient={onStartWorkoutForClient}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4 pb-24">
       {/* Top Banner & KPI Cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
             Total de Alunos
@@ -478,292 +502,37 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   </button>
                 </div>
 
-                {/* Botão de Histórico de Treino (Expandível) */}
+                {/* Card Botão de Histórico de Treino (Abre a Página de Consulta) */}
                 <div className="pt-1 border-t border-slate-800/80">
                   <button
                     type="button"
-                    onClick={() => toggleClientHistory(client.id)}
-                    className={`w-full flex items-center justify-between py-2.5 px-3 rounded-xl border text-xs font-bold transition active:scale-[0.98] ${
-                      isHistoryExpanded
-                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm shadow-amber-950/20'
-                        : 'bg-slate-950/80 hover:bg-slate-800/80 border-slate-800 text-slate-300 hover:text-white'
-                    }`}
+                    onClick={() => openHistoryPage(client.id)}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/20 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-850 text-xs font-bold transition active:scale-[0.99] group shadow-sm"
                   >
-                    <div className="flex items-center gap-2">
-                      <History className="w-4 h-4 text-amber-400" />
-                      <span>Histórico de Treinos</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        {clientWorkouts.length} {clientWorkouts.length === 1 ? 'finalizado' : 'finalizados'}
-                      </span>
-                    </div>
-                    {isHistoryExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-amber-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Histórico de Treinos Expandido (Hierárquico: Treino -> Exercício -> Séries/Reps/Cargas) */}
-                <AnimatePresence>
-                  {isHistoryExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden space-y-2 pt-1"
-                    >
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                          <History className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Treinos Finalizados ({clientWorkouts.length}):</span>
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          Toque no treino para ver os exercícios
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20 group-hover:scale-105 transition">
+                        <History className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white group-hover:text-amber-300 transition font-bold">
+                            Histórico de Treinos do Aluno
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            {clientWorkouts.length} {clientWorkouts.length === 1 ? "sessão" : "sessões"}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-normal">
+                          Toque para abrir a página de consulta do histórico deste aluno
                         </span>
                       </div>
-
-                      {clientWorkouts.length === 0 ? (
-                        <div className="p-4 rounded-xl bg-slate-950/60 border border-dashed border-slate-800 text-center space-y-1.5">
-                          <History className="w-7 h-7 text-slate-600 mx-auto" />
-                          <p className="text-xs font-bold text-slate-300">
-                            Nenhum treino finalizado para este aluno ainda.
-                          </p>
-                          <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                            Ao concluir uma sessão na aba &ldquo;Executar Treino&rdquo;, o registro com data, exercícios, séries, repetições e cargas aparecerá aqui.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {clientWorkouts.map((workout) => {
-                            const isWorkoutExpanded = expandedWorkoutIds.has(workout.id);
-
-                            return (
-                              <div
-                                key={workout.id}
-                                className="rounded-xl bg-slate-950 border border-slate-800/90 hover:border-slate-700 transition overflow-hidden shadow-sm"
-                              >
-                                {/* Nível 1: Cabeçalho do Treino Finalizado (Clicável) */}
-                                <div
-                                  onClick={() => toggleWorkoutExpand(workout.id)}
-                                  className="p-3 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-900/60 transition"
-                                >
-                                  <div className="flex-1 space-y-1">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
-                                        <Calendar className="w-3 h-3" />
-                                        {workout.date} {workout.time ? `às ${workout.time}` : ''}
-                                      </span>
-                                      <span className="text-[11px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-800 flex items-center gap-1 font-semibold">
-                                        <Clock className="w-3 h-3 text-cyan-400" />
-                                        {workout.durationFormatted}
-                                      </span>
-                                      <span className="text-[11px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-800 flex items-center gap-1 font-semibold">
-                                        <Flame className="w-3 h-3 text-amber-400" />
-                                        {workout.totalVolumeKg.toLocaleString('pt-BR')} kg
-                                      </span>
-                                    </div>
-
-                                    <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
-                                      <h4 className="text-xs sm:text-sm font-black text-white">
-                                        {workout.splitName}
-                                      </h4>
-                                      <span className="text-[11px] text-slate-400 font-medium">
-                                        • {workout.programName}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 self-end sm:self-center">
-                                    <span className="text-[11px] font-bold text-cyan-400 bg-cyan-950/40 border border-cyan-500/30 px-2 py-0.5 rounded-lg">
-                                      {workout.exercises.length} {workout.exercises.length === 1 ? 'exercício' : 'exercícios'}
-                                    </span>
-                                    <div className="p-1 rounded-lg bg-slate-800 text-slate-300">
-                                      {isWorkoutExpanded ? (
-                                        <ChevronUp className="w-4 h-4 text-cyan-400" />
-                                      ) : (
-                                        <ChevronDown className="w-4 h-4 text-slate-400" />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Nível 2: Lista de Exercícios Realizados no Treino */}
-                                {isWorkoutExpanded && (
-                                  <div className="p-2.5 pt-0 border-t border-slate-800/80 space-y-2 bg-slate-900/40">
-                                    {/* Feedback e Correções do Treinador Registradas */}
-                                    {workout.trainerNotes && (
-                                      <div className="mt-2 p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-1">
-                                        <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-amber-400 uppercase tracking-wider">
-                                          <PenLine className="w-3.5 h-3.5" />
-                                          <span>Feedback & Correções do Treinador:</span>
-                                        </div>
-                                        <p className="text-xs text-slate-200 italic pl-1 leading-relaxed">
-                                          &ldquo;{workout.trainerNotes}&rdquo;
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 pt-2 flex items-center gap-1">
-                                      <Dumbbell className="w-3 h-3 text-cyan-400" />
-                                      <span>Exercícios realizados (toque no exercício para ver séries, reps e carga):</span>
-                                    </p>
-
-                                    <div className="space-y-1.5">
-                                      {workout.exercises.map((ex, exIdx) => {
-                                        const exKey = `${workout.id}-${exIdx}`;
-                                        const isExExpanded = expandedExerciseKeys.has(exKey);
-
-                                        return (
-                                          <div
-                                            key={exKey}
-                                            className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden"
-                                          >
-                                            {/* Cabeçalho do Exercício */}
-                                            <div
-                                              onClick={() => toggleExerciseExpand(exKey)}
-                                              className="p-2.5 cursor-pointer flex items-center justify-between hover:bg-slate-800/70 transition"
-                                            >
-                                              <div className="flex items-center gap-2">
-                                                <span className="w-5 h-5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-black flex items-center justify-center border border-slate-700">
-                                                  #{exIdx + 1}
-                                                </span>
-                                                <div>
-                                                  <span className="text-xs font-bold text-white block">
-                                                    {ex.name}
-                                                  </span>
-                                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                                                    <span className="text-cyan-400 font-semibold">{ex.muscleGroup}</span>
-                                                    {ex.method && ex.method !== 'Normal' && (
-                                                      <span className="text-purple-300 font-bold bg-purple-500/20 px-1.5 py-0.2 rounded border border-purple-500/30">
-                                                        {ex.method}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </div>
-
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-[11px] font-semibold text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700">
-                                                  {ex.sets.length} {ex.sets.length === 1 ? 'série' : 'séries'}
-                                                </span>
-                                                {isExExpanded ? (
-                                                  <ChevronUp className="w-3.5 h-3.5 text-purple-400" />
-                                                ) : (
-                                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                                )}
-                                              </div>
-                                            </div>
-
-                                            {/* Nível 3: Séries Realizadas, Repetições Realizadas e Carga Utilizada */}
-                                            {isExExpanded && (
-                                              <div className="p-2.5 pt-1 border-t border-slate-800 bg-slate-950/80 space-y-1.5">
-                                                <div className="grid grid-cols-12 gap-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                                                  <span className="col-span-2 text-center">Série</span>
-                                                  <span className="col-span-3 text-center">Reps Feitas</span>
-                                                  <span className="col-span-3 text-center">Carga Usada</span>
-                                                  <span className="col-span-2 text-center">Meta</span>
-                                                  <span className="col-span-2 text-center">Status</span>
-                                                </div>
-
-                                                {ex.sets.map((set, sIdx) => (
-                                                  <div key={sIdx} className="space-y-1">
-                                                    <div className="grid grid-cols-12 gap-1 items-center p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
-                                                      {/* Série */}
-                                                      <div className="col-span-2 flex items-center justify-center">
-                                                        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-black text-[10px]">
-                                                          #{set.setNumber}
-                                                        </span>
-                                                      </div>
-
-                                                      {/* Repetições Realizadas */}
-                                                      <div className="col-span-3 text-center">
-                                                        <span className="font-mono font-black text-white text-xs">
-                                                          {set.completedReps}
-                                                        </span>
-                                                        <span className="text-[9px] text-slate-400 ml-0.5">reps</span>
-                                                      </div>
-
-                                                      {/* Carga Utilizada */}
-                                                      <div className="col-span-3 text-center">
-                                                        <span className="font-mono font-black text-emerald-400 text-xs">
-                                                          {set.weightKg}
-                                                        </span>
-                                                        <span className="text-[9px] text-slate-400 ml-0.5">kg</span>
-                                                      </div>
-
-                                                      {/* Meta Original */}
-                                                      <div className="col-span-2 text-center">
-                                                        <span className="text-[10px] text-slate-400 font-mono">
-                                                          {set.repZone || '--'}
-                                                        </span>
-                                                      </div>
-
-                                                      {/* Status */}
-                                                      <div className="col-span-2 flex items-center justify-center">
-                                                        {set.completed ? (
-                                                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                                            <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                                            <span>OK</span>
-                                                          </span>
-                                                        ) : (
-                                                          <span className="text-[9px] text-slate-500 font-semibold">
-                                                            Pendente
-                                                          </span>
-                                                        )}
-                                                      </div>
-                                                    </div>
-
-                                                    {/* Subséries Realizadas */}
-                                                    {set.subSets && set.subSets.length > 0 && (
-                                                      <div className="ml-4 pl-2 border-l border-purple-500/40 space-y-1">
-                                                        {set.subSets.map((sub, subIdx) => (
-                                                          <div
-                                                            key={subIdx}
-                                                            className="grid grid-cols-12 gap-1 items-center p-1.5 rounded-lg bg-purple-950/20 border border-purple-500/30 text-xs"
-                                                          >
-                                                            <div className="col-span-2 flex items-center gap-1 justify-center">
-                                                              <span className="text-[9px] font-bold text-purple-300">
-                                                                ↳ Sub #{sub.subSetNumber}
-                                                              </span>
-                                                            </div>
-                                                            <div className="col-span-3 text-center">
-                                                              <span className="font-mono font-black text-purple-200">
-                                                                {sub.completedReps}
-                                                              </span>
-                                                              <span className="text-[9px] text-slate-400 ml-0.5">reps</span>
-                                                            </div>
-                                                            <div className="col-span-3 text-center">
-                                                              <span className="font-mono font-black text-purple-300">
-                                                                {sub.weightKg}
-                                                              </span>
-                                                              <span className="text-[9px] text-slate-400 ml-0.5">kg</span>
-                                                            </div>
-                                                            <div className="col-span-4 truncate text-[9px] text-slate-400" title={sub.note}>
-                                                              {sub.note || sub.repZone || 'Subsérie'}
-                                                            </div>
-                                                          </div>
-                                                        ))}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold">
+                      <span className="hidden sm:inline">Consultar Histórico</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
+                    </div>
+                  </button>
+                </div>
               </div>
             );
           })

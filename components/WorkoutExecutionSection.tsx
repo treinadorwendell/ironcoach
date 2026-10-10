@@ -16,6 +16,7 @@ import {
 } from '@/types';
 import { storage } from '@/lib/storage';
 import { sounds } from '@/lib/sound';
+import { useActiveWorkoutPersistence } from '@/hooks/useActiveWorkoutPersistence';
 import { ExerciseHistoryChart } from './ExerciseHistoryChart';
 import { RestCountdownTimer } from './RestCountdownTimer';
 import {
@@ -158,11 +159,18 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     return activeWorkout?.clientId || clients[0]?.id || '';
   });
 
-  // Initialize active session deterministically for SSR match
-  const [session, setSession] = useState<ActiveWorkoutSession | null>(() => {
-    const targetProg = activeWorkout || (workouts.length > 0 ? workouts[0] : null);
-    if (!targetProg) return null;
-    return buildSession(targetProg);
+  // Dedicated hook that automatically persists active workout progress to localStorage and protects against data loss on refresh
+  const {
+    session,
+    setSession,
+    startNewSession: persistStartNewSession,
+    clearActiveSession,
+  } = useActiveWorkoutPersistence({
+    activeWorkout,
+    buildSession,
+    onClientSync: (clientId) => {
+      setSelectedClientId(clientId);
+    },
   });
 
   const [expandedHistoryExId, setExpandedHistoryExId] = useState<string | null>(null);
@@ -189,34 +197,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     trainerNotes?: string;
   } | null>(null);
 
-  // Safely hydrate saved session from client storage after mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const saved = storage.getActiveSession();
-      if (saved) {
-        setSession(saved);
-        if (saved.clientId) {
-          setSelectedClientId(saved.clientId);
-        }
-      }
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Sync when activeWorkout changes from parent (e.g. clicking "Iniciar Treino" on a client)
-  useEffect(() => {
-    if (activeWorkout) {
-      const timer = setTimeout(() => {
-        setSelectedClientId(activeWorkout.clientId);
-        const newSession = buildSession(activeWorkout);
-        setSession(newSession);
-        storage.saveActiveSession(newSession);
-        setExpandedExerciseIds({}); // Initially collapsed when workout is selected
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [activeWorkout, buildSession]);
-
   const handleToggleExerciseExpand = (exId: string) => {
     setExpandedExerciseIds((prev) => ({
       ...prev,
@@ -239,13 +219,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   const startNewSession = useCallback(
     (prog: WorkoutProgram, split?: WorkoutSplit) => {
-      const newSession = buildSession(prog, split);
-      setSession(newSession);
-      storage.saveActiveSession(newSession);
+      persistStartNewSession(prog, split);
       setIsWorkoutExpanded(true);
       setExpandedExerciseIds({}); // Initially collapsed when new session starts
     },
-    [buildSession, setExpandedExerciseIds]
+    [persistStartNewSession]
   );
 
   // Switch student handler
@@ -388,7 +366,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasActiveSession, isSessionStarted, isSessionPaused]);
+  }, [hasActiveSession, isSessionStarted, isSessionPaused, setSession]);
 
   // Toggle set check status
   const handleToggleSetCheck = (exIndex: number, setIndex: number) => {
@@ -639,6 +617,35 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     storage.saveActiveSession(updatedSession);
   };
 
+  // Direct subsérie weight change
+  const handleSetSubSetWeightDirect = (
+    exIndex: number,
+    setIndex: number,
+    subIndex: number,
+    val: number
+  ) => {
+    if (!session) return;
+    const currentEx = session.exercises[exIndex];
+    const currentSet = currentEx?.sets[setIndex];
+    if (!currentSet || !currentSet.subSets || !currentSet.subSets[subIndex]) return;
+
+    const updatedSubSets = currentSet.subSets.map((s, idx) =>
+      idx === subIndex ? { ...s, weightKg: Math.max(0, val) } : s
+    );
+
+    const updatedSets = currentEx.sets.map((s, idx) =>
+      idx === setIndex ? { ...s, subSets: updatedSubSets } : s
+    );
+
+    const updatedExercises = session.exercises.map((ex, idx) =>
+      idx === exIndex ? { ...ex, sets: updatedSets } : ex
+    );
+
+    const updatedSession = { ...session, exercises: updatedExercises };
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+  };
+
   // Workout Notes & Feedback Handler
   const handleUpdateTrainerNotes = (notes: string) => {
     if (!session) return;
@@ -648,15 +655,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     };
     setSession(updated);
     storage.saveActiveSession(updated);
-  };
-
-  // Append Quick Technical Correction Tag
-  const handleAppendTrainerQuickTag = (tag: string) => {
-    if (!session) return;
-    const currentNotes = session.trainerNotes || '';
-    const newNotes = currentNotes ? `${currentNotes.trim()} • ${tag}` : tag;
-    handleUpdateTrainerNotes(newNotes);
-    sounds.playTickSound();
   };
 
   // Start Workout Session (starts timer)
@@ -777,7 +775,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       });
     } catch {}
 
-    storage.saveActiveSession(null);
+    clearActiveSession();
   };
 
   // Current selected client details
@@ -799,7 +797,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   };
 
   return (
-    <div className="space-y-4 pb-28">
+    <div className={`space-y-4 ${timerOpen ? 'pb-48' : 'pb-28'}`}>
       {/* Rest Countdown Floating Overlay */}
       <RestCountdownTimer
         key={`${timerExerciseName}-${timerSetNumber}`}
@@ -813,58 +811,25 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       {/* STUDENT & WORKOUT SELECTOR BAR (SELEÇÃO DE ALUNO NO TOPO) */}
       <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
         {/* Row 1: Explicit Student Selector */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-          <div className="flex-1 space-y-1">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-4 h-4 text-emerald-400" />
-              <span>Selecionar Aluno para o Treino</span>
-            </label>
+        <div className="space-y-1 pb-3 border-b border-slate-800/80">
+          <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <User className="w-4 h-4 text-emerald-400" />
+            <span>Selecionar Aluno para o Treino</span>
+          </label>
 
-            <div className="relative">
-              <select
-                value={selectedClientId}
-                onChange={(e) => handleSelectClient(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700/80 hover:border-emerald-500/60 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition-colors touch-manipulation"
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} — Plano {c.contractType} (R$ {c.contractValue})
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="relative">
+            <select
+              value={selectedClientId}
+              onChange={(e) => handleSelectClient(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700/80 hover:border-emerald-500/60 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition-colors touch-manipulation"
+            >
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} — Plano {c.contractType} (R$ {c.contractValue})
+                </option>
+              ))}
+            </select>
           </div>
-
-          {/* Student Vitals Pill Badge */}
-          {selectedClient && (
-            <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
-              <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-sm shadow-md flex-shrink-0 ${
-                  selectedClient.gender === 'Feminino'
-                    ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
-                    : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
-                }`}
-              >
-                {selectedClient.name.charAt(0)}
-              </div>
-              <div className="leading-tight">
-                <span className="font-bold text-white block truncate max-w-[130px]">
-                  {selectedClient.name}
-                </span>
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                  <span className="flex items-center gap-0.5">
-                    <Weight className="w-2.5 h-2.5 text-cyan-400" />
-                    {selectedClient.weight}kg
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-0.5">
-                    <Activity className="w-2.5 h-2.5 text-emerald-400" />
-                    IMC {studentIMC || '--'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Row 2: Workout Program Selector for this Student */}
@@ -916,41 +881,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               </div>
             )}
           </div>
-
-          {/* Session Stopwatch and Controls */}
-          {session && (
-            <div className="flex items-center gap-2 self-end sm:self-auto pt-1 sm:pt-4">
-              {session.isStarted && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const updated = { ...session, isPaused: !session.isPaused };
-                    setSession(updated);
-                    storage.saveActiveSession(updated);
-                  }}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs active:scale-95 touch-manipulation"
-                  title={session.isPaused ? 'Retomar Treino' : 'Pausar Cronômetro'}
-                >
-                  {session.isPaused ? (
-                    <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-                  ) : (
-                    <Pause className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  )}
-                </button>
-              )}
-
-              <div
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border font-mono text-xs font-bold shadow-inner ${
-                  session.isStarted
-                    ? 'border-emerald-500/40 text-emerald-400'
-                    : 'border-slate-800 text-slate-400'
-                }`}
-              >
-                <Clock className={`w-3.5 h-3.5 ${session.isStarted ? 'text-emerald-400' : 'text-slate-500'}`} />
-                <span>{session.isStarted ? formatElapsed(session.elapsedSeconds) : '00:00'}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Quick Workout Tabs if student has multiple programs */}
@@ -1553,18 +1483,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   </button>
                                 </div>
 
-                                {/* Col 3: Carga (KG) with HUGE + and - Touch Buttons */}
-                                <div className="col-span-5 flex items-center justify-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => adjustWeight(exIndex, setIndex, -2.5, false)}
-                                    className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 transition touch-manipulation"
-                                    title="-2.5 kg"
-                                  >
-                                    -2.5
-                                  </button>
-
-                                  <div className="relative min-w-[58px] text-center">
+                                {/* Col 3: Carga (KG) */}
+                                <div className="col-span-5 flex items-center justify-center">
+                                  <div className="relative w-20 text-center">
                                     <input
                                       type="number"
                                       step="0.5"
@@ -1576,30 +1497,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           parseFloat(e.target.value) || 0
                                         )
                                       }
-                                      className="w-full py-1 text-center font-mono font-black text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500"
+                                      className="w-full py-1.5 text-center font-mono font-black text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner"
                                     />
-                                    <span className="text-[9px] text-slate-400 font-semibold block">
+                                    <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
                                       kg
                                     </span>
                                   </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => adjustWeight(exIndex, setIndex, +2.5, true)}
-                                    className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-black text-xs flex items-center justify-center active:scale-90 transition touch-manipulation"
-                                    title="+2.5 kg (replica para as seguintes)"
-                                  >
-                                    +2.5
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => adjustWeight(exIndex, setIndex, +5, true)}
-                                    className="w-7 h-9 rounded-xl bg-emerald-950/60 border border-emerald-500/30 hover:bg-emerald-900 text-emerald-400 font-black text-[10px] hidden sm:flex items-center justify-center active:scale-90 transition touch-manipulation"
-                                    title="+5 kg"
-                                  >
-                                    +5
-                                  </button>
                                 </div>
 
                                 {/* Col 4: Botão de Check List Lateral */}
@@ -1681,30 +1584,26 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                       </div>
 
                                       {/* Col 3: Carga (kg) */}
-                                      <div className="col-span-5 flex items-center justify-center gap-1">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleAdjustSubSetWeight(exIndex, setIndex, subIdx, -2.5)
-                                          }
-                                          className="w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] flex items-center justify-center active:scale-90"
-                                        >
-                                          -2.5
-                                        </button>
-                                        <div className="min-w-[48px] text-center">
-                                          <span className="text-xs font-mono font-black text-purple-300">
-                                            {sub.weightKg} kg
+                                      <div className="col-span-5 flex items-center justify-center">
+                                        <div className="relative w-20 text-center">
+                                          <input
+                                            type="number"
+                                            step="0.5"
+                                            value={sub.weightKg}
+                                            onChange={(e) =>
+                                              handleSetSubSetWeightDirect(
+                                                exIndex,
+                                                setIndex,
+                                                subIdx,
+                                                parseFloat(e.target.value) || 0
+                                              )
+                                            }
+                                            className="w-full py-1 text-center font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner"
+                                          />
+                                          <span className="text-[8px] text-slate-400 font-semibold block mt-0.5">
+                                            kg
                                           </span>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleAdjustSubSetWeight(exIndex, setIndex, subIdx, +2.5)
-                                          }
-                                          className="w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-purple-300 font-bold text-[10px] flex items-center justify-center active:scale-90"
-                                        >
-                                          +2.5
-                                        </button>
                                       </div>
 
                                       {/* Col 4: Check subsérie */}
@@ -1797,35 +1696,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   <span>Limpar</span>
                 </button>
               )}
-            </div>
-
-            {/* Quick Correction Tags (Atalhos rápidos para tablet) */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" />
-                <span>Atalhos Rápidos de Correção Técnica (Toque para inserir):</span>
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  '🎯 Retração escapular ativa',
-                  '🔄 Cadência controlada 3010',
-                  '📏 Amplitude completa de movimento',
-                  '⚠️ Manter coluna lombar neutra',
-                  '💪 Pegada firme e alinhada',
-                  '🦶 Base e pés bem plantados',
-                  '🔥 Excelente progressão de carga',
-                  '⏱️ Respeitar intervalo de descanso',
-                ].map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => handleAppendTrainerQuickTag(tag)}
-                    className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 transition active:scale-95 touch-manipulation"
-                  >
-                    + {tag}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Textarea de Notas do Treinador */}

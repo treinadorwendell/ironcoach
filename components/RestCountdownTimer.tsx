@@ -73,12 +73,12 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   const isFinished = timeLeft === 0;
 
   return (
-    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in slide-in-from-top-6 duration-200">
+    <div className="fixed bottom-20 sm:bottom-20 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in slide-in-from-bottom-6 duration-200">
       <div
         className={`p-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl transition-colors ${
           isFinished
-            ? 'bg-emerald-950/95 border-emerald-400 ring-2 ring-emerald-400 timer-pulsing'
-            : 'bg-slate-900/95 border-slate-700 shadow-slate-950/80'
+            ? 'bg-emerald-950/95 border-emerald-400 ring-2 ring-emerald-400 timer-pulsing shadow-[0_-8px_30px_rgba(16,185,129,0.3)]'
+            : 'bg-slate-900/95 border-slate-700 shadow-[0_-8px_30px_rgba(0,0,0,0.8)]'
         }`}
       >
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   WorkoutProgram,
@@ -46,6 +46,10 @@ import {
   Link2,
   Unlink,
   ArrowDown,
+  ArrowUp,
+  GripVertical,
+  ArrowUpDown,
+  Move,
 } from 'lucide-react';
 
 interface CreateWorkoutSectionProps {
@@ -283,6 +287,19 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   const [selectedExerciseIdsToCombine, setSelectedExerciseIdsToCombine] = useState<string[]>([]);
   const [combinationLabel, setCombinationLabel] = useState<string>('Bi-Set');
 
+  // REORDER / MOVE EXERCISE STATE (PRESS & HOLD 2 SECONDS TO SLIDE AND MOVE)
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [activeMovingExerciseId, setActiveMovingExerciseId] = useState<string | null>(null);
+  const [holdingExerciseId, setHoldingExerciseId] = useState<string | null>(null);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragHoverIndex, setDragHoverIndex] = useState<number | null>(null);
+
+  const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const holdStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const preventClickDueToHoldRef = useRef(false);
+
   // Handle client change via user selection
   const handleClientChange = (newClientId: string) => {
     setClientId(newClientId);
@@ -343,6 +360,8 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       setEditingProgram(copy);
       if (copy.splits && copy.splits.length > 0) {
         setSelectedSplitId(copy.splits[0].id);
+      } else {
+        setSelectedSplitId('');
       }
     }
   };
@@ -432,41 +451,12 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     setTimeout(() => setSavedSuccessMsg(false), 3000);
   };
 
-  // Create a new Program for this client
+  // Create a new Program for this client (completely blank: no splits, exercises, sets, reps, methods or weekdays automatically generated)
   const handleConfirmCreateProgram = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProgName.trim()) return;
 
     const newId = `prog-${Date.now()}`;
-    const initialSplit: WorkoutSplit = {
-      id: `split-a-${Date.now()}`,
-      name: 'Treino A - Peitoral e Tríceps',
-      weekDays: [1, 4], // Seg e Qui
-      exercises: [
-        {
-          id: `ex-${Date.now()}-1`,
-          name: 'Supino Reto com Barra',
-          muscleGroup: 'Peitoral',
-          sets: 4,
-          repZone: '8-12',
-          restSeconds: 90,
-          method: 'Normal',
-          observations: 'Manter escápulas retraídas.',
-          extraBlocks: [],
-        },
-        {
-          id: `ex-${Date.now()}-2`,
-          name: 'Tríceps Corda na Polia',
-          muscleGroup: 'Tríceps',
-          sets: 3,
-          repZone: '12-15',
-          restSeconds: 60,
-          method: 'Drop-set',
-          observations: 'Pausa isométrica de 1s no final.',
-          extraBlocks: [],
-        },
-      ],
-    };
 
     const newProgram: WorkoutProgram = {
       id: newId,
@@ -475,9 +465,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       goal: newProgGoal.trim(),
       startDate: newProgStartDate,
       endDate: newProgEndDate,
-      splits: [initialSplit],
-      weekDays: initialSplit.weekDays,
-      exercises: initialSplit.exercises,
+      splits: [],
+      weekDays: [],
+      exercises: [],
       createdAt: new Date().toISOString().split('T')[0],
     };
 
@@ -485,15 +475,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     setSelectedProgramId(newId);
     setExpandedProgramId(newId);
     setEditingProgram(newProgram);
-    setSelectedSplitId(initialSplit.id);
+    setSelectedSplitId('');
     setIsCreatingNewProgram(false);
     setNewProgName('');
   };
 
   // Active split currently displayed in editor
-  const activeSplit = editingProgram?.splits.find((s) => s.id === selectedSplitId) || editingProgram?.splits[0];
+  const activeSplit = editingProgram?.splits?.find((s) => s.id === selectedSplitId) || editingProgram?.splits?.[0];
 
-  // Toggle weekday for current split (allows multiple days or single day)
+  // Toggle weekday for current split (allows multiple days or single day, without forcing days)
   const handleToggleSplitWeekDay = (dayId: number) => {
     if (!editingProgram || !activeSplit) return;
 
@@ -501,14 +491,12 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     let updatedDays: number[];
 
     if (currentDays.includes(dayId)) {
-      // Don't allow empty, keep at least 1 day
-      if (currentDays.length === 1) return;
       updatedDays = currentDays.filter((d) => d !== dayId);
     } else {
-      updatedDays = [...currentDays, dayId].sort();
+      updatedDays = [...currentDays, dayId].sort((a, b) => a - b);
     }
 
-    const updatedSplits = editingProgram.splits.map((s) =>
+    const updatedSplits = (editingProgram.splits || []).map((s) =>
       s.id === activeSplit.id ? { ...s, weekDays: updatedDays } : s
     );
 
@@ -518,31 +506,20 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     });
   };
 
-  // Add a new split (Treino B, Treino C, etc.)
+  // Add a new split (Treino A, Treino B, Treino C, etc.) completely blank without automatic exercises or presets
   const handleAddSplit = () => {
     if (!editingProgram) return;
 
-    const nextLetter = String.fromCharCode(65 + editingProgram.splits.length); // A, B, C, D...
+    const currentSplits = editingProgram.splits || [];
+    const nextLetter = String.fromCharCode(65 + currentSplits.length); // A, B, C, D...
     const newSplit: WorkoutSplit = {
       id: `split-${Date.now()}`,
-      name: `Treino ${nextLetter} - Novo Grupamento`,
-      weekDays: [2, 5], // default Ter e Sex
-      exercises: [
-        {
-          id: `ex-${Date.now()}`,
-          name: 'Puxada Frontal Aberta',
-          muscleGroup: 'Dorsal',
-          sets: 4,
-          repZone: '8-12',
-          restSeconds: 75,
-          method: 'Normal',
-          observations: 'Puxar até a altura da fúrcula.',
-          extraBlocks: [],
-        },
-      ],
+      name: `Treino ${nextLetter}`,
+      weekDays: [],
+      exercises: [],
     };
 
-    const updatedSplits = [...editingProgram.splits, newSplit];
+    const updatedSplits = [...currentSplits, newSplit];
     setEditingProgram({
       ...editingProgram,
       splits: updatedSplits,
@@ -550,100 +527,40 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     setSelectedSplitId(newSplit.id);
   };
 
-  // Presets: Generate 1 Workout for each Weekday (Segunda a Sexta)
+  // Presets: Generate 1 Workout for each Weekday (Segunda a Sexta) with blank exercises
   const handleGenerateDailyWorkouts = () => {
     if (!editingProgram) return;
 
     const dailySplits: WorkoutSplit[] = [
       {
         id: `split-seg-${Date.now()}`,
-        name: 'Treino de Segunda - Peitoral & Tríceps',
+        name: 'Treino de Segunda',
         weekDays: [1],
-        exercises: [
-          {
-            id: `ex-seg-1`,
-            name: 'Supino Reto com Barra',
-            muscleGroup: 'Peitoral',
-            sets: 4,
-            repZone: '8-12',
-            restSeconds: 90,
-            method: 'Normal',
-            observations: 'Foco em força e hipertrofia.',
-            extraBlocks: [],
-          },
-        ],
+        exercises: [],
       },
       {
         id: `split-ter-${Date.now()}`,
-        name: 'Treino de Terça - Dorsal & Bíceps',
+        name: 'Treino de Terça',
         weekDays: [2],
-        exercises: [
-          {
-            id: `ex-ter-1`,
-            name: 'Puxada Frontal Aberta',
-            muscleGroup: 'Dorsal',
-            sets: 4,
-            repZone: '8-12',
-            restSeconds: 75,
-            method: 'Normal',
-            observations: 'Boa amplitude e retração.',
-            extraBlocks: [],
-          },
-        ],
+        exercises: [],
       },
       {
         id: `split-qua-${Date.now()}`,
-        name: 'Treino de Quarta - Membros Inferiores',
+        name: 'Treino de Quarta',
         weekDays: [3],
-        exercises: [
-          {
-            id: `ex-qua-1`,
-            name: 'Agachamento Livre com Barra',
-            muscleGroup: 'Quadríceps',
-            sets: 4,
-            repZone: '8-10',
-            restSeconds: 90,
-            method: 'Normal',
-            observations: 'Base firme e boa profundidade.',
-            extraBlocks: [],
-          },
-        ],
+        exercises: [],
       },
       {
         id: `split-qui-${Date.now()}`,
-        name: 'Treino de Quinta - Ombros & Abdômen',
+        name: 'Treino de Quinta',
         weekDays: [4],
-        exercises: [
-          {
-            id: `ex-qui-1`,
-            name: 'Desenvolvimento com Halteres',
-            muscleGroup: 'Deltóide Anterior',
-            sets: 4,
-            repZone: '10-12',
-            restSeconds: 60,
-            method: 'Normal',
-            observations: 'Controle na descida.',
-            extraBlocks: [],
-          },
-        ],
+        exercises: [],
       },
       {
         id: `split-sex-${Date.now()}`,
-        name: 'Treino de Sexta - Posterior & Glúteo',
+        name: 'Treino de Sexta',
         weekDays: [5],
-        exercises: [
-          {
-            id: `ex-sex-1`,
-            name: 'Stiff com Barra',
-            muscleGroup: 'Ísquios',
-            sets: 4,
-            repZone: '10-12',
-            restSeconds: 75,
-            method: 'Normal',
-            observations: 'Coluna neutra.',
-            extraBlocks: [],
-          },
-        ],
+        exercises: [],
       },
     ];
 
@@ -656,13 +573,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
   // Remove a split
   const handleRemoveSplit = (splitId: string) => {
-    if (!editingProgram || editingProgram.splits.length <= 1) return;
-    const remaining = editingProgram.splits.filter((s) => s.id !== splitId);
+    if (!editingProgram) return;
+    const remaining = (editingProgram.splits || []).filter((s) => s.id !== splitId);
     setEditingProgram({
       ...editingProgram,
       splits: remaining,
     });
-    setSelectedSplitId(remaining[0].id);
+    setSelectedSplitId(remaining.length > 0 ? remaining[0].id : '');
   };
 
   // Update Split Name
@@ -851,11 +768,204 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   };
 
   const handleToggleExerciseExpand = (exId: string) => {
+    if (preventClickDueToHoldRef.current) {
+      preventClickDueToHoldRef.current = false;
+      return;
+    }
     setExpandedExerciseIds((prev) => ({
       ...prev,
       [exId]: !prev[exId],
     }));
   };
+
+  // Reorder exercises: move an exercise from one index to another in activeSplit
+  const reorderExercises = useCallback((fromIndex: number, toIndex: number) => {
+    if (!activeSplit || fromIndex === toIndex) return;
+    if (fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex >= activeSplit.exercises.length || toIndex >= activeSplit.exercises.length) return;
+
+    setEditingProgram((prev) => {
+      if (!prev) return null;
+      const currentSplit =
+        prev.splits.find((s) => s.id === activeSplit.id) || prev.splits[0];
+      if (!currentSplit) return prev;
+
+      const list = [...currentSplit.exercises];
+      const [movedItem] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, movedItem);
+
+      const updatedSplits = prev.splits.map((s) =>
+        s.id === currentSplit.id ? { ...s, exercises: list } : s
+      );
+
+      return { ...prev, splits: updatedSplits };
+    });
+
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(35);
+      } catch {}
+    }
+  }, [activeSplit]);
+
+  const moveExerciseUp = useCallback((exIndex: number) => {
+    if (exIndex > 0) {
+      reorderExercises(exIndex, exIndex - 1);
+    }
+  }, [reorderExercises]);
+
+  const moveExerciseDown = useCallback((exIndex: number) => {
+    if (activeSplit && exIndex < activeSplit.exercises.length - 1) {
+      reorderExercises(exIndex, exIndex + 1);
+    }
+  }, [activeSplit, reorderExercises]);
+
+  const cancelHold = useCallback(() => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    setHoldingExerciseId(null);
+    setHoldProgress(0);
+  }, []);
+
+  // Long press handler & direct slide in reorder mode
+  const handleExercisePointerDown = useCallback((
+    e: React.PointerEvent,
+    exId: string,
+    exIndex: number
+  ) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, textarea, a, [data-no-hold]')) {
+      return;
+    }
+
+    // Se já estiver no Modo de Reordenação, seleciona e inicia o deslize imediatamente
+    if (isReorderMode) {
+      setActiveMovingExerciseId(exId);
+      setDraggingIndex(exIndex);
+      setDragHoverIndex(exIndex);
+      preventClickDueToHoldRef.current = true;
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {}
+      return;
+    }
+
+    cancelHold();
+    holdStartPosRef.current = { x: e.clientX, y: e.clientY };
+    preventClickDueToHoldRef.current = false;
+    setHoldingExerciseId(exId);
+    setHoldProgress(0);
+
+    const targetElement = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
+
+    const startTime = Date.now();
+    holdIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, (elapsed / 2000) * 100);
+      setHoldProgress(progress);
+    }, 30);
+
+    holdTimeoutRef.current = setTimeout(() => {
+      if (holdIntervalRef.current) {
+        clearInterval(holdIntervalRef.current);
+        holdIntervalRef.current = null;
+      }
+      preventClickDueToHoldRef.current = true;
+      setHoldingExerciseId(null);
+      setHoldProgress(0);
+      setIsReorderMode(true);
+      setActiveMovingExerciseId(exId);
+      setDraggingIndex(exIndex);
+      setDragHoverIndex(exIndex);
+
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([70, 40, 70]);
+        } catch {}
+      }
+
+      try {
+        targetElement.setPointerCapture(pointerId);
+      } catch {}
+    }, 2000);
+  }, [cancelHold, isReorderMode]);
+
+  const handleExercisePointerMove = useCallback((
+    e: React.PointerEvent,
+    exId: string
+  ) => {
+    if (holdingExerciseId === exId && holdStartPosRef.current) {
+      const dist = Math.hypot(
+        e.clientX - holdStartPosRef.current.x,
+        e.clientY - holdStartPosRef.current.y
+      );
+      if (dist > 12) {
+        cancelHold();
+      }
+    }
+
+    // Deslize tátil direto: ao passar o dedo/mouse sobre outro exercício, alterna a ordem diretamente
+    if (isReorderMode && draggingIndex !== null) {
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      const card = elem?.closest('[data-exercise-idx]');
+      if (card) {
+        const targetIdx = Number(card.getAttribute('data-exercise-idx'));
+        if (!isNaN(targetIdx) && targetIdx !== draggingIndex) {
+          reorderExercises(draggingIndex, targetIdx);
+          setDraggingIndex(targetIdx);
+          setDragHoverIndex(targetIdx);
+
+          if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate(25);
+            } catch {}
+          }
+        }
+      }
+    }
+  }, [cancelHold, holdingExerciseId, isReorderMode, draggingIndex, reorderExercises]);
+
+  const handleExercisePointerUp = useCallback((
+    e: React.PointerEvent,
+    _exId: string,
+    _exIndex: number
+  ) => {
+    cancelHold();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+
+    setDraggingIndex(null);
+    setDragHoverIndex(null);
+
+    setTimeout(() => {
+      preventClickDueToHoldRef.current = false;
+    }, 250);
+  }, [cancelHold]);
+
+  const handleExercisePointerCancel = useCallback((e: React.PointerEvent) => {
+    cancelHold();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+    setDraggingIndex(null);
+    setDragHoverIndex(null);
+    preventClickDueToHoldRef.current = false;
+  }, [cancelHold]);
+
+  useEffect(() => {
+    return () => {
+      if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+    };
+  }, []);
 
   const handleExpandAllExercises = () => {
     if (!activeSplit) return;
@@ -1417,6 +1527,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   ) => {
     const isExpanded = !!expandedExerciseIds[ex.id];
     const setDetails = getExerciseSetDetails(ex);
+    const isHoldingThis = holdingExerciseId === ex.id;
+    const isMovingThis = activeMovingExerciseId === ex.id;
+    const isDragOver = dragHoverIndex === exIndex && draggingIndex !== exIndex;
+    const isCurrentlyDragging = draggingIndex === exIndex;
 
     // Collect distinct non-normal methods across sets
     const specialMethods = Array.from(
@@ -1436,20 +1550,122 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     return (
       <div
         key={ex.id}
-        className={`rounded-2xl border transition-all duration-200 shadow-md ${
-          isExpanded
+        data-exercise-idx={exIndex}
+        draggable={isReorderMode}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', String(exIndex));
+          setDraggingIndex(exIndex);
+          setActiveMovingExerciseId(ex.id);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (dragHoverIndex !== exIndex) {
+            setDragHoverIndex(exIndex);
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const from = Number(e.dataTransfer.getData('text/plain'));
+          if (!isNaN(from) && from !== exIndex) {
+            reorderExercises(from, exIndex);
+          }
+          setDraggingIndex(null);
+          setDragHoverIndex(null);
+        }}
+        onDragEnd={() => {
+          setDraggingIndex(null);
+          setDragHoverIndex(null);
+        }}
+        onPointerDown={(e) => handleExercisePointerDown(e, ex.id, exIndex)}
+        onPointerMove={(e) => handleExercisePointerMove(e, ex.id)}
+        onPointerUp={(e) => handleExercisePointerUp(e, ex.id, exIndex)}
+        onPointerCancel={handleExercisePointerCancel}
+        style={{ touchAction: isReorderMode || isHoldingThis ? 'none' : 'pan-y' }}
+        className={`relative rounded-2xl border transition-all duration-200 shadow-md ${
+          isDragOver
+            ? 'border-2 border-dashed border-cyan-400 ring-2 ring-cyan-400/80 bg-cyan-950/40 scale-[1.01]'
+            : isMovingThis
+            ? 'bg-slate-950 border-2 border-cyan-400 ring-4 ring-cyan-400 ring-offset-2 ring-offset-slate-950 shadow-2xl shadow-cyan-500/30 scale-[1.01]'
+            : isHoldingThis
+            ? 'bg-slate-950 border-2 border-cyan-400 ring-2 ring-cyan-400/60 shadow-xl'
+            : isExpanded
             ? 'bg-slate-950 border-cyan-500/60 ring-1 ring-cyan-500/30'
             : 'bg-slate-950/80 border-slate-800/90 hover:border-slate-700'
-        }`}
+        } ${isCurrentlyDragging ? 'opacity-90' : ''}`}
       >
+        {/* HOLD PROGRESS BAR AT TOP (FILLS SMOOTHLY ACROSS 2 SECONDS) */}
+        {isHoldingThis && (
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-800 rounded-t-2xl overflow-hidden z-30">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] transition-all duration-75"
+              style={{ width: `${holdProgress}%` }}
+            />
+          </div>
+        )}
+
+        {/* FLOATING BADGE WHILE HOLDING */}
+        {isHoldingThis && (
+          <div className="absolute -top-3.5 right-4 z-40 bg-slate-900 border border-cyan-400 text-cyan-300 px-3 py-1 rounded-full text-[11px] font-black shadow-xl flex items-center gap-1.5 animate-pulse">
+            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Segure 2s para mover ({Math.round(holdProgress)}%)</span>
+          </div>
+        )}
+
+        {/* ACTIVE MOVE BADGE - DESTAQUE VISUAL COM ANEL E BORDA CIANO VIBRANTE E BADGE INDICATIVO */}
+        {isMovingThis && (
+          <div className="px-3.5 py-2 bg-gradient-to-r from-cyan-500/25 via-cyan-500/15 to-teal-500/20 border-b border-cyan-400/50 flex items-center justify-between text-xs font-bold text-cyan-300 rounded-t-2xl">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400"></span>
+              </span>
+              <span className="font-extrabold text-cyan-200">Exercício Selecionado para Mover</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-cyan-400 text-slate-950 font-black text-[10px] shadow-sm">
+                Posição #{exIndex + 1}
+              </span>
+            </div>
+            <span className="text-[11px] text-cyan-300/90 font-medium hidden sm:inline">
+              Deslize sobre outro exercício para alternar a ordem diretamente
+            </span>
+          </div>
+        )}
+
         {/* RECOLHIDO: BARRA DE RESUMO COMPACTA (CARD RECOLHIDO) */}
         {!isExpanded ? (
           <div
             onClick={() => handleToggleExerciseExpand(ex.id)}
-            className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-slate-900/40 rounded-2xl transition"
+            className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-slate-900/40 rounded-2xl transition select-none"
           >
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <span className="w-7 h-7 rounded-xl bg-slate-900 text-slate-300 font-black text-xs flex items-center justify-center border border-slate-800 flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {/* GRIP HANDLE */}
+              <div
+                className={`p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition flex-shrink-0 touch-none ${
+                  isMovingThis
+                    ? 'text-cyan-300 bg-cyan-500/20 ring-1 ring-cyan-400'
+                    : 'text-slate-500 hover:text-cyan-400 hover:bg-slate-800'
+                }`}
+                title="Pressione e segure por 2s para mover ou arraste"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  setIsReorderMode(true);
+                  setActiveMovingExerciseId(ex.id);
+                  setDraggingIndex(exIndex);
+                  setDragHoverIndex(exIndex);
+                  try {
+                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                  } catch {}
+                }}
+              >
+                <GripVertical className="w-4 h-4" />
+              </div>
+
+              <span
+                className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 transition-colors ${
+                  isMovingThis
+                    ? 'bg-cyan-400 text-slate-950 border border-cyan-300 ring-2 ring-cyan-400/50'
+                    : 'bg-slate-900 text-slate-300 border border-slate-800'
+                }`}
+              >
                 {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
               </span>
 
@@ -1494,6 +1710,47 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
             </div>
 
             <div className="flex items-center gap-1 flex-shrink-0">
+              {/* REORDER UP/DOWN BUTTONS */}
+              {(isReorderMode || isMovingThis) && (
+                <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 mr-1">
+                  <button
+                    type="button"
+                    disabled={exIndex === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveExerciseUp(exIndex);
+                    }}
+                    className={`p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                      exIndex === 0
+                        ? 'text-slate-600 cursor-not-allowed opacity-30'
+                        : 'text-cyan-300 hover:text-white hover:bg-slate-800 active:scale-90'
+                    }`}
+                    title="Mover para cima (Subir)"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline text-[10px]">Subir</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={exIndex === (activeSplit?.exercises.length || 0) - 1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveExerciseDown(exIndex);
+                    }}
+                    className={`p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                      exIndex === (activeSplit?.exercises.length || 0) - 1
+                        ? 'text-slate-600 cursor-not-allowed opacity-30'
+                        : 'text-cyan-300 hover:text-white hover:bg-slate-800 active:scale-90'
+                    }`}
+                    title="Mover para baixo (Descer)"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline text-[10px]">Descer</span>
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={(e) => {
@@ -1522,10 +1779,38 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         ) : (
           /* EXPANDIDO: VISUALIZAÇÃO DETALHADA E EDIÇÃO COMPLETA */
           <div className="p-3.5 sm:p-4 space-y-3.5">
-            {/* Row 1: Exercise Name, Muscle, Remove & Collapse Button */}
+            {/* Row 1: Exercise Name, Muscle, Reorder Controls, Remove & Collapse Button */}
             <div className="flex items-center justify-between gap-2 border-b border-slate-900 pb-3">
               <div className="flex items-center gap-2 flex-1">
-                <span className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+                {/* GRIP HANDLE */}
+                <div
+                  className={`p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition flex-shrink-0 touch-none ${
+                    isMovingThis
+                      ? 'text-cyan-300 bg-cyan-500/20 ring-1 ring-cyan-400'
+                      : 'text-slate-500 hover:text-cyan-400 hover:bg-slate-800'
+                  }`}
+                  title="Pressione e segure por 2s para mover ou arraste"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setIsReorderMode(true);
+                    setActiveMovingExerciseId(ex.id);
+                    setDraggingIndex(exIndex);
+                    setDragHoverIndex(exIndex);
+                    try {
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                    } catch {}
+                  }}
+                >
+                  <GripVertical className="w-4 h-4" />
+                </div>
+
+                <span
+                  className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 transition-colors ${
+                    isMovingThis
+                      ? 'bg-cyan-400 text-slate-950 border border-cyan-300 ring-2 ring-cyan-400/50'
+                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  }`}
+                >
                   {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
                 </span>
                 <input
@@ -1554,6 +1839,47 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               </div>
 
               <div className="flex items-center gap-1">
+                {/* REORDER UP/DOWN BUTTONS IN EXPANDED VIEW */}
+                {(isReorderMode || isMovingThis) && (
+                  <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 mr-1">
+                    <button
+                      type="button"
+                      disabled={exIndex === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveExerciseUp(exIndex);
+                      }}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                        exIndex === 0
+                          ? 'text-slate-600 cursor-not-allowed opacity-30'
+                          : 'text-cyan-300 hover:text-white hover:bg-slate-800 active:scale-90'
+                      }`}
+                      title="Mover para cima (Subir)"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline text-[10px]">Subir</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={exIndex === (activeSplit?.exercises.length || 0) - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveExerciseDown(exIndex);
+                      }}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                        exIndex === (activeSplit?.exercises.length || 0) - 1
+                          ? 'text-slate-600 cursor-not-allowed opacity-30'
+                          : 'text-cyan-300 hover:text-white hover:bg-slate-800 active:scale-90'
+                      }`}
+                      title="Mover para baixo (Descer)"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline text-[10px]">Descer</span>
+                    </button>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => handleToggleExerciseExpand(ex.id)}
@@ -2171,7 +2497,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
             {clientPrograms.map((prog) => {
               const isSelected = prog.id === selectedProgramId;
               const isExpanded = prog.id === expandedProgramId;
-              const splitsCount = prog.splits?.length || 1;
+              const splitsCount = prog.splits?.length || 0;
               const totalExercises = (prog.splits || []).reduce(
                 (acc, s) => acc + (s.exercises?.length || 0),
                 0
@@ -2270,7 +2596,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
       {/* 3 & 4. TREINOS E EXERCÍCIOS DO PROGRAMA SELECIONADO (COM EFEITO DE EXPANSÃO) */}
       <AnimatePresence mode="wait">
-        {expandedProgramId && editingProgram && editingProgram.id === expandedProgramId && activeSplit && (
+        {expandedProgramId && editingProgram && editingProgram.id === expandedProgramId && (
           <motion.div
             key={editingProgram.id}
             initial={{ opacity: 0, height: 0, y: -6 }}
@@ -2320,7 +2646,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <div className="flex items-center gap-2">
                   <Layers className="w-5 h-5 text-cyan-400" />
                   <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
-                    3. Treinos Vinculados aos Dias da Semana ({editingProgram.splits.length})
+                    3. Treinos Vinculados aos Dias da Semana ({editingProgram.splits?.length || 0})
                   </h3>
                 </div>
                 <p className="text-xs text-slate-400">
@@ -2351,8 +2677,31 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               </div>
             </div>
 
-            {/* Split Selector Tabs (Treino A, Treino B, Treino C...) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {/* Split Selector Tabs and Split Editor */}
+            {(!editingProgram.splits || editingProgram.splits.length === 0 || !activeSplit) ? (
+              <div className="p-8 text-center rounded-2xl bg-slate-950/80 border border-dashed border-cyan-500/30 space-y-3 my-2">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto text-cyan-400">
+                  <Layers className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Nenhuma divisão ou treino gerado automaticamente</h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Este programa foi criado totalmente em branco, sem divisões, exercícios, séries, repetições ou métodos pré-gerados. Adicione sua primeira divisão para prescrever.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddSplit}
+                  className="mt-2 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/50 active:scale-95 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Adicionar Primeira Divisão (Treino A)</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Split Selector Tabs (Treino A, Treino B, Treino C...) */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {editingProgram.splits.map((split, sIndex) => {
                 const isCurrent = split.id === activeSplit.id;
                 const daysLabels = (split.weekDays || [])
@@ -2380,7 +2729,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     >
                       {daysLabels || 'Sem dias'}
                     </span>
-                    {editingProgram.splits.length > 1 && (
+                    {editingProgram.splits.length > 0 && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -2511,6 +2860,32 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     <BookOpen className="w-3.5 h-3.5 text-purple-400" />
                     <span>Banco de Exercícios ({exerciseDatabase.length})</span>
                   </button>
+
+                  {/* Botão Mover / Reordenar Ordem */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isReorderMode;
+                      setIsReorderMode(next);
+                      if (!next) {
+                        setActiveMovingExerciseId(null);
+                        setDraggingIndex(null);
+                        setDragHoverIndex(null);
+                      } else if (activeSplit.exercises.length > 0 && !activeMovingExerciseId) {
+                        setActiveMovingExerciseId(activeSplit.exercises[0].id);
+                        setDraggingIndex(0);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-sm active:scale-95 transition ${
+                      isReorderMode
+                        ? 'bg-cyan-400 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/60 font-black shadow-lg shadow-cyan-500/20'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    }`}
+                    title="Mover e trocar a ordem dos exercícios da divisão a qualquer momento"
+                  >
+                    <ArrowUpDown className={`w-3.5 h-3.5 ${isReorderMode ? 'text-slate-950 font-black' : 'text-cyan-400'}`} />
+                    <span>{isReorderMode ? 'Concluir Ordem' : 'Mover / Reordenar'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -2548,6 +2923,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
               {/* Grouped Exercise Cards (Single or Combined in Sequence) */}
               <div className="space-y-3">
+                {activeSplit.exercises.length === 0 && (
+                  <div className="p-8 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800 space-y-2.5 my-2">
+                    <Dumbbell className="w-8 h-8 text-slate-600 mx-auto" />
+                    <h4 className="text-xs font-bold text-slate-300">Nenhum exercício prescrito nesta divisão</h4>
+                    <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                      Esta divisão está limpa. Adicione exercícios do catálogo ou crie um em branco para prescrever séries, repetições e métodos.
+                    </p>
+                  </div>
+                )}
                 {(() => {
                   type ExerciseGroup =
                     | { type: 'single'; exercise: ExerciseItem; originalIndex: number }
@@ -2725,6 +3109,8 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 </button>
               </div>
             </div>
+          </>
+        )}
 
             {/* SAVE & EXECUTE BOTTOM BAR */}
             <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -2735,7 +3121,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 </div>
               ) : (
                 <span className="text-xs text-slate-400">
-                  {editingProgram.splits.length} treino(s) configurados para a semana.
+                  {editingProgram.splits?.length || 0} treino(s) configurados para a semana.
                 </span>
               )}
 
@@ -2751,8 +3137,18 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
                 <button
                   type="button"
+                  disabled={!activeSplit || (activeSplit.exercises?.length || 0) === 0}
                   onClick={handleExecuteCurrentSplit}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/50 active:scale-95 transition"
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-lg transition ${
+                    !activeSplit || (activeSplit.exercises?.length || 0) === 0
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/50 active:scale-95'
+                  }`}
+                  title={
+                    !activeSplit || (activeSplit.exercises?.length || 0) === 0
+                      ? 'Adicione exercícios a este treino para iniciar na sala'
+                      : 'Iniciar execução deste treino'
+                  }
                 >
                   <Play className="w-4 h-4 fill-white" />
                   <span>Iniciar Treino na Sala Agora</span>

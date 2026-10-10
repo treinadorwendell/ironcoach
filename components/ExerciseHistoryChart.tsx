@@ -310,97 +310,27 @@ export const ExerciseHistoryChart: React.FC<ExerciseHistoryChartProps> = ({
         </div>
       </div>
 
-      {/* FILTER CONTROLS: CARGA (VERDE), REPETIÇÕES (VERMELHO), VOLUME (AZUL) */}
+      {/* FILTER CONTROLS: CARGA (VERDE) LIMPO E FOCADO */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1">
             <Layers className="w-3.5 h-3.5 text-slate-400" />
-            <span>Filtro de Linhas:</span>
+            <span>Métrica de Progressão:</span>
           </span>
 
-          {/* 1. Carga (kg) - VERDE */}
-          <button
-            type="button"
-            onClick={() => toggleMetric('weight')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 border ${
-              selectedMetrics.weight
-                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-md ring-1 ring-emerald-500'
-                : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700 hover:text-slate-400'
-            }`}
-          >
-            <span
-              className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
-                selectedMetrics.weight
-                  ? 'bg-emerald-500 text-slate-950 font-black'
-                  : 'border border-slate-700'
-              }`}
-            >
-              {selectedMetrics.weight && <Check className="w-3 h-3 stroke-[3]" />}
+          {/* 1. Carga (kg) - VERDE (Métrica Principal de Sobrecarga Progressiva) */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-950/90 text-emerald-300 border border-emerald-500 shadow-md ring-1 ring-emerald-500">
+            <span className="w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] bg-emerald-500 text-slate-950 font-black">
+              <Check className="w-3 h-3 stroke-[3]" />
             </span>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span>Carga (kg)</span>
-          </button>
-
-          {/* 2. Repetições - VERMELHO */}
-          <button
-            type="button"
-            onClick={() => toggleMetric('reps')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 border ${
-              selectedMetrics.reps
-                ? 'bg-rose-950/90 text-rose-300 border-rose-500 shadow-md ring-1 ring-rose-500'
-                : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700 hover:text-slate-400'
-            }`}
-          >
-            <span
-              className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
-                selectedMetrics.reps
-                  ? 'bg-rose-500 text-slate-950 font-black'
-                  : 'border border-slate-700'
-              }`}
-            >
-              {selectedMetrics.reps && <Check className="w-3 h-3 stroke-[3]" />}
-            </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-            <span>Repetições</span>
-          </button>
-
-          {/* 3. Volume (kg) - AZUL */}
-          <button
-            type="button"
-            onClick={() => toggleMetric('volume')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 border ${
-              selectedMetrics.volume
-                ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-md ring-1 ring-blue-500'
-                : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-slate-700 hover:text-slate-400'
-            }`}
-          >
-            <span
-              className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
-                selectedMetrics.volume
-                  ? 'bg-blue-500 text-slate-950 font-black'
-                  : 'border border-slate-700'
-              }`}
-            >
-              {selectedMetrics.volume && <Check className="w-3 h-3 stroke-[3]" />}
-            </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            <span>Volume (kg total)</span>
-          </button>
+            <span>Carga (kg) • Sobrecarga Progressiva</span>
+          </div>
         </div>
 
-        {/* Shortcut: All 3 lines */}
-        <button
-          type="button"
-          onClick={handleSelectAllThree}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 shadow ${
-            areAllThreeSelected
-              ? 'bg-gradient-to-r from-emerald-600 via-rose-600 to-blue-600 text-white ring-2 ring-white/20'
-              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>{areAllThreeSelected ? '✓ 3 Linhas Ativas' : 'Ver as 3 Linhas Juntas'}</span>
-        </button>
+        <span className="text-[11px] text-slate-400 font-medium">
+          Evolução visual focada em peso real levantado
+        </span>
       </div>
 
       {/* KPI DASHBOARD CARDS */}

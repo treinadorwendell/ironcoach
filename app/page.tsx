@@ -46,6 +46,14 @@ export default function Home() {
       setCalendarEvents(loadedCalendar);
 
       if (loadedWorkouts.length > 0) {
+        const savedSession = storage.getActiveSession();
+        if (savedSession) {
+          const matchingWorkout = loadedWorkouts.find((w) => w.id === savedSession.programId);
+          if (matchingWorkout) {
+            setActiveWorkoutForExecution(matchingWorkout);
+            return;
+          }
+        }
         setActiveWorkoutForExecution(loadedWorkouts[0]);
       }
     }, 0);
