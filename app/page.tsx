@@ -19,6 +19,8 @@ import { ClientSection } from '@/components/ClientSection';
 import { AgendaSection } from '@/components/AgendaSection';
 import { CreateWorkoutSection } from '@/components/CreateWorkoutSection';
 import { WorkoutExecutionSection } from '@/components/WorkoutExecutionSection';
+import { testConnection, cloudSync, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('execucao');
@@ -34,8 +36,12 @@ export default function Home() {
   const [activeWorkoutForExecution, setActiveWorkoutForExecution] =
     useState<WorkoutProgram | null>(INITIAL_WORKOUTS[0]);
 
-  // Safely hydrate any customized data from client storage after mount
+  // Safely hydrate data from client storage and cloud on mount
   useEffect(() => {
+    // 1. Mandatory connection test probe
+    testConnection();
+
+    // 2. Hydrate local storage first
     const timer = setTimeout(() => {
       const loadedClients = storage.getClients();
       const loadedWorkouts = storage.getWorkouts();
@@ -58,7 +64,41 @@ export default function Home() {
       }
     }, 0);
 
-    return () => clearTimeout(timer);
+    // 3. Listen to Firebase Auth & Subscribe to real-time Cloud Sync
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        cloudSync.subscribe(user.uid, {
+          onClientsChange: (cloudClients) => {
+            setClients(cloudClients);
+          },
+          onWorkoutsChange: (cloudWorkouts) => {
+            setWorkouts(cloudWorkouts);
+          },
+          onCalendarChange: (cloudEvents) => {
+            setCalendarEvents(cloudEvents);
+          },
+          onActiveSessionChange: (cloudSession) => {
+            if (cloudSession) {
+              setWorkouts((currentWorkouts) => {
+                const matchingWorkout = currentWorkouts.find((w) => w.id === cloudSession.programId);
+                if (matchingWorkout) {
+                  setActiveWorkoutForExecution(matchingWorkout);
+                }
+                return currentWorkouts;
+              });
+            }
+          },
+        });
+      } else {
+        cloudSync.unsubscribe();
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      unsubAuth();
+      cloudSync.unsubscribe();
+    };
   }, []);
 
   // CLIENT HANDLERS
@@ -66,6 +106,7 @@ export default function Home() {
     const updated = [newClient, ...clients];
     setClients(updated);
     storage.saveClients(updated);
+    cloudSync.syncClient(newClient);
   };
 
   const handleUpdateClient = (updatedClient: Client) => {
@@ -74,22 +115,28 @@ export default function Home() {
     );
     setClients(updated);
     storage.saveClients(updated);
+    cloudSync.syncClient(updatedClient);
   };
 
   const handleDeleteClient = (clientId: string) => {
     const updatedClients = clients.filter((c) => c.id !== clientId);
     setClients(updatedClients);
     storage.saveClients(updatedClients);
+    cloudSync.removeClient(clientId);
 
     // Cascade clean up workouts
+    const toDeleteWorkouts = workouts.filter((w) => w.clientId === clientId);
     const updatedWorkouts = workouts.filter((w) => w.clientId !== clientId);
     setWorkouts(updatedWorkouts);
     storage.saveWorkouts(updatedWorkouts);
+    toDeleteWorkouts.forEach((w) => cloudSync.removeWorkout(w.id));
 
     // Cascade clean up calendar events
+    const toDeleteEvents = calendarEvents.filter((e) => e.clientId === clientId);
     const updatedEvents = calendarEvents.filter((e) => e.clientId !== clientId);
     setCalendarEvents(updatedEvents);
     storage.saveCalendarEvents(updatedEvents);
+    toDeleteEvents.forEach((e) => cloudSync.removeCalendarEvent(e.id));
 
     if (activeWorkoutForExecution?.clientId === clientId) {
       setActiveWorkoutForExecution(updatedWorkouts[0] || null);
@@ -108,6 +155,7 @@ export default function Home() {
     }
     setWorkouts(updated);
     storage.saveWorkouts(updated);
+    cloudSync.syncWorkout(newWorkout);
     setActiveWorkoutForExecution(newWorkout);
   };
 
@@ -115,6 +163,7 @@ export default function Home() {
     const updated = workouts.filter((w) => w.id !== workoutId);
     setWorkouts(updated);
     storage.saveWorkouts(updated);
+    cloudSync.removeWorkout(workoutId);
     if (activeWorkoutForExecution?.id === workoutId) {
       setActiveWorkoutForExecution(updated[0] || null);
     }
@@ -125,6 +174,7 @@ export default function Home() {
     const updated = [newEvent, ...calendarEvents];
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
+    cloudSync.syncCalendarEvent(newEvent);
   };
 
   const handleUpdateCalendarEvent = (updatedEvent: CalendarEvent) => {
@@ -133,12 +183,14 @@ export default function Home() {
     );
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
+    cloudSync.syncCalendarEvent(updatedEvent);
   };
 
   const handleDeleteCalendarEvent = (eventId: string) => {
     const updated = calendarEvents.filter((e) => e.id !== eventId);
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
+    cloudSync.removeCalendarEvent(eventId);
   };
 
   // CROSS-TAB ACTIONS

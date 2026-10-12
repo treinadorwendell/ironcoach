@@ -16,6 +16,7 @@ import {
   ExerciseSubSetDetail,
 } from '@/types';
 import { storage } from '@/lib/storage';
+import { cloudSync } from '@/lib/firebase';
 import {
   Plus,
   Trash2,
@@ -663,6 +664,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     if (!newExName.trim()) return;
 
     const created = storage.addExerciseToDatabase(newExName, newExMuscleGroup);
+    cloudSync.syncExerciseDatabase(created);
     const updatedDb = storage.getExerciseDatabase();
     setExerciseDatabase(updatedDb);
 
@@ -673,6 +675,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   const handleConfirmDeleteFromDb = () => {
     if (!exerciseToDeleteFromDb) return;
     const updatedDb = storage.deleteExerciseFromDatabase(exerciseToDeleteFromDb.id);
+    cloudSync.removeExerciseFromDatabase(exerciseToDeleteFromDb.id);
     setExerciseDatabase(updatedDb);
     setExerciseToDeleteFromDb(null);
   };

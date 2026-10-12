@@ -153,7 +153,7 @@ export interface ExecutionSubSet {
   repZone: string;
   targetReps: number;
   completedReps: number;
-  weightKg: number;
+  weightKg?: number | null;
   completed: boolean;
   note?: string;
 }
@@ -163,7 +163,7 @@ export interface ExecutionSet {
   repZone: string;
   targetReps: number;
   completedReps: number;
-  weightKg: number;
+  weightKg?: number | null;
   completed: boolean;
   completedAt?: string;
   extraVariation?: string;

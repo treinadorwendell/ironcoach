@@ -28,7 +28,7 @@ import {
 interface ExerciseHistoryChartProps {
   exerciseName: string;
   history: ExerciseHistoricalEntry[];
-  currentWeightKg?: number;
+  currentWeightKg?: number | null;
   currentSets?: ExecutionSet[];
 }
 

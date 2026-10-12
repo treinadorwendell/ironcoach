@@ -694,20 +694,41 @@ export const storage = {
     }
   },
 
-  getExerciseHistory(exerciseName: string): ExerciseHistoricalEntry[] {
+  getExerciseHistory(exerciseName: string, clientId?: string): ExerciseHistoricalEntry[] {
+    const scopedKey = clientId ? `${clientId}::${exerciseName}` : exerciseName;
     if (typeof window === 'undefined') {
-      return INITIAL_HISTORY[exerciseName] || [];
+      if (!clientId || clientId === 'client-1') {
+        return INITIAL_HISTORY[exerciseName] || [];
+      }
+      return [];
     }
     try {
       const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
       if (!data) {
-        localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(INITIAL_HISTORY));
-        return INITIAL_HISTORY[exerciseName] || [];
+        const seeded: Record<string, ExerciseHistoricalEntry[]> = {};
+        Object.entries(INITIAL_HISTORY).forEach(([ex, entries]) => {
+          seeded[`client-1::${ex}`] = entries;
+        });
+        localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(seeded));
+        if (!clientId || clientId === 'client-1') {
+          return INITIAL_HISTORY[exerciseName] || [];
+        }
+        return [];
       }
       const parsed = JSON.parse(data);
-      return parsed[exerciseName] || INITIAL_HISTORY[exerciseName] || [];
+      if (parsed[scopedKey]) {
+        return parsed[scopedKey];
+      }
+      // If client-1 and no specific entry yet, return seed
+      if (clientId === 'client-1' && INITIAL_HISTORY[exerciseName]) {
+        return INITIAL_HISTORY[exerciseName];
+      }
+      return [];
     } catch {
-      return INITIAL_HISTORY[exerciseName] || [];
+      if (!clientId || clientId === 'client-1') {
+        return INITIAL_HISTORY[exerciseName] || [];
+      }
+      return [];
     }
   },
 
@@ -715,16 +736,21 @@ export const storage = {
     exerciseName: string,
     weightKg: number,
     reps: number,
-    setsCompleted: number
+    setsCompleted: number,
+    clientId?: string
   ) {
     if (typeof window === 'undefined') return;
     try {
+      const scopedKey = clientId ? `${clientId}::${exerciseName}` : exerciseName;
       const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
       const historyMap: Record<string, ExerciseHistoricalEntry[]> = data
         ? JSON.parse(data)
-        : { ...INITIAL_HISTORY };
+        : {};
 
-      const existing = historyMap[exerciseName] || [];
+      const existing =
+        historyMap[scopedKey] ||
+        (clientId === 'client-1' ? INITIAL_HISTORY[exerciseName] || [] : []);
+
       const today = new Date();
       const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(
         today.getMonth() + 1
@@ -743,11 +769,76 @@ export const storage = {
         updated.splice(0, updated.length - 8);
       }
 
-      historyMap[exerciseName] = updated;
+      historyMap[scopedKey] = updated;
       localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(historyMap));
     } catch (e) {
       console.error('Error recording exercise history:', e);
     }
+  },
+
+  /**
+   * Retorna a carga utilizada no último treino realizado para o exercício específico de acordo com o aluno.
+   * Busca primeiro nos treinos concluídos (CompletedWorkoutRecord) e depois no histórico de exercícios.
+   * Caso não tenha histórico, retorna null para que seja exibido sem numeração.
+   */
+  getLastPerformedWeight(
+    exerciseName: string,
+    clientId?: string,
+    setIndex?: number
+  ): number | null {
+    if (!exerciseName) return null;
+    const cleanName = exerciseName.trim().toLowerCase();
+
+    // 1. Prioridade: Buscar no histórico de treinos concluídos realizados pelo aluno
+    const completedList = this.getCompletedWorkouts(clientId);
+    if (completedList && completedList.length > 0) {
+      // Ordenar do treino mais recente para o mais antigo (completedAt desc)
+      const sorted = [...completedList].sort((a, b) => {
+        const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      for (const record of sorted) {
+        const matchingEx = record.exercises?.find(
+          (e) => e.name?.trim().toLowerCase() === cleanName
+        );
+        if (matchingEx && matchingEx.sets && matchingEx.sets.length > 0) {
+          // Se houver um índice de série específico solicitado
+          if (
+            setIndex !== undefined &&
+            matchingEx.sets[setIndex] &&
+            typeof matchingEx.sets[setIndex].weightKg === 'number' &&
+            matchingEx.sets[setIndex].weightKg > 0
+          ) {
+            return matchingEx.sets[setIndex].weightKg;
+          }
+
+          // Se a série específica não tiver ou não foi solicitada, buscar série válida
+          const setsWithWeight = matchingEx.sets.filter(
+            (s) => typeof s.weightKg === 'number' && s.weightKg > 0
+          );
+          if (setsWithWeight.length > 0) {
+            if (setIndex !== undefined && setIndex < setsWithWeight.length) {
+              return setsWithWeight[setIndex].weightKg;
+            }
+            return setsWithWeight[setsWithWeight.length - 1].weightKg;
+          }
+        }
+      }
+    }
+
+    // 2. Buscar no histórico individual do exercício (ExerciseHistoricalEntry)
+    const history = this.getExerciseHistory(exerciseName, clientId);
+    if (history && history.length > 0) {
+      const lastEntry = history[history.length - 1];
+      if (typeof lastEntry.weightKg === 'number' && lastEntry.weightKg > 0) {
+        return lastEntry.weightKg;
+      }
+    }
+
+    // Caso não tenha histórico: retorna null (sem numeração)
+    return null;
   },
 
   getActiveSession(): ActiveWorkoutSession | null {

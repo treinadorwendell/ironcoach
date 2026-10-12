@@ -50,6 +50,11 @@ export function useActiveWorkoutPersistence({
     return false;
   }, []);
 
+  const hasActiveProgressRef = useRef(hasActiveProgress);
+  useEffect(() => {
+    hasActiveProgressRef.current = hasActiveProgress;
+  }, [hasActiveProgress]);
+
   // Set session and immediately persist to localStorage
   const setSessionAndPersist = useCallback(
     (newSessionOrUpdater: ActiveWorkoutSession | null | ((prev: ActiveWorkoutSession | null) => ActiveWorkoutSession | null)) => {
@@ -73,9 +78,21 @@ export function useActiveWorkoutPersistence({
         const savedSession = storage.getActiveSession();
 
         if (savedSession && savedSession.exercises && savedSession.exercises.length > 0) {
-          // Restore the active session exactly as it was saved
-          setSessionState(savedSession);
-          lastProgramIdRef.current = savedSession.programId;
+          // If the session has no real active progress yet, rebuild with updated last-performed loads or empty state
+          if (
+            !hasActiveProgressRef.current(savedSession) &&
+            activeWorkoutRef.current &&
+            savedSession.programId === activeWorkoutRef.current.id
+          ) {
+            const fresh = buildSessionRef.current(activeWorkoutRef.current);
+            setSessionState(fresh);
+            storage.saveActiveSession(fresh);
+            lastProgramIdRef.current = activeWorkoutRef.current.id;
+          } else {
+            // Restore the active session exactly as it was saved
+            setSessionState(savedSession);
+            lastProgramIdRef.current = savedSession.programId;
+          }
 
           if (savedSession.clientId && onClientSyncRef.current) {
             onClientSyncRef.current(savedSession.clientId);

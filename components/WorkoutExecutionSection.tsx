@@ -16,6 +16,7 @@ import {
 } from '@/types';
 import { storage } from '@/lib/storage';
 import { sounds } from '@/lib/sound';
+import { cloudSync } from '@/lib/firebase';
 import { useActiveWorkoutPersistence } from '@/hooks/useActiveWorkoutPersistence';
 import { ExerciseHistoryChart } from './ExerciseHistoryChart';
 import { RestCountdownTimer } from './RestCountdownTimer';
@@ -80,7 +81,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         : prog.name;
 
       const exercisesState: ExecutionExerciseState[] = exercisesToUse.map((ex) => {
-        const history = storage.getExerciseHistory(ex.name);
+        const history = storage.getExerciseHistory(ex.name, prog.clientId);
         const lastRecordedWeight =
           history.length > 0 ? history[history.length - 1].weightKg : 20;
 
@@ -238,6 +239,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     } else {
       setSession(null);
       storage.saveActiveSession(null);
+      cloudSync.syncActiveSession(null);
       setIsWorkoutExpanded(false);
     }
   };
@@ -272,6 +274,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     const newSession = buildSession(prog, split);
     setSession(newSession);
     storage.saveActiveSession(newSession);
+    cloudSync.syncActiveSession(newSession);
     setIsWorkoutExpanded(true);
     setExpandedExerciseIds({});
   };
@@ -413,7 +416,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         currentEx.exerciseName,
         currentSet.weightKg,
         currentSet.completedReps,
-        updatedSets.filter((s) => s.completed).length
+        updatedSets.filter((s) => s.completed).length,
+        session.clientId
       );
     }
   };
@@ -755,6 +759,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     };
 
     storage.saveCompletedWorkout(newRecord);
+    cloudSync.syncCompletedWorkout(newRecord);
 
     setWorkoutSummary({
       totalVolumeKg,
@@ -1208,7 +1213,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             {session.exercises.map((ex, exIndex) => {
               const isExpanded = !!expandedExerciseIds[ex.exerciseId];
               const isHistoryOpen = expandedHistoryExId === ex.exerciseId;
-              const historyData = storage.getExerciseHistory(ex.exerciseName);
+              const historyData = storage.getExerciseHistory(ex.exerciseName, session.clientId);
               const completedInThisEx = ex.sets.filter((s) => s.completed).length;
               const isAllSetsCompleted =
                 ex.sets.length > 0 && completedInThisEx === ex.sets.length;
@@ -1397,7 +1402,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               <ExerciseHistoryChart
                                 exerciseName={ex.exerciseName}
                                 history={historyData}
-                                currentWeightKg={ex.sets[0]?.weightKg}
+                                currentWeightKg={ex.sets[0]?.weightKg ?? undefined}
                                 currentSets={ex.sets}
                               />
                             </div>

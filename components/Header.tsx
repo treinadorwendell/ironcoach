@@ -4,6 +4,7 @@ import React from 'react';
 import { Dumbbell, Tablet, Maximize2 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
+import { CloudSyncBadge } from './CloudSyncBadge';
 
 interface HeaderProps {
   isTabletFramed: boolean;
@@ -45,8 +46,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right tools: Offline badge, Frame toggle, PWA install */}
+        {/* Right tools: Cloud Sync, Offline badge, Frame toggle, PWA install */}
         <div className="flex items-center gap-2">
+          <CloudSyncBadge />
           <OfflineIndicator />
 
           <button

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Client, CompletedWorkoutRecord } from '@/types';
 import { storage } from '@/lib/storage';
+import { cloudSync } from '@/lib/firebase';
 import {
   ArrowLeft,
   History,
@@ -27,7 +28,36 @@ import {
   X,
   Play,
   RotateCcw,
+  Weight,
+  Ruler,
+  Mail,
+  DollarSign,
 } from 'lucide-react';
+
+// Pure helper functions declared outside component render
+const calculateAge = (bDate?: string): number | null => {
+  if (!bDate || bDate.length < 10) return null;
+  const parts = bDate.split('/');
+  if (parts.length !== 3) return null;
+  const d = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const y = parseInt(parts[2], 10);
+  const birth = new Date(y, m, d);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const mDiff = today.getMonth() - birth.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+};
+
+const calculateIMC = (w?: number, h?: number): string | null => {
+  if (!w || !h) return null;
+  const hM = h / 100;
+  return (w / (hM * hM)).toFixed(1);
+};
 
 interface WorkoutHistoryPageProps {
   clients: Client[];
@@ -49,13 +79,17 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
     return [];
   });
 
-  const [selectedClientId, setSelectedClientId] = useState<string>(
-    initialClientId || clients[0]?.id || ''
-  );
+  // Identify the target client profile strictly (exclusively bound to this profile)
+  const currentClient = useMemo(() => {
+    if (initialClientId) {
+      return clients.find((c) => c.id === initialClientId) || clients[0];
+    }
+    return clients[0];
+  }, [clients, initialClientId]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d' | 'this_month'>('all');
   const [workoutToDelete, setWorkoutToDelete] = useState<CompletedWorkoutRecord | null>(null);
-
 
   // Expanded workouts set (default first workout expanded if available)
   const [expandedWorkoutIds, setExpandedWorkoutIds] = useState<Set<string>>(() => {
@@ -93,22 +127,23 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
   const handleDeleteWorkout = (workoutId: string) => {
     const updated = storage.deleteCompletedWorkout(workoutId);
+    cloudSync.removeCompletedWorkout(workoutId);
     setWorkouts(updated);
     setWorkoutToDelete(null);
   };
 
-  // Filtered Workouts
+  // Filtered Workouts - EXCLUSIVELY scoped to current client profile
   const filteredWorkouts = useMemo(() => {
+    if (!currentClient) return [];
     return workouts.filter((w) => {
-      // Client filter: strictly scoped to the active client profile
-      if (selectedClientId && w.clientId !== selectedClientId) {
+      // Strictly scoped to this client's profile
+      if (w.clientId !== currentClient.id) {
         return false;
       }
 
       // Search term
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
-        const matchesClient = w.clientName.toLowerCase().includes(query);
         const matchesProgram = w.programName.toLowerCase().includes(query);
         const matchesSplit = w.splitName.toLowerCase().includes(query);
         const matchesExercise = w.exercises.some((e) =>
@@ -117,7 +152,6 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
         const matchesNotes = (w.trainerNotes || '').toLowerCase().includes(query);
 
         if (
-          !matchesClient &&
           !matchesProgram &&
           !matchesSplit &&
           !matchesExercise &&
@@ -151,9 +185,9 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
       return true;
     });
-  }, [workouts, selectedClientId, searchTerm, dateFilter]);
+  }, [workouts, currentClient, searchTerm, dateFilter]);
 
-  // Overall Statistics for filtered set
+  // Overall Statistics for this client's filtered set
   const stats = useMemo(() => {
     const totalSessions = filteredWorkouts.length;
     const totalVolumeKg = filteredWorkouts.reduce(
@@ -187,7 +221,8 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
     };
   }, [filteredWorkouts]);
 
-  const selectedClientObj = clients.find((c) => c.id === selectedClientId);
+  const clientAge = currentClient ? calculateAge(currentClient.birthDate) : '';
+  const clientIMC = currentClient ? calculateIMC(currentClient.weight, currentClient.height) : null;
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-200">
@@ -197,27 +232,28 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white border border-slate-700 transition flex items-center justify-center flex-shrink-0"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white border border-slate-700 transition flex-shrink-0 group shadow-md"
             title="Voltar para a Lista de Alunos"
           >
-            <ArrowLeft className="w-5 h-5 text-amber-400" />
+            <ArrowLeft className="w-5 h-5 text-amber-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="text-xs font-bold hidden xs:inline">Voltar</span>
           </button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
                 <History className="w-5 h-5 text-amber-400" />
                 <span>
-                  Histórico de Treinos{selectedClientObj ? ` • ${selectedClientObj.name}` : ''}
+                  Histórico do Perfil{currentClient ? ` • ${currentClient.name}` : ''}
                 </span>
               </h2>
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-[11px] border border-amber-500/30">
-                {filteredWorkouts.length} {filteredWorkouts.length === 1 ? 'registro' : 'registros'}
+                {filteredWorkouts.length} {filteredWorkouts.length === 1 ? 'sessão' : 'sessões'}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {selectedClientObj
-                ? `Consulte as sessões finalizadas, evolução de cargas e métricas de ${selectedClientObj.name}.`
-                : 'Consulte as sessões finalizadas, evolução de cargas e métricas deste aluno.'}
+              {currentClient
+                ? `Histórico exclusivo de treinos, cargas e métricas de ${currentClient.name}.`
+                : 'Histórico exclusivo de treinos deste perfil.'}
             </p>
           </div>
         </div>
@@ -226,17 +262,17 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition active:scale-95 shadow-sm"
             title="Imprimir relatório do histórico de treinos"
           >
             <Printer className="w-3.5 h-3.5 text-cyan-400" />
             <span>Imprimir</span>
           </button>
 
-          {selectedClientObj && onStartWorkoutForClient && (
+          {currentClient && onStartWorkoutForClient && (
             <button
               type="button"
-              onClick={() => onStartWorkoutForClient(selectedClientObj)}
+              onClick={() => onStartWorkoutForClient(currentClient)}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-950/40 transition active:scale-95"
             >
               <Play className="w-3.5 h-3.5 fill-white" />
@@ -245,6 +281,105 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Student Profile Identity Card */}
+      {currentClient && (
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-md flex-shrink-0 ${
+                  currentClient.gender === 'Feminino'
+                    ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
+                    : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
+                }`}
+              >
+                {currentClient.name.charAt(0)}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-extrabold text-white tracking-tight">
+                    {currentClient.name}
+                  </h3>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      currentClient.gender === 'Feminino'
+                        ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20'
+                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                    }`}
+                  >
+                    {currentClient.gender}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Histórico Vinculado ao Perfil
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    {currentClient.birthDate} {clientAge ? `(${clientAge} anos)` : ''}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-slate-500" />
+                    {currentClient.email}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {onStartWorkoutForClient && (
+              <button
+                type="button"
+                onClick={() => onStartWorkoutForClient(currentClient)}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-950/40 active:scale-95 transition"
+              >
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>Iniciar Treino com {currentClient.name.split(' ')[0]}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Quick Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80">
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <Weight className="w-3 h-3 text-cyan-400" /> Peso Corporal
+              </span>
+              <span className="text-xs font-bold text-white mt-0.5 block">
+                {currentClient.weight} kg
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <Ruler className="w-3 h-3 text-cyan-400" /> Altura
+              </span>
+              <span className="text-xs font-bold text-white mt-0.5 block">
+                {currentClient.height} cm
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <Activity className="w-3 h-3 text-emerald-400" /> IMC
+              </span>
+              <span className="text-xs font-bold text-emerald-400 mt-0.5 block">
+                {clientIMC || '--'}
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <DollarSign className="w-3 h-3 text-amber-400" /> Plano
+              </span>
+              <span className="text-xs font-bold text-amber-300 mt-0.5 block truncate">
+                {currentClient.contractType} (R$ {currentClient.contractValue})
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Performance Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
@@ -299,42 +434,20 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filter and Search Bar (Exclusivo para este perfil) */}
       <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Client Filter Selector */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Aluno Selecionado:</span>
-            </label>
-            <select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-amber-400 transition"
-            >
-              {clients.map((c) => {
-                const count = workouts.filter((w) => w.clientId === c.id).length;
-                return (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({count} {count === 1 ? 'treino' : 'treinos'})
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Search by Query */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5 text-amber-400" />
-              <span>Buscar Exercício / Treino:</span>
+              <span>Buscar Exercício / Treino de {currentClient?.name}:</span>
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
-                placeholder="Ex: Supino, Carlos, Peitoral..."
+                placeholder="Ex: Supino, Peitoral, Treino A..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
@@ -355,14 +468,14 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
           <div className="space-y-1">
             <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Período:</span>
+              <span>Filtrar Período:</span>
             </label>
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value as 'all' | '7d' | '30d' | 'this_month')}
               className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-amber-400 transition"
             >
-              <option value="all">Todo o Histórico</option>
+              <option value="all">Todo o Histórico deste Aluno</option>
               <option value="7d">Últimos 7 dias</option>
               <option value="30d">Últimos 30 dias</option>
               <option value="this_month">Este Mês</option>
@@ -373,7 +486,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
         {/* Toolbar helper buttons */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
           <span className="text-slate-400">
-            Exibindo <strong>{filteredWorkouts.length}</strong> sessões deste aluno
+            Exibindo <strong>{filteredWorkouts.length}</strong> {filteredWorkouts.length === 1 ? 'sessão registrada' : 'sessões registradas'} de {currentClient?.name}
           </span>
 
           <div className="flex items-center gap-2">
@@ -415,22 +528,37 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
         {filteredWorkouts.length === 0 ? (
           <div className="p-8 sm:p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
             <History className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-base font-bold text-white">Nenhum treino encontrado para este aluno</h3>
+            <h3 className="text-base font-bold text-white">
+              Nenhum treino registrado no perfil de {currentClient?.name || 'este aluno'}
+            </h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              {selectedClientObj?.name || 'Este aluno'} ainda não possui sessões registradas com os filtros atuais. Conclua uma sessão na aba de Execução para registrar o histórico deste perfil.
+              {currentClient?.name || 'Este aluno'} ainda não possui sessões registradas com os filtros atuais. Conclua uma sessão na aba de Execução para registrar o histórico exclusivo deste perfil.
             </p>
-            {(searchTerm || dateFilter !== 'all') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm('');
-                  setDateFilter('all');
-                }}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition"
-              >
-                Limpar Filtros de Busca
-              </button>
-            )}
+            <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+              {(searchTerm || dateFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setDateFilter('all');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition"
+                >
+                  Limpar Filtros de Busca
+                </button>
+              )}
+
+              {currentClient && onStartWorkoutForClient && (
+                <button
+                  type="button"
+                  onClick={() => onStartWorkoutForClient(currentClient)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md shadow-emerald-950/40 flex items-center gap-1.5"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>Iniciar Treino com {currentClient.name.split(' ')[0]}</span>
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           filteredWorkouts.map((workout) => {
