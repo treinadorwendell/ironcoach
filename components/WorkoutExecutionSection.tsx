@@ -18,7 +18,7 @@ import { storage } from '@/lib/storage';
 import { sounds } from '@/lib/sound';
 import { cloudSync } from '@/lib/firebase';
 import { useActiveWorkoutPersistence } from '@/hooks/useActiveWorkoutPersistence';
-import { ExerciseHistoryChart } from './ExerciseHistoryChart';
+import { SeriesHistoryModal } from './ExerciseHistoryChart';
 import { RestCountdownTimer } from './RestCountdownTimer';
 import {
   Flame,
@@ -81,9 +81,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         : prog.name;
 
       const exercisesState: ExecutionExerciseState[] = exercisesToUse.map((ex) => {
-        const history = storage.getExerciseHistory(ex.name, prog.clientId);
-        const lastRecordedWeight =
-          history.length > 0 ? history[history.length - 1].weightKg : 20;
+        const lastRecordedWeight = storage.getLastPerformedWeight(ex.name, prog.clientId);
 
         const setsCount =
           ex.setDetails && ex.setDetails.length > 0 ? ex.setDetails.length : ex.sets;
@@ -92,7 +90,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           const setDetail = ex.setDetails?.[idx];
           const activeRepZone = setDetail?.repZone || ex.repZone || '10';
           const parsedReps = parseInt(activeRepZone.split('-')[0], 10) || 10;
-          const setWeight = setDetail?.suggestedWeightKg || lastRecordedWeight;
+          const setHistoryWeight = storage.getLastPerformedWeight(ex.name, prog.clientId, idx);
+          const setWeight = setHistoryWeight ?? lastRecordedWeight ?? null;
           const setMethod =
             setDetail?.method && setDetail.method !== 'Normal'
               ? setDetail.method
@@ -106,7 +105,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               repZone: sub.repZone,
               targetReps: subParsedReps,
               completedReps: subParsedReps,
-              weightKg: sub.suggestedWeightKg ?? setWeight,
+              weightKg: setWeight,
               completed: false,
               note: sub.note,
             };
@@ -174,7 +173,16 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     },
   });
 
-  const [expandedHistoryExId, setExpandedHistoryExId] = useState<string | null>(null);
+  // 1 - Estado para a Página/Modal de Evolução por Série (Requisitos 1, 1.1, 1.2, 1.3, 1.4)
+  const [seriesHistoryModal, setSeriesHistoryModal] = useState<{
+    isOpen: boolean;
+    exerciseName: string;
+    setNumber: number;
+    totalSets: number;
+  } | null>(null);
+
+  // Toast feedback ao clicar em "Concluir e Recolher"
+  const [exerciseFinishedToast, setExerciseFinishedToast] = useState<string | null>(null);
 
   // Expansion state for the active workout to be performed
   const [isWorkoutExpanded, setIsWorkoutExpanded] = useState<boolean>(true);
@@ -198,11 +206,72 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     trainerNotes?: string;
   } | null>(null);
 
+  const handleOpenSeriesHistory = (
+    exerciseName: string,
+    setNumber: number,
+    totalSets: number
+  ) => {
+    setSeriesHistoryModal({
+      isOpen: true,
+      exerciseName,
+      setNumber,
+      totalSets,
+    });
+  };
+
   const handleToggleExerciseExpand = (exId: string) => {
     setExpandedExerciseIds((prev) => ({
       ...prev,
       [exId]: !prev[exId],
     }));
+  };
+
+  // 1.3: Concluir e Recolher - Salva snapshot das séries do exercício e recolhe
+  const handleFinishAndCollapseExercise = (exIndex: number) => {
+    if (!session) return;
+    const ex = session.exercises[exIndex];
+    if (!ex) return;
+
+    // Marca todas as séries como concluídas se ainda não estavam
+    const updatedSets = ex.sets.map((s) => ({
+      ...s,
+      completed: true,
+    }));
+
+    const updatedExercises = [...session.exercises];
+    updatedExercises[exIndex] = {
+      ...ex,
+      sets: updatedSets,
+    };
+
+    const updatedSession = {
+      ...session,
+      exercises: updatedExercises,
+    };
+
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+
+    // Grava imediatamente o snapshot para o histórico de evolução de cada série
+    storage.recordExerciseFinishedOnCollapse(
+      session.clientId,
+      ex.exerciseName,
+      updatedSets
+    );
+
+    // Recolhe o exercício
+    setExpandedExerciseIds((prev) => ({
+      ...prev,
+      [ex.exerciseId]: false,
+    }));
+
+    // Toast de confirmação para o treinador
+    setExerciseFinishedToast(
+      `Exercício "${ex.exerciseName}" concluído! Séries salvas no histórico de evolução.`
+    );
+    setTimeout(() => {
+      setExerciseFinishedToast(null);
+    }, 3500);
   };
 
   const handleExpandAllExercises = () => {
@@ -411,14 +480,16 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       setTimerSetNumber(currentSet.setNumber);
       setTimerOpen(true);
 
-      // Record exercise history immediately to LocalStorage
-      storage.recordExerciseHistory(
-        currentEx.exerciseName,
-        currentSet.weightKg,
-        currentSet.completedReps,
-        updatedSets.filter((s) => s.completed).length,
-        session.clientId
-      );
+      // Record exercise history immediately to LocalStorage se houver carga válida
+      if (currentSet.weightKg != null && currentSet.weightKg > 0) {
+        storage.recordExerciseHistory(
+          currentEx.exerciseName,
+          currentSet.weightKg,
+          currentSet.completedReps,
+          updatedSets.filter((s) => s.completed).length,
+          session.clientId
+        );
+      }
     }
   };
 
@@ -434,7 +505,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
     const currentEx = session.exercises[exIndex];
     const updatedSets = [...currentEx.sets];
-    const newWeight = Math.max(0, updatedSets[setIndex].weightKg + delta);
+    const currentWeight = updatedSets[setIndex].weightKg ?? 0;
+    const newWeight = Math.max(0, parseFloat((currentWeight + delta).toFixed(1)));
 
     updatedSets[setIndex] = {
       ...updatedSets[setIndex],
@@ -464,14 +536,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     storage.saveActiveSession(updatedSession);
   };
 
-  // Direct weight input change
-  const setWeightDirect = (exIndex: number, setIndex: number, value: number) => {
+  // Direct weight input change (allows null for empty / sem numeração)
+  const setWeightDirect = (exIndex: number, setIndex: number, value: number | null) => {
     if (!session) return;
     const currentEx = session.exercises[exIndex];
     const updatedSets = [...currentEx.sets];
     updatedSets[setIndex] = {
       ...updatedSets[setIndex],
-      weightKg: Math.max(0, value),
+      weightKg: value != null ? Math.max(0, value) : null,
     };
 
     const updatedExercises = [...session.exercises];
@@ -621,12 +693,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     storage.saveActiveSession(updatedSession);
   };
 
-  // Direct subsérie weight change
+  // Direct subsérie weight change (allows null for empty / sem numeração)
   const handleSetSubSetWeightDirect = (
     exIndex: number,
     setIndex: number,
     subIndex: number,
-    val: number
+    val: number | null
   ) => {
     if (!session) return;
     const currentEx = session.exercises[exIndex];
@@ -634,7 +706,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     if (!currentSet || !currentSet.subSets || !currentSet.subSets[subIndex]) return;
 
     const updatedSubSets = currentSet.subSets.map((s, idx) =>
-      idx === subIndex ? { ...s, weightKg: Math.max(0, val) } : s
+      idx === subIndex
+        ? { ...s, weightKg: val != null ? Math.max(0, val) : null }
+        : s
     );
 
     const updatedSets = currentEx.sets.map((s, idx) =>
@@ -688,7 +762,16 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         totalSetsCount++;
         if (s.completed) {
           completedSetsCount++;
-          totalVolumeKg += s.weightKg * s.completedReps;
+          if (s.weightKg != null && s.weightKg > 0) {
+            totalVolumeKg += s.weightKg * s.completedReps;
+          }
+          if (s.subSets && s.subSets.length > 0) {
+            s.subSets.forEach((sub) => {
+              if (sub.completed && sub.weightKg != null && sub.weightKg > 0) {
+                totalVolumeKg += sub.weightKg * sub.completedReps;
+              }
+            });
+          }
         }
       });
     });
@@ -1212,8 +1295,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           <div className="space-y-3">
             {session.exercises.map((ex, exIndex) => {
               const isExpanded = !!expandedExerciseIds[ex.exerciseId];
-              const isHistoryOpen = expandedHistoryExId === ex.exerciseId;
-              const historyData = storage.getExerciseHistory(ex.exerciseName, session.clientId);
               const completedInThisEx = ex.sets.filter((s) => s.completed).length;
               const isAllSetsCompleted =
                 ex.sets.length > 0 && completedInThisEx === ex.sets.length;
@@ -1311,15 +1392,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               <span className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/20">
                                 {exIndex + 1}
                               </span>
-                              <h3
-                                onClick={() =>
-                                  setExpandedHistoryExId(
-                                    isHistoryOpen ? null : ex.exerciseId
-                                  )
-                                }
-                                className="text-base font-extrabold text-white tracking-tight cursor-pointer hover:text-emerald-400 transition flex items-center gap-1.5"
-                                title="Toque para ver histórico de cargas"
-                              >
+                              <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5">
                                 <span>{ex.exerciseName}</span>
                               </h3>
                             </div>
@@ -1373,41 +1446,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             &ldquo;{ex.observations}&rdquo;
                           </p>
                         )}
-
-                        {/* BOTÃO 'VER HISTÓRICO' / PROGRESSO DE CARGAS */}
-                        <div className="pt-0.5">
-                          <button
-                            onClick={() =>
-                              setExpandedHistoryExId(
-                                isHistoryOpen ? null : ex.exerciseId
-                              )
-                            }
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold active:scale-95 transition"
-                          >
-                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>
-                              {isHistoryOpen
-                                ? 'Ocultar Gráfico de Evolução'
-                                : 'Ver Gráfico de Evolução de Carga (Recharts)'}
-                            </span>
-                            {isHistoryOpen ? (
-                              <ChevronUp className="w-3.5 h-3.5 ml-1 text-slate-400" />
-                            ) : (
-                              <ChevronDown className="w-3.5 h-3.5 ml-1 text-slate-400" />
-                            )}
-                          </button>
-
-                          {isHistoryOpen && (
-                            <div className="mt-3">
-                              <ExerciseHistoryChart
-                                exerciseName={ex.exerciseName}
-                                history={historyData}
-                                currentWeightKg={ex.sets[0]?.weightKg ?? undefined}
-                                currentSets={ex.sets}
-                              />
-                            </div>
-                          )}
-                        </div>
                       </div>
 
                       {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES */}
@@ -1432,17 +1470,35 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     : 'bg-slate-950/70 border border-slate-800/80 hover:border-slate-700'
                                 }`}
                               >
-                                {/* Col 1: Set Number */}
+                                {/* Col 1: Set Number + Ícone de Evolução da Série */}
                                 <div className="col-span-2 flex flex-col items-center justify-center">
-                                  <span
-                                    className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center ${
-                                      set.completed
-                                        ? 'bg-emerald-500 text-slate-950'
-                                        : 'bg-slate-800 text-slate-200'
-                                    }`}
-                                  >
-                                    #{set.setNumber}
-                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <span
+                                      style={{ width: '24px', height: '24px' }}
+                                      className={`w-6 h-6 rounded-lg font-black text-[11px] flex items-center justify-center shrink-0 ${
+                                        set.completed
+                                          ? 'bg-emerald-500 text-slate-950'
+                                          : 'bg-slate-800 text-slate-200'
+                                      }`}
+                                      title={`Série #${set.setNumber}`}
+                                    >
+                                      #{set.setNumber}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleOpenSeriesHistory(
+                                          ex.exerciseName,
+                                          set.setNumber,
+                                          ex.sets.length
+                                        )
+                                      }
+                                      className="w-6 h-6 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90"
+                                      title={`Ver página de evolução da Série #${set.setNumber}`}
+                                    >
+                                      <TrendingUp className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                   {set.extraVariation ? (
                                     <span
                                       className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px]"
@@ -1494,15 +1550,23 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     <input
                                       type="number"
                                       step="0.5"
-                                      value={set.weightKg}
-                                      onChange={(e) =>
-                                        setWeightDirect(
-                                          exIndex,
-                                          setIndex,
-                                          parseFloat(e.target.value) || 0
-                                        )
-                                      }
-                                      className="w-full py-1.5 text-center font-mono font-black text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner"
+                                      min="0"
+                                      placeholder="—"
+                                      value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
+                                      onChange={(e) => {
+                                        const raw = e.target.value.trim();
+                                        if (raw === '') {
+                                          setWeightDirect(exIndex, setIndex, null);
+                                        } else {
+                                          const parsed = parseFloat(raw);
+                                          setWeightDirect(
+                                            exIndex,
+                                            setIndex,
+                                            isNaN(parsed) ? null : Math.max(0, parsed)
+                                          );
+                                        }
+                                      }}
+                                      className="w-full py-1.5 text-center font-mono font-black text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
                                     />
                                     <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
                                       kg
@@ -1594,16 +1658,24 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           <input
                                             type="number"
                                             step="0.5"
-                                            value={sub.weightKg}
-                                            onChange={(e) =>
-                                              handleSetSubSetWeightDirect(
-                                                exIndex,
-                                                setIndex,
-                                                subIdx,
-                                                parseFloat(e.target.value) || 0
-                                              )
-                                            }
-                                            className="w-full py-1 text-center font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner"
+                                            min="0"
+                                            placeholder="—"
+                                            value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
+                                            onChange={(e) => {
+                                              const raw = e.target.value.trim();
+                                              if (raw === '') {
+                                                handleSetSubSetWeightDirect(exIndex, setIndex, subIdx, null);
+                                              } else {
+                                                const parsed = parseFloat(raw);
+                                                handleSetSubSetWeightDirect(
+                                                  exIndex,
+                                                  setIndex,
+                                                  subIdx,
+                                                  isNaN(parsed) ? null : Math.max(0, parsed)
+                                                );
+                                              }
+                                            }}
+                                            className="w-full py-1 text-center font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
                                           />
                                           <span className="text-[8px] text-slate-400 font-semibold block mt-0.5">
                                             kg
@@ -1654,10 +1726,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleToggleExerciseExpand(ex.exerciseId)}
-                          className="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1 py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition active:scale-95"
+                          onClick={() => handleFinishAndCollapseExercise(exIndex)}
+                          className="text-xs font-bold text-white flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 shadow-md shadow-emerald-950/40 transition active:scale-95"
+                          title="Concluir exercício, gravar séries no histórico de evolução e recolher"
                         >
-                          <ChevronUp className="w-3.5 h-3.5 text-cyan-400" />
+                          <Check className="w-4 h-4 stroke-[3]" />
                           <span>Concluir e Recolher</span>
                         </button>
                       </div>
@@ -1866,6 +1939,33 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               Concluir e Salvar no Histórico
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 1 - PÁGINA / MODAL DE EVOLUÇÃO POR SÉRIE (Requisitos 1, 1.1, 1.2, 1.3, 1.4) */}
+      {seriesHistoryModal && seriesHistoryModal.isOpen && (
+        <SeriesHistoryModal
+          isOpen={seriesHistoryModal.isOpen}
+          onClose={() => setSeriesHistoryModal(null)}
+          exerciseName={seriesHistoryModal.exerciseName}
+          setNumber={seriesHistoryModal.setNumber}
+          totalSets={seriesHistoryModal.totalSets}
+          clientId={session?.clientId}
+          onSelectSetNumber={(newNum) => {
+            setSeriesHistoryModal((prev) =>
+              prev ? { ...prev, setNumber: newNum } : null
+            );
+          }}
+        />
+      )}
+
+      {/* Toast Feedback ao clicar em Concluir e Recolher */}
+      {exerciseFinishedToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-emerald-500/60 text-emerald-200 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+            <Check className="w-3.5 h-3.5 stroke-[3]" />
+          </div>
+          <span>{exerciseFinishedToast}</span>
         </div>
       )}
     </div>

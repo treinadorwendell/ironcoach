@@ -8,6 +8,7 @@ import {
   DatabaseExercise,
   MuscleGroup,
   CompletedWorkoutRecord,
+  ExecutionSet,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -19,6 +20,7 @@ const STORAGE_KEYS = {
   ACTIVE_SESSION: 'ironcoach_active_session_v2',
   COMPLETED_WORKOUTS: 'ironcoach_completed_workouts_v1',
   EXERCISE_DATABASE: 'ironcoach_exercise_db_v2',
+  EXERCISE_FINISHED_SNAPSHOTS: 'ironcoach_exercise_finished_snapshots_v1',
 };
 
 // Initial Seed Clients
@@ -820,9 +822,9 @@ export const storage = {
           );
           if (setsWithWeight.length > 0) {
             if (setIndex !== undefined && setIndex < setsWithWeight.length) {
-              return setsWithWeight[setIndex].weightKg;
+              return setsWithWeight[setIndex].weightKg ?? null;
             }
-            return setsWithWeight[setsWithWeight.length - 1].weightKg;
+            return setsWithWeight[setsWithWeight.length - 1].weightKg ?? null;
           }
         }
       }
@@ -839,6 +841,124 @@ export const storage = {
 
     // Caso não tenha histórico: retorna null (sem numeração)
     return null;
+  },
+
+  /**
+   * Grava o exercício e suas séries no histórico imediatamente quando o usuário clica em "Concluir e Recolher".
+   */
+  recordExerciseFinishedOnCollapse(
+    clientId: string | undefined,
+    exerciseName: string,
+    sets: ExecutionSet[]
+  ) {
+    if (typeof window === 'undefined' || !exerciseName) return;
+    try {
+      const now = new Date();
+      const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(
+        now.getMonth() + 1
+      ).padStart(2, '0')}`;
+
+      const newSnapshot = {
+        id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        clientId: clientId || 'general',
+        exerciseName: exerciseName.trim(),
+        date: dateStr,
+        timestamp: now.toISOString(),
+        sets: sets.map((s) => {
+          const w = typeof s.weightKg === 'number' ? s.weightKg : null;
+          const r = Number(s.completedReps) || Number(s.targetReps) || 10;
+          return {
+            setNumber: s.setNumber,
+            weightKg: w,
+            completedReps: r,
+            volumeKg: (w || 0) * r,
+            completed: s.completed,
+          };
+        }),
+      };
+
+      const existingData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
+      const list = existingData ? JSON.parse(existingData) : [];
+      list.push(newSnapshot);
+      if (list.length > 80) {
+        list.splice(0, list.length - 80);
+      }
+      localStorage.setItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS, JSON.stringify(list));
+    } catch (e) {
+      console.error('Error recording finished exercise snapshot:', e);
+    }
+  },
+
+  /**
+   * Retorna o histórico de uma série específica (ex: Série 1) baseado estritamente
+   * nos registros de exercícios finalizados ao clicar em "Concluir e Recolher".
+   * Caso não tenha histórico, retorna array vazio [].
+   */
+  getSeriesHistory(
+    exerciseName: string,
+    setNumber: number,
+    clientId?: string
+  ): Array<{
+    date: string;
+    timestamp: string;
+    weightKg: number;
+    reps: number;
+    volumeKg: number;
+    setNumber: number;
+  }> {
+    if (typeof window === 'undefined' || !exerciseName) return [];
+    try {
+      const cleanName = exerciseName.trim().toLowerCase();
+      const points: Array<{
+        date: string;
+        timestamp: string;
+        weightKg: number;
+        reps: number;
+        volumeKg: number;
+        setNumber: number;
+      }> = [];
+
+      // Buscar exclusivamente snapshots gravados via "Concluir e Recolher"
+      const snapData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
+      if (snapData) {
+        const snapshots = JSON.parse(snapData);
+        if (Array.isArray(snapshots)) {
+          snapshots
+            .filter(
+              (snap: any) =>
+                (!clientId || !snap.clientId || snap.clientId === 'general' || snap.clientId === clientId) &&
+                snap.exerciseName?.trim().toLowerCase() === cleanName
+            )
+            .forEach((snap: any) => {
+              if (Array.isArray(snap.sets)) {
+                const s = snap.sets.find((item: any) => item.setNumber === setNumber);
+                if (s && typeof s.weightKg === 'number' && s.weightKg > 0) {
+                  const reps = Number(s.completedReps) || 10;
+                  const vol = s.volumeKg != null ? Number(s.volumeKg) : s.weightKg * reps;
+                  points.push({
+                    date: snap.date || 'Hoje',
+                    timestamp: snap.timestamp || new Date().toISOString(),
+                    weightKg: s.weightKg,
+                    reps,
+                    volumeKg: vol,
+                    setNumber,
+                  });
+                }
+              }
+            });
+        }
+      }
+
+      // Ordenar cronologicamente do mais antigo para o mais recente
+      points.sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      return points;
+    } catch (e) {
+      console.error('Error in getSeriesHistory:', e);
+      return [];
+    }
   },
 
   getActiveSession(): ActiveWorkoutSession | null {

@@ -233,7 +233,7 @@ export type MainNavSection = 'cliente' | 'agenda' | 'criar-treino' | 'execucao';
 export interface CompletedSubSetRecord {
   subSetNumber: number;
   completedReps: number;
-  weightKg: number;
+  weightKg?: number | null;
   repZone?: string;
   completed: boolean;
   note?: string;
@@ -242,7 +242,7 @@ export interface CompletedSubSetRecord {
 export interface CompletedSetRecord {
   setNumber: number;
   completedReps: number;
-  weightKg: number;
+  weightKg?: number | null;
   repZone?: string;
   completed: boolean;
   method?: string;

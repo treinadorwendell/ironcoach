@@ -51,7 +51,20 @@ import {
   GripVertical,
   ArrowUpDown,
   Move,
+  History,
+  ListChecks,
+  Activity,
 } from 'lucide-react';
+
+export interface WorkoutChangeLogItem {
+  id: string;
+  time: string;
+  category: 'exercise' | 'set' | 'split' | 'program' | 'method' | 'combine';
+  action: 'add' | 'edit' | 'remove' | 'combine' | 'reorder';
+  title: string;
+  detail: string;
+  splitName?: string;
+}
 
 interface CreateWorkoutSectionProps {
   clients: Client[];
@@ -264,6 +277,12 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   // Volume Drawer
   const [isVolumeDrawerOpen, setIsVolumeDrawerOpen] = useState(false);
   const [savedSuccessMsg, setSavedSuccessMsg] = useState(false);
+
+  // RIGHT-SIDE EXPANDABLE CHANGES DRAWER STATE
+  const [isChangesDrawerOpen, setIsChangesDrawerOpen] = useState(false);
+  const [changesDrawerTab, setChangesDrawerTab] = useState<'log' | 'summary' | 'volume'>('log');
+  const [changesLogFilter, setChangesLogFilter] = useState<'all' | 'exercise' | 'set' | 'split'>('all');
+  const [changesLog, setChangesLog] = useState<WorkoutChangeLogItem[]>([]);
 
   // EXERCISE DATABASE STATE
   const [exerciseDatabase, setExerciseDatabase] = useState<DatabaseExercise[]>(() =>
@@ -484,6 +503,35 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   // Active split currently displayed in editor
   const activeSplit = editingProgram?.splits?.find((s) => s.id === selectedSplitId) || editingProgram?.splits?.[0];
 
+  // Helper to log all alterations made while building/editing workout in real time
+  const logWorkoutChange = useCallback(
+    (
+      category: 'exercise' | 'set' | 'split' | 'program' | 'method' | 'combine',
+      action: 'add' | 'edit' | 'remove' | 'combine' | 'reorder',
+      title: string,
+      detail: string,
+      customSplitName?: string
+    ) => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const newEntry: WorkoutChangeLogItem = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        time: timeStr,
+        category,
+        action,
+        title,
+        detail,
+        splitName: customSplitName || activeSplit?.name || 'Geral',
+      };
+      setChangesLog((prev) => [newEntry, ...prev.slice(0, 99)]);
+    },
+    [activeSplit?.name]
+  );
+
   // Toggle weekday for current split (allows multiple days or single day, without forcing days)
   const handleToggleSplitWeekDay = (dayId: number) => {
     if (!editingProgram || !activeSplit) return;
@@ -505,6 +553,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       ...editingProgram,
       splits: updatedSplits,
     });
+
+    const dayName = WEEKDAYS.find((w) => w.id === dayId)?.label || `Dia ${dayId}`;
+    const actionLabel = currentDays.includes(dayId) ? 'desmarcado' : 'adicionado';
+    logWorkoutChange('split', 'edit', 'Dias da Semana Atualizados', `${dayName} ${actionLabel} em ${activeSplit.name}`);
   };
 
   // Add a new split (Treino A, Treino B, Treino C, etc.) completely blank without automatic exercises or presets
@@ -526,6 +578,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       splits: updatedSplits,
     });
     setSelectedSplitId(newSplit.id);
+    logWorkoutChange('split', 'add', 'Nova Divisão Criada', `Divisão "${newSplit.name}" adicionada em branco`);
   };
 
   // Presets: Generate 1 Workout for each Weekday (Segunda a Sexta) with blank exercises
@@ -570,26 +623,31 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       splits: dailySplits,
     });
     setSelectedSplitId(dailySplits[0].id);
+    logWorkoutChange('split', 'add', 'Treinos Diários Gerados', '5 divisões criadas para os dias da semana (Seg a Sex)');
   };
 
   // Remove a split
   const handleRemoveSplit = (splitId: string) => {
     if (!editingProgram) return;
+    const removedSplit = (editingProgram.splits || []).find((s) => s.id === splitId);
     const remaining = (editingProgram.splits || []).filter((s) => s.id !== splitId);
     setEditingProgram({
       ...editingProgram,
       splits: remaining,
     });
     setSelectedSplitId(remaining.length > 0 ? remaining[0].id : '');
+    logWorkoutChange('split', 'remove', 'Divisão Removida', `Divisão "${removedSplit?.name || 'Treino'}" foi excluída`);
   };
 
   // Update Split Name
   const handleUpdateSplitName = (newName: string) => {
     if (!editingProgram || !activeSplit) return;
+    const oldName = activeSplit.name;
     const updated = editingProgram.splits.map((s) =>
       s.id === activeSplit.id ? { ...s, name: newName } : s
     );
     setEditingProgram({ ...editingProgram, splits: updated });
+    logWorkoutChange('split', 'edit', 'Nome da Divisão Alterado', `"${oldName}" renomeada para "${newName}"`);
   };
 
   // EXERCISE DATABASE HANDLERS
@@ -620,6 +678,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       if (!currentSplit) return prev;
 
       if (targetExerciseIndexForDb !== null) {
+        const oldEx = currentSplit.exercises[targetExerciseIndexForDb];
         const updatedExercises = currentSplit.exercises.map((ex, i) =>
           i === targetExerciseIndexForDb
             ? { ...ex, name: dbExercise.name, muscleGroup: dbExercise.muscleGroup }
@@ -628,6 +687,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         const updatedSplits = prev.splits.map((s) =>
           s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
         );
+        logWorkoutChange('exercise', 'edit', 'Exercício Substituído', `"${oldEx?.name || 'Exercício'}" substituído por "${dbExercise.name}" (${dbExercise.muscleGroup})`, currentSplit.name);
         return { ...prev, splits: updatedSplits };
       } else {
         const newExId = `ex-${dbExercise.id}-${Date.now()}-${currentSplit.exercises.length + 1}`;
@@ -652,6 +712,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         const updatedSplits = prev.splits.map((s) =>
           s.id === currentSplit.id ? { ...s, exercises: [...s.exercises, newExItem] } : s
         );
+        logWorkoutChange('exercise', 'add', 'Exercício Adicionado', `"${dbExercise.name}" (${dbExercise.muscleGroup}) adicionado`, currentSplit.name);
         return { ...prev, splits: updatedSplits };
       }
     });
@@ -719,6 +780,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
       if (!currentSplit || !currentSplit.exercises[index]) return prev;
 
+      const target = currentSplit.exercises[index];
       const updatedExercises = currentSplit.exercises.map((ex, i) =>
         i === index ? { ...ex, ...patch } : ex
       );
@@ -726,6 +788,12 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       const updatedSplits = prev.splits.map((s) =>
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
+
+      if (patch.name && patch.name !== target.name) {
+        logWorkoutChange('exercise', 'edit', 'Nome do Exercício Alterado', `"${target.name}" renomeado para "${patch.name}"`, currentSplit.name);
+      } else if (patch.muscleGroup && patch.muscleGroup !== target.muscleGroup) {
+        logWorkoutChange('exercise', 'edit', 'Grupo Muscular Alterado', `"${target.name}": grupo ${patch.muscleGroup}`, currentSplit.name);
+      }
 
       return { ...prev, splits: updatedSplits };
     });
@@ -745,6 +813,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
           delete next[target.id];
           return next;
         });
+        logWorkoutChange('exercise', 'remove', 'Exercício Removido', `"${target.name}" excluído de ${currentSplit.name}`, currentSplit.name);
       }
 
       const updatedExercises = currentSplit.exercises.filter((_, i) => i !== index);
@@ -1018,6 +1087,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
 
+      logWorkoutChange('set', 'add', 'Série Adicionada', `Série #${newSetNumber} adicionada em "${targetEx.name}"`, currentSplit.name);
       return { ...prev, splits: updatedSplits };
     });
   };
@@ -1051,6 +1121,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
 
+      logWorkoutChange('set', 'remove', 'Série Removida', `Série #${setIndex + 1} removida de "${targetEx.name}"`, currentSplit.name);
       return { ...prev, splits: updatedSplits };
     });
   };
@@ -1109,6 +1180,14 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       const updatedSplits = prev.splits.map((s) =>
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
+
+      if (field === 'suggestedWeightKg') {
+        logWorkoutChange('set', 'edit', 'Carga Sugerida Alterada', `"${targetEx.name}" Série #${setIndex + 1}: carga ${value != null && value !== '' ? `${value} kg` : 'sem numeração'}`, currentSplit.name);
+      } else if (field === 'repZone') {
+        logWorkoutChange('set', 'edit', 'Repetições Alteradas', `"${targetEx.name}" Série #${setIndex + 1}: ${value} reps`, currentSplit.name);
+      } else if (field === 'method') {
+        logWorkoutChange('method', 'edit', 'Método Alterado', `"${targetEx.name}" Série #${setIndex + 1}: método ${value}`, currentSplit.name);
+      }
 
       return { ...prev, splits: updatedSplits };
     });
@@ -1367,6 +1446,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
     setIsCombineModalOpen(false);
     setSelectedExerciseIdsToCombine([]);
+    logWorkoutChange(
+      'combine',
+      'combine',
+      'Combinação de Exercícios',
+      `${selectedExs.length} exercícios combinados em ${label} (${selectedExs.map((e) => e.name).join(' + ')})`,
+      activeSplit.name
+    );
   };
 
   const handleUncombineGroup = (groupId: string) => {
@@ -1391,6 +1477,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       ...editingProgram,
       splits: updatedSplits,
     });
+    logWorkoutChange('combine', 'edit', 'Combinação Desfeita', 'Exercícios retornados para séries individuais', activeSplit.name);
   };
 
   const handleQuickCombineWithNext = (exIndex: number) => {
@@ -1426,6 +1513,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       ...editingProgram,
       splits: updatedSplits,
     });
+    logWorkoutChange('combine', 'combine', 'Bi-Set Rápido Criado', `Exercício combinado com o próximo em Bi-Set`, activeSplit.name);
   };
 
   const handleAddQuickBlankExercise = () => {
@@ -1458,6 +1546,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       const updatedSplits = prev.splits.map((s) =>
         s.id === currentSplit.id ? { ...s, exercises: [...s.exercises, newExItem] } : s
       );
+      logWorkoutChange('exercise', 'add', 'Exercício Manual Adicionado', `"${newExItem.name}" adicionado à divisão ${currentSplit.name}`, currentSplit.name);
       return { ...prev, splits: updatedSplits };
     });
   };
@@ -1480,6 +1569,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     onSaveWorkout(programToSave);
     setSavedSuccessMsg(true);
     setTimeout(() => setSavedSuccessMsg(false), 3000);
+    logWorkoutChange('program', 'edit', 'Treino Salvo com Sucesso', `Programa "${editingProgram.name}" salvo com ${allDays.length} dias configurados`);
   };
 
   // START EXECUTION FOR CURRENT SPLIT
@@ -1515,6 +1605,17 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   );
 
   const totalSplitSets = Object.values(volumeByMuscle).reduce((a, b) => a + b, 0);
+
+  const totalExercisesInProgram = (editingProgram?.splits || []).reduce(
+    (acc, s) => acc + (s.exercises?.length || 0),
+    0
+  );
+  const totalSetsInProgram = (editingProgram?.splits || []).reduce(
+    (acc, s) =>
+      acc +
+      (s.exercises || []).reduce((subAcc, ex) => subAcc + (Number(ex.sets) || 0), 0),
+    0
+  );
 
   // Render individual exercise card with collapsed view and expanded per-set editor
   const renderExerciseCard = (
@@ -2847,11 +2948,20 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setIsVolumeDrawerOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+                    onClick={() => {
+                      setIsChangesDrawerOpen(true);
+                      setChangesDrawerTab('log');
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 text-cyan-200 border border-cyan-500/40 text-xs font-bold shadow-sm active:scale-95 transition"
+                    title="Acompanhar todas as alterações feitas no treino em painel lateral direito"
                   >
-                    <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Volume por Músculo</span>
+                    <History className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Acompanhar Alterações</span>
+                    {changesLog.length > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/30 text-cyan-200 text-[10px] font-mono font-black border border-cyan-400/40 animate-pulse">
+                        {changesLog.length}
+                      </span>
+                    )}
                   </button>
 
                   <button
@@ -3163,57 +3273,408 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       )}
     </AnimatePresence>
 
-      {/* VOLUME DISTRIBUTION DRAWER */}
-      {isVolumeDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      {/* RIGHT-SIDE EXPANDABLE CHANGES DRAWER ("Acompanhar Alterações") */}
+      {isChangesDrawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsChangesDrawerOpen(false)}
+        />
+      )}
+
+      {/* Slide-in panel from the right edge */}
+      <div
+        className={`fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[490px] md:w-[540px] max-w-full bg-slate-900 border-l border-cyan-500/30 shadow-[-25px_0_60px_rgba(0,0,0,0.9)] flex flex-col transform transition-transform duration-300 ease-out ${
+          isChangesDrawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Painel de Acompanhamento de Alterações"
+      >
+        {/* Drawer Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/90 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shadow-lg">
+              <History className="w-5 h-5" />
+            </div>
+            <div>
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-base font-bold text-white">
-                  Volume de Séries por Grupo Muscular
+                <h3 className="text-base font-extrabold text-white">
+                  Acompanhar Alterações
                 </h3>
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Tempo Real
+                </span>
               </div>
-              <button
-                onClick={() => setIsVolumeDrawerOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <p className="text-xs text-slate-400 truncate max-w-[240px] sm:max-w-[320px]">
+                {selectedClient?.name || 'Aluno'} • {editingProgram?.name || 'Programa de Treino'}
+              </p>
             </div>
+          </div>
 
-            <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
-              {Object.keys(volumeByMuscle).length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">
-                  Nenhum exercício adicionado a este treino.
-                </p>
-              ) : (
-                Object.entries(volumeByMuscle).map(([muscle, setsCount]) => (
-                  <div key={muscle} className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-slate-200">{muscle}</span>
-                      <span className="text-emerald-400 font-mono">{setsCount} séries</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full"
-                        style={{ width: `${Math.min(100, (setsCount / 20) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+          <button
+            type="button"
+            onClick={() => setIsChangesDrawerOpen(false)}
+            className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition active:scale-95"
+            title="Fechar painel lateral"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-            <button
-              onClick={() => setIsVolumeDrawerOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs"
-            >
-              Fechar
-            </button>
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-4 gap-2 p-3 sm:px-4 bg-slate-950/60 border-b border-slate-800/80 shrink-0 text-center">
+          <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Ações</span>
+            <span className="text-sm font-black text-cyan-400 font-mono">{changesLog.length}</span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Divisões</span>
+            <span className="text-sm font-black text-emerald-400 font-mono">{editingProgram?.splits?.length || 0}</span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Exercícios</span>
+            <span className="text-sm font-black text-white font-mono">{totalExercisesInProgram}</span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Séries</span>
+            <span className="text-sm font-black text-purple-400 font-mono">{totalSetsInProgram}</span>
           </div>
         </div>
-      )}
+
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-slate-800 bg-slate-900 shrink-0">
+          <button
+            type="button"
+            onClick={() => setChangesDrawerTab('log')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition active:scale-95 ${
+              changesDrawerTab === 'log'
+                ? 'bg-cyan-600/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Histórico ({changesLog.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setChangesDrawerTab('summary')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition active:scale-95 ${
+              changesDrawerTab === 'summary'
+                ? 'bg-cyan-600/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Resumo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setChangesDrawerTab('volume')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition active:scale-95 ${
+              changesDrawerTab === 'volume'
+                ? 'bg-cyan-600/25 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Volume Muscular</span>
+          </button>
+        </div>
+
+        {/* Drawer Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {/* TAB 1: HISTÓRICO DE ALTERAÇÕES */}
+          {changesDrawerTab === 'log' && (
+            <div className="space-y-3">
+              {/* Filter Pills & Clear Button */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1 flex-wrap">
+                  {(
+                    [
+                      { id: 'all', label: 'Todas' },
+                      { id: 'exercise', label: 'Exercícios' },
+                      { id: 'set', label: 'Séries / Cargas' },
+                      { id: 'split', label: 'Divisões' },
+                    ] as const
+                  ).map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setChangesLogFilter(filter.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                        changesLogFilter === filter.id
+                          ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                {changesLog.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setChangesLog([])}
+                    className="text-[11px] text-slate-400 hover:text-rose-400 transition"
+                    title="Limpar histórico desta sessão"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+
+              {/* Feed List */}
+              {changesLog.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800 space-y-3 my-4">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
+                    <History className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-white">Nenhuma alteração registrada ainda</h4>
+                    <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                      Conforme você adicionar exercícios, ajustar cargas sugeridas, alterar repetições ou combinar séries no treino, todas as modificações aparecerão aqui em tempo real.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left text-xs space-y-1 text-slate-300">
+                    <span className="font-bold text-cyan-400 block text-[11px] uppercase tracking-wider">
+                      O que é monitorado:
+                    </span>
+                    <p>• Inclusão e exclusão de exercícios e divisões</p>
+                    <p>• Alteração de cargas sugeridas e repetições</p>
+                    <p>• Combinações de Bi-Set / Tri-Set e métodos</p>
+                    <p>• Dias da semana e salvamentos de programa</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {changesLog
+                    .filter((item) => {
+                      if (changesLogFilter === 'all') return true;
+                      if (changesLogFilter === 'exercise') return item.category === 'exercise';
+                      if (changesLogFilter === 'set') return item.category === 'set';
+                      if (changesLogFilter === 'split')
+                        return item.category === 'split' || item.category === 'program' || item.category === 'method' || item.category === 'combine';
+                      return true;
+                    })
+                    .map((item) => {
+                      const badgeStyle =
+                        item.action === 'add'
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : item.action === 'remove'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                          : item.action === 'combine'
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                          : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+
+                      const actionLabel =
+                        item.action === 'add'
+                          ? 'Adicionado'
+                          : item.action === 'remove'
+                          ? 'Removido'
+                          : item.action === 'combine'
+                          ? 'Combinado'
+                          : 'Alterado';
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 transition space-y-1.5 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${badgeStyle}`}
+                              >
+                                {actionLabel}
+                              </span>
+                              {item.splitName && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 font-mono">
+                                  {item.splitName}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              {item.time}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-xs font-bold text-white block">
+                              {item.title}
+                            </span>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                              {item.detail}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: RESUMO DO TREINO */}
+          {changesDrawerTab === 'summary' && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200">
+                    {editingProgram?.name || 'Programa de Treino'}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
+                    {editingProgram?.goal}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Aluno: <strong className="text-white">{selectedClient?.name}</strong> • Período:{' '}
+                  {editingProgram?.startDate || '—'} a {editingProgram?.endDate || '—'}
+                </p>
+              </div>
+
+              {/* Splits Breakdown */}
+              <div className="space-y-3">
+                <span className="text-xs font-extrabold text-slate-300 uppercase tracking-wider block">
+                  Divisões Cadastradas ({editingProgram?.splits?.length || 0})
+                </span>
+
+                {(!editingProgram?.splits || editingProgram.splits.length === 0) ? (
+                  <p className="text-xs text-slate-400 text-center py-4">
+                    Nenhuma divisão cadastrada ainda.
+                  </p>
+                ) : (
+                  editingProgram.splits.map((split, sIdx) => {
+                    const daysLabels = (split.weekDays || [])
+                      .map((d) => WEEKDAYS.find((w) => w.id === d)?.short)
+                      .filter(Boolean)
+                      .join(', ');
+
+                    return (
+                      <div
+                        key={split.id}
+                        className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                            <span className="text-xs font-bold text-white">
+                              {split.name}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-mono text-cyan-300 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800">
+                            {daysLabels ? `Dias: ${daysLabels}` : 'Sem dias fixos'}
+                          </span>
+                        </div>
+
+                        {split.exercises && split.exercises.length > 0 ? (
+                          <div className="space-y-1.5 pl-2 border-l border-slate-800">
+                            {split.exercises.map((ex, exIdx) => (
+                              <div
+                                key={ex.id || exIdx}
+                                className="flex items-center justify-between text-xs py-0.5"
+                              >
+                                <span className="text-slate-300 truncate max-w-[220px]">
+                                  {exIdx + 1}. {ex.name}
+                                </span>
+                                <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                                  <span className="text-emerald-400 font-bold">{ex.sets} séries</span>
+                                  <span className="text-slate-400">•</span>
+                                  <span className="text-slate-400">{ex.repZone}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic">
+                            Nenhum exercício adicionado a esta divisão ainda.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: VOLUME POR MÚSCULO */}
+          {changesDrawerTab === 'volume' && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <BarChart3 className="w-4 h-4 text-cyan-400" />
+                    Volume da Divisão Ativa ({activeSplit?.name})
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">
+                    {totalSplitSets} séries totais
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Distribuição de séries prescritas para cada grupamento muscular nesta divisão.
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                {Object.keys(volumeByMuscle).length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-6">
+                    Nenhum exercício com séries adicionado a este treino ainda.
+                  </p>
+                ) : (
+                  Object.entries(volumeByMuscle).map(([muscle, setsCount]) => (
+                    <div key={muscle} className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-slate-200">{muscle}</span>
+                        <span className="text-emerald-400 font-mono font-bold">{setsCount} séries</span>
+                      </div>
+                      <div className="h-2.5 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                        <div
+                          className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, (setsCount / 20) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Drawer Footer Actions */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 active:scale-95 transition"
+          >
+            {savedSuccessMsg ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Treino Salvo com Sucesso!</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Salvar Treino Agora</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsChangesDrawerOpen(false)}
+            className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs active:scale-95 transition"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
 
       {/* EXERCISE DATABASE MODAL */}
       {isExerciseDbModalOpen && (
