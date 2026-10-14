@@ -873,6 +873,7 @@ export const storage = {
             completedReps: r,
             volumeKg: (w || 0) * r,
             completed: s.completed,
+            pse: typeof s.pse === 'number' ? s.pse : null,
           };
         }),
       };
@@ -905,6 +906,7 @@ export const storage = {
     reps: number;
     volumeKg: number;
     setNumber: number;
+    pse?: number | null;
   }> {
     if (typeof window === 'undefined' || !exerciseName) return [];
     try {
@@ -916,6 +918,7 @@ export const storage = {
         reps: number;
         volumeKg: number;
         setNumber: number;
+        pse?: number | null;
       }> = [];
 
       // Buscar exclusivamente snapshots gravados via "Concluir e Recolher"
@@ -932,16 +935,19 @@ export const storage = {
             .forEach((snap: any) => {
               if (Array.isArray(snap.sets)) {
                 const s = snap.sets.find((item: any) => item.setNumber === setNumber);
-                if (s && typeof s.weightKg === 'number' && s.weightKg > 0) {
+                if (s && ((typeof s.weightKg === 'number' && s.weightKg > 0) || (typeof s.pse === 'number') || s.completed)) {
                   const reps = Number(s.completedReps) || 10;
-                  const vol = s.volumeKg != null ? Number(s.volumeKg) : s.weightKg * reps;
+                  const w = typeof s.weightKg === 'number' ? s.weightKg : 0;
+                  const vol = s.volumeKg != null ? Number(s.volumeKg) : w * reps;
+                  const pseVal = typeof s.pse === 'number' ? s.pse : null;
                   points.push({
                     date: snap.date || 'Hoje',
                     timestamp: snap.timestamp || new Date().toISOString(),
-                    weightKg: s.weightKg,
+                    weightKg: w,
                     reps,
                     volumeKg: vol,
                     setNumber,
+                    pse: pseVal,
                   });
                 }
               }

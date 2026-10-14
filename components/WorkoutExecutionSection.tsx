@@ -43,7 +43,9 @@ import {
   PenLine,
   FileText,
   X,
+  Gauge,
 } from 'lucide-react';
+import { PsePickerModal, getPseInfo } from './PsePickerModal';
 
 interface WorkoutExecutionSectionProps {
   clients: Client[];
@@ -205,6 +207,55 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     durationStr: string;
     trainerNotes?: string;
   } | null>(null);
+
+  // Estado para a Página/Modal de Seleção de PSE (0 a 10)
+  const [pseModalConfig, setPseModalConfig] = useState<{
+    isOpen: boolean;
+    exerciseIndex: number;
+    setIndex: number;
+    initialValue?: number | null;
+    exerciseName: string;
+    setNumber: number;
+  } | null>(null);
+
+  const handleOpenPseModal = (
+    exerciseIndex: number,
+    setIndex: number,
+    currentPse: number | null | undefined,
+    exerciseName: string,
+    setNumber: number
+  ) => {
+    setPseModalConfig({
+      isOpen: true,
+      exerciseIndex,
+      setIndex,
+      initialValue: currentPse ?? null,
+      exerciseName,
+      setNumber,
+    });
+  };
+
+  const handleSelectPse = (pseValue: number | null) => {
+    if (!pseModalConfig || !session) return;
+    const { exerciseIndex, setIndex } = pseModalConfig;
+    const updatedExercises = [...session.exercises];
+    const targetEx = { ...updatedExercises[exerciseIndex] };
+    const targetSets = [...targetEx.sets];
+    targetSets[setIndex] = {
+      ...targetSets[setIndex],
+      pse: pseValue,
+    };
+    targetEx.sets = targetSets;
+    updatedExercises[exerciseIndex] = targetEx;
+
+    const updatedSession = {
+      ...session,
+      exercises: updatedExercises,
+    };
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+    setPseModalConfig(null);
+  };
 
   const handleOpenSeriesHistory = (
     exerciseName: string,
@@ -813,6 +864,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         repZone: s.repZone,
         completed: s.completed,
         method: s.method,
+        pse: s.pse ?? null,
         subSets: (s.subSets || []).map((sub) => ({
           subSetNumber: sub.subSetNumber,
           completedReps: sub.completedReps,
@@ -1450,15 +1502,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                       {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES */}
                       <div className="space-y-2.5">
-                        <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider">
+                        <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider items-center">
                           <span className="col-span-2 text-center">Série</span>
                           <span className="col-span-3 text-center">Reps (Alvo)</span>
-                          <span className="col-span-5 text-center">Carga (KG)</span>
+                          <span className="col-span-3 text-center">Carga (KG)</span>
+                          <span className="col-span-2 text-center text-amber-400">PSE</span>
                           <span className="col-span-2 text-center">Check</span>
                         </div>
 
                         {ex.sets.map((set, setIndex) => {
                           const hasSubsets = set.subSets && set.subSets.length > 0;
+                          const pseInfo = getPseInfo(set.pse);
 
                           return (
                             <div key={set.setNumber} className="space-y-1.5">
@@ -1474,7 +1528,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                 <div className="col-span-2 flex flex-col items-center justify-center">
                                   <div className="flex items-center gap-1">
                                     <span
-                                      style={{ width: '24px', height: '24px' }}
                                       className={`w-6 h-6 rounded-lg font-black text-[11px] flex items-center justify-center shrink-0 ${
                                         set.completed
                                           ? 'bg-emerald-500 text-slate-950'
@@ -1545,8 +1598,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                 </div>
 
                                 {/* Col 3: Carga (KG) */}
-                                <div className="col-span-5 flex items-center justify-center">
-                                  <div className="relative w-20 text-center">
+                                <div className="col-span-3 flex items-center justify-center">
+                                  <div className="relative w-16 sm:w-20 text-center">
                                     <input
                                       type="number"
                                       step="0.5"
@@ -1566,7 +1619,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           );
                                         }
                                       }}
-                                      className="w-full py-1.5 text-center font-mono font-black text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
+                                      className="w-full py-1.5 text-center font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
                                     />
                                     <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
                                       kg
@@ -1574,7 +1627,51 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   </div>
                                 </div>
 
-                                {/* Col 4: Botão de Check List Lateral */}
+                                {/* Col 4: PSE (0 a 10) com Cores de Intensidade */}
+                                <div className="col-span-2 flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenPseModal(
+                                        exIndex,
+                                        setIndex,
+                                        set.pse,
+                                        ex.exerciseName,
+                                        set.setNumber
+                                      )
+                                    }
+                                    className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group ${
+                                      pseInfo
+                                        ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass} ring-1 ${pseInfo.ringClass} shadow-md`
+                                        : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 hover:border-amber-500/50 text-slate-400 hover:text-amber-400'
+                                    }`}
+                                    title={
+                                      pseInfo
+                                        ? `PSE ${set.pse}: ${pseInfo.label} (${pseInfo.rirNote}) - Clique para alterar`
+                                        : 'Definir PSE (0 a 10)'
+                                    }
+                                  >
+                                    {pseInfo ? (
+                                      <>
+                                        <span className="font-mono font-black text-sm leading-none">
+                                          {set.pse}
+                                        </span>
+                                        <span className="text-[8px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
+                                          PSE
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Gauge className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
+                                        <span className="text-[8px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
+                                          PSE
+                                        </span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+
+                                {/* Col 5: Botão de Check List Lateral */}
                                 <div className="col-span-2 flex justify-center">
                                   <button
                                     type="button"
@@ -1653,7 +1750,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                       </div>
 
                                       {/* Col 3: Carga (kg) */}
-                                      <div className="col-span-5 flex items-center justify-center">
+                                      <div className="col-span-3 flex items-center justify-center">
                                         <div className="relative w-20 text-center">
                                           <input
                                             type="number"
@@ -1683,7 +1780,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         </div>
                                       </div>
 
-                                      {/* Col 4: Check subsérie */}
+                                      {/* Col 4: PSE Placeholder na subsérie */}
+                                      <div className="col-span-2 flex items-center justify-center">
+                                        <span className="text-slate-700 text-xs font-mono font-bold">—</span>
+                                      </div>
+
+                                      {/* Col 5: Check subsérie */}
                                       <div className="col-span-2 flex justify-center">
                                         <button
                                           type="button"
@@ -1956,6 +2058,18 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               prev ? { ...prev, setNumber: newNum } : null
             );
           }}
+        />
+      )}
+
+      {/* 2 - PÁGINA / MODAL DE SELEÇÃO DE PSE (0 a 10) */}
+      {pseModalConfig && pseModalConfig.isOpen && (
+        <PsePickerModal
+          isOpen={pseModalConfig.isOpen}
+          onClose={() => setPseModalConfig(null)}
+          initialValue={pseModalConfig.initialValue}
+          exerciseName={pseModalConfig.exerciseName}
+          setNumber={pseModalConfig.setNumber}
+          onSelect={handleSelectPse}
         />
       )}
 

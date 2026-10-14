@@ -755,6 +755,14 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                                         <span className="text-[10px] text-slate-400">reps</span>
                                       </div>
 
+                                      {set.pse != null && (
+                                        <div className="mt-1">
+                                          <span className="inline-block text-[9px] font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-1.5 py-0.5 rounded-md">
+                                            PSE: {set.pse}/10
+                                          </span>
+                                        </div>
+                                      )}
+
                                       {/* Subsets if Drop-set or Rest-Pause */}
                                       {set.subSets && set.subSets.length > 0 && (
                                         <div className="mt-1 pt-1 border-t border-slate-800/60 space-y-0.5">

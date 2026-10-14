@@ -41,6 +41,7 @@ interface SelectedMetricsState {
   weight: boolean;
   reps: boolean;
   volume: boolean;
+  pse: boolean;
 }
 
 interface CustomTooltipProps {
@@ -56,6 +57,7 @@ interface CustomTooltipProps {
       reps: number;
       volumeKg: number;
       setNumber: number;
+      pse?: number | null;
     };
   }>;
   selectedMetrics?: SelectedMetricsState;
@@ -71,6 +73,7 @@ const CustomChartTooltip: React.FC<CustomTooltipProps> = ({
     const showWeight = selectedMetrics?.weight ?? true;
     const showReps = selectedMetrics?.reps ?? true;
     const showVolume = selectedMetrics?.volume ?? true;
+    const showPse = selectedMetrics?.pse ?? true;
 
     return (
       <div className="p-3.5 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl backdrop-blur-md text-xs space-y-2 min-w-[210px]">
@@ -120,6 +123,18 @@ const CustomChartTooltip: React.FC<CustomTooltipProps> = ({
               </span>
             </div>
           )}
+
+          {showPse && data.pse != null && (
+            <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800/80">
+              <span className="text-amber-400 font-semibold flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                PSE (Esforço):
+              </span>
+              <span className="text-sm font-black text-amber-400 font-mono">
+                {data.pse} / 10
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -144,11 +159,12 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
     setActiveSetNumber(setNumber);
   }
 
-  // Multi-selection filter: Carga (Verde), Repetições (Vermelho), Volume (Azul)
+  // Multi-selection filter: Carga (Verde), Repetições (Vermelho), Volume (Azul), PSE (Âmbar)
   const [selectedMetrics, setSelectedMetrics] = useState<SelectedMetricsState>({
     weight: true,
     reps: true,
     volume: true,
+    pse: true,
   });
 
   // Query historical data strictly for this specific series from finished exercises ("Concluir e Recolher")
@@ -303,7 +319,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
             </div>
           ) : (
             <>
-              {/* 1.2: Filtros de Métrica: Carga, Repetições e Volume */}
+              {/* 1.2: Filtros de Métrica: Carga, Repetições, Volume e PSE */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1">
@@ -354,6 +370,21 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                     <span className="w-2 h-2 rounded-full bg-blue-400" />
                     <span>Volume (kg)</span>
                     {selectedMetrics.volume && <Check className="w-3 h-3 text-blue-400" />}
+                  </button>
+
+                  {/* Filtro: PSE (0 a 10) - Âmbar */}
+                  <button
+                    type="button"
+                    onClick={() => toggleMetric('pse')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 ${
+                      selectedMetrics.pse
+                        ? 'bg-amber-950 text-amber-300 border border-amber-500 shadow-sm'
+                        : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    <span>PSE (0-10)</span>
+                    {selectedMetrics.pse && <Check className="w-3 h-3 text-amber-400" />}
                   </button>
                 </div>
 
@@ -519,6 +550,20 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                         />
                       )}
 
+                      {/* Eixo Y de PSE (0 a 10) */}
+                      {selectedMetrics.pse && (
+                        <YAxis
+                          yAxisId="pse"
+                          orientation={selectedMetrics.reps || selectedMetrics.volume ? 'left' : 'right'}
+                          stroke="#f59e0b"
+                          domain={[0, 10]}
+                          ticks={[0, 2, 4, 6, 8, 10]}
+                          tick={{ fill: '#f59e0b', fontSize: 10, fontFamily: 'monospace' }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#78350f' }}
+                        />
+                      )}
+
                       <Tooltip content={<CustomChartTooltip selectedMetrics={selectedMetrics} />} />
 
                       <Legend
@@ -600,6 +645,31 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                           }}
                         />
                       )}
+
+                      {/* Linha 4: PSE (0 a 10) - Âmbar */}
+                      {selectedMetrics.pse && (
+                        <Line
+                          yAxisId="pse"
+                          type="monotone"
+                          dataKey="pse"
+                          name="PSE (0-10)"
+                          stroke="#f59e0b"
+                          strokeWidth={3}
+                          connectNulls={true}
+                          dot={{
+                            r: 5,
+                            fill: '#451a03',
+                            stroke: '#f59e0b',
+                            strokeWidth: 2.5,
+                          }}
+                          activeDot={{
+                            r: 7,
+                            fill: '#f59e0b',
+                            stroke: '#ffffff',
+                            strokeWidth: 2,
+                          }}
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -627,9 +697,16 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                         <span className="text-rose-400 font-mono">{item.reps} reps</span>
                       </div>
 
-                      <span className="text-[10px] font-mono text-blue-400 font-semibold block">
-                        Vol: {item.volumeKg.toLocaleString('pt-BR')} kg
-                      </span>
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-mono text-blue-400 font-semibold">
+                          Vol: {item.volumeKg.toLocaleString('pt-BR')} kg
+                        </span>
+                        {item.pse != null && (
+                          <span className="text-[10px] font-bold font-mono text-amber-400 bg-amber-950/60 border border-amber-500/30 px-1.5 py-0.2 rounded-md">
+                            PSE {item.pse}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

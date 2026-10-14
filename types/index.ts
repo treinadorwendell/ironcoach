@@ -168,6 +168,7 @@ export interface ExecutionSet {
   completedAt?: string;
   extraVariation?: string;
   method?: string;
+  pse?: number | null;
   subSets?: ExecutionSubSet[];
 }
 
@@ -246,6 +247,7 @@ export interface CompletedSetRecord {
   repZone?: string;
   completed: boolean;
   method?: string;
+  pse?: number | null;
   subSets?: CompletedSubSetRecord[];
 }
 

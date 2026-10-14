@@ -1,0 +1,6 @@
+{
+  "summary": "Plano detalhado para a implementação da escala de PSE (Percepção Subjetiva de Esforço 0-10) em cada exercício do WorkoutExecutionSection, gravação no histórico ao Concluir e Recolher, e visualização filtrável no gráfico de evolução.",
+  "updatedAt": "2026-10-14T00:27:30.971250153Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

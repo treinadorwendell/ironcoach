@@ -19,8 +19,10 @@ import { ClientSection } from '@/components/ClientSection';
 import { AgendaSection } from '@/components/AgendaSection';
 import { CreateWorkoutSection } from '@/components/CreateWorkoutSection';
 import { WorkoutExecutionSection } from '@/components/WorkoutExecutionSection';
+import { AuthScreen } from '@/components/AuthScreen';
 import { testConnection, cloudSync, auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { LogIn, X } from 'lucide-react';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('execucao');
@@ -35,6 +37,12 @@ export default function Home() {
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | undefined>(undefined);
   const [activeWorkoutForExecution, setActiveWorkoutForExecution] =
     useState<WorkoutProgram | null>(INITIAL_WORKOUTS[0]);
+
+  // Auth Screen & User state
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
+  const [dismissedAuthBanner, setDismissedAuthBanner] = useState(false);
 
   // Safely hydrate data from client storage and cloud on mount
   useEffect(() => {
@@ -66,6 +74,7 @@ export default function Home() {
 
     // 3. Listen to Firebase Auth & Subscribe to real-time Cloud Sync
     const unsubAuth = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
       if (user) {
         cloudSync.subscribe(user.uid, {
           onClientsChange: (cloudClients) => {
@@ -252,6 +261,45 @@ export default function Home() {
 
         {/* Main Section Content */}
         <main className="flex-1 p-3 sm:p-5 overflow-y-auto">
+          {/* Banner Informativo de Autenticação PWA (Modo Conectado / Offline) */}
+          {!currentUser && !dismissedAuthBanner && (
+            <div className="mb-4 p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-emerald-500/30 flex items-center justify-between gap-3 shadow-lg animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                  <LogIn className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white truncate">
+                    Conta de Treinador (PWA)
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    Faça login ou cadastre-se para sincronizar seus alunos e treinos na nuvem.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthInitialTab('login');
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition active:scale-95 shadow-md shadow-emerald-950/40"
+                >
+                  Entrar / Cadastrar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedAuthBanner(true)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  title="Continuar apenas offline"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {currentSection === 'cliente' && (
             <ClientSection
               clients={clients}
@@ -307,6 +355,13 @@ export default function Home() {
           currentSection={currentSection}
           onSelectSection={(sec) => setCurrentSection(sec)}
           hasActiveSession={true}
+        />
+
+        {/* Modal de Autenticação PWA (Login, Cadastro e Recuperação de Senha) */}
+        <AuthScreen
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          initialTab={authInitialTab}
         />
       </div>
     </div>

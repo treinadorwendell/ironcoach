@@ -1,5 +1,15 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+  User,
+} from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -62,7 +72,8 @@ export interface FirestoreErrorInfo {
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
-  path: string | null
+  path: string | null,
+  shouldThrow: boolean = false
 ) {
   const currentUser = auth.currentUser;
   const errInfo: FirestoreErrorInfo = {
@@ -83,7 +94,9 @@ export function handleFirestoreError(
     path,
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  if (shouldThrow) {
+    throw new Error(JSON.stringify(errInfo));
+  }
 }
 
 // Connectivity test
@@ -108,7 +121,7 @@ export async function loginWithGoogle(): Promise<User | null> {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error) {
-    console.error('Google Sign-In Error:', error);
+    console.warn('Google Sign-In notice:', error);
     throw error;
   }
 }
@@ -117,8 +130,104 @@ export async function logoutUser(): Promise<void> {
   try {
     await signOut(auth);
   } catch (error) {
-    console.error('Sign-Out Error:', error);
+    console.warn('Sign-Out notice:', error);
     throw error;
+  }
+}
+
+export async function loginWithEmail(
+  email: string,
+  password: string
+): Promise<User> {
+  try {
+    const credential = await signInWithEmailAndPassword(
+      auth,
+      email.trim(),
+      password
+    );
+    return credential.user;
+  } catch (error) {
+    console.warn('Email Login notice:', error);
+    throw error;
+  }
+}
+
+export async function registerWithEmail(
+  email: string,
+  password: string,
+  displayName?: string
+): Promise<User> {
+  try {
+    const credential = await createUserWithEmailAndPassword(
+      auth,
+      email.trim(),
+      password
+    );
+    if (displayName && displayName.trim()) {
+      try {
+        await updateProfile(credential.user, {
+          displayName: displayName.trim(),
+        });
+      } catch (err) {
+        console.warn('Could not update display name:', err);
+      }
+    }
+    return credential.user;
+  } catch (error) {
+    console.warn('Email Registration notice:', error);
+    throw error;
+  }
+}
+
+export async function resetPassword(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+  } catch (error) {
+    console.warn('Password Reset notice:', error);
+    throw error;
+  }
+}
+
+export function getFirebaseAuthErrorMessage(error: unknown): string {
+  if (!error) return 'Ocorreu um erro inesperado. Tente novamente.';
+  const code = (error as { code?: string })?.code || '';
+  const message = (error as Error)?.message || '';
+
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'Este e-mail já está cadastrado. Alterne para a aba Entrar para acessar com sua senha ou recupere o acesso.';
+    case 'auth/invalid-email':
+      return 'Endereço de e-mail inválido. Verifique o formato digitado (exemplo: usuario@email.com).';
+    case 'auth/operation-not-allowed':
+      return 'O provedor de E-mail/Senha não está ativado no Firebase Console deste projeto. Utilize a opção "Continuar com Google" para entrar com 1 toque.';
+    case 'auth/weak-password':
+      return 'Senha muito fraca. Digite pelo menos 6 caracteres (recomendado mesclar letras e números).';
+    case 'auth/user-disabled':
+      return 'Esta conta foi desativada pelo administrador.';
+    case 'auth/user-not-found':
+      return 'Nenhuma conta encontrada com este e-mail. Verifique o endereço ou cadastre-se.';
+    case 'auth/wrong-password':
+      return 'Senha incorreta. Verifique suas credenciais e tente novamente.';
+    case 'auth/invalid-credential':
+      return 'E-mail ou senha incorretos. Verifique suas credenciais.';
+    case 'auth/too-many-requests':
+      return 'Muitas tentativas sem sucesso. Por segurança, aguarde alguns instantes antes de tentar novamente.';
+    case 'auth/network-request-failed':
+      return 'Falha na conexão de rede. Verifique sua conexão à internet.';
+    case 'auth/popup-closed-by-user':
+      return 'A janela de autenticação foi fechada antes de concluir o processo.';
+    case 'auth/popup-blocked':
+      return 'O navegador bloqueou a janela pop-up de login. Permita pop-ups para este site.';
+    case 'auth/requires-recent-login':
+      return 'Por segurança, faça login novamente para prosseguir.';
+    default:
+      if (message.includes('password')) {
+        return 'Erro na validação da senha. A senha deve possuir pelo menos 6 caracteres.';
+      }
+      if (message.includes('email')) {
+        return 'Erro no e-mail informado. Por favor, verifique a digitação.';
+      }
+      return message || 'Não foi possível concluir a autenticação. Tente novamente.';
   }
 }
 
