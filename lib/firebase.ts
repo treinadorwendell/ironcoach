@@ -13,6 +13,7 @@ import {
 import {
   getFirestore,
   doc,
+  getDoc,
   getDocFromServer,
   collection,
   onSnapshot,
@@ -31,6 +32,7 @@ import {
   ExerciseHistoricalEntry,
   DatabaseExercise,
   ActiveWorkoutSession,
+  ExerciseFinishedSnapshot,
 } from '@/types';
 import { storage } from './storage';
 
@@ -239,6 +241,7 @@ export interface CloudSyncCallbacks {
   onCompletedWorkoutsChange?: (records: CompletedWorkoutRecord[]) => void;
   onActiveSessionChange?: (session: ActiveWorkoutSession | null) => void;
   onExerciseDbChange?: (exercises: DatabaseExercise[]) => void;
+  onExerciseSnapshotsChange?: (snapshots: ExerciseFinishedSnapshot[]) => void;
   onSyncStatusChange?: (status: 'synced' | 'syncing' | 'offline' | 'unauthenticated') => void;
 }
 
@@ -246,10 +249,14 @@ class FirestoreSyncService {
   private activeUnsubscribers: Unsubscribe[] = [];
   private currentUserId: string | null = null;
   private isInitialSyncDone = false;
+  private currentCallbacks: CloudSyncCallbacks | null = null;
+  private lastSyncTimestamp: number = Date.now();
+  private isSyncingNow: boolean = false;
 
   public subscribe(userId: string, callbacks: CloudSyncCallbacks) {
     this.unsubscribe();
     this.currentUserId = userId;
+    this.currentCallbacks = callbacks;
     callbacks.onSyncStatusChange?.('syncing');
 
     try {
@@ -382,6 +389,26 @@ class FirestoreSyncService {
         }
       );
       this.activeUnsubscribers.push(unsubExercises);
+
+      // 7. Exercise Snapshots with PSE listener
+      const snapshotsRef = collection(db, 'users', userId, 'exerciseSnapshots');
+      const unsubSnapshots = onSnapshot(
+        snapshotsRef,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const list: ExerciseFinishedSnapshot[] = [];
+            snapshot.forEach((docSnap) => {
+              list.push(docSnap.data() as ExerciseFinishedSnapshot);
+            });
+            storage.mergeExerciseSnapshots(list);
+            callbacks.onExerciseSnapshotsChange?.(list);
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, `users/${userId}/exerciseSnapshots`);
+        }
+      );
+      this.activeUnsubscribers.push(unsubSnapshots);
 
       this.isInitialSyncDone = true;
     } catch (err) {
@@ -575,6 +602,156 @@ class FirestoreSyncService {
       await deleteDoc(doc(db, 'users', this.currentUserId, 'customExercises', exerciseId));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  }
+
+  public async syncFinishedExerciseSnapshot(snapshot: ExerciseFinishedSnapshot) {
+    if (!this.currentUserId) return;
+    const path = `users/${this.currentUserId}/exerciseSnapshots/${snapshot.id}`;
+    try {
+      await setDoc(doc(db, 'users', this.currentUserId, 'exerciseSnapshots', snapshot.id), {
+        ...snapshot,
+        userId: this.currentUserId,
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  }
+
+  public getLastSyncTimestamp(): number {
+    return this.lastSyncTimestamp;
+  }
+
+  public isSyncing(): boolean {
+    return this.isSyncingNow;
+  }
+
+  /**
+   * Força a sincronização imediata de todos os dados com o Firestore,
+   * recarregando treinos, clientes, agenda e histórico de exercícios com PSE.
+   */
+  public async forceSync(userId?: string): Promise<{ success: boolean; error?: string; count?: number }> {
+    const targetUid = userId || this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid) {
+      return { success: false, error: 'Usuário não autenticado' };
+    }
+
+    if (this.isSyncingNow) {
+      return { success: true };
+    }
+
+    this.isSyncingNow = true;
+    this.currentCallbacks?.onSyncStatusChange?.('syncing');
+
+    try {
+      // 1. Forçar busca do histórico completo de treinos concluídos com PSE
+      const completedRef = collection(db, 'users', targetUid, 'completedWorkouts');
+      const completedSnap = await getDocs(completedRef);
+      const completedList: CompletedWorkoutRecord[] = [];
+      completedSnap.forEach((docSnap) => {
+        completedList.push(docSnap.data() as CompletedWorkoutRecord);
+      });
+      completedList.sort(
+        (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+      );
+      if (completedList.length > 0) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ironcoach_completed_workouts_v1', JSON.stringify(completedList));
+        }
+        this.currentCallbacks?.onCompletedWorkoutsChange?.(completedList);
+      }
+
+      // 2. Forçar busca de snapshots de exercícios ("Concluir e Recolher" com PSE)
+      const snapshotsRef = collection(db, 'users', targetUid, 'exerciseSnapshots');
+      const snapshotsSnap = await getDocs(snapshotsRef);
+      if (!snapshotsSnap.empty) {
+        const snapList: ExerciseFinishedSnapshot[] = [];
+        snapshotsSnap.forEach((docSnap) => {
+          snapList.push(docSnap.data() as ExerciseFinishedSnapshot);
+        });
+        storage.mergeExerciseSnapshots(snapList);
+        this.currentCallbacks?.onExerciseSnapshotsChange?.(snapList);
+      }
+
+      // 3. Forçar busca de alunos
+      const clientsRef = collection(db, 'users', targetUid, 'clients');
+      const clientsSnap = await getDocs(clientsRef);
+      if (!clientsSnap.empty) {
+        const clientsList: Client[] = [];
+        clientsSnap.forEach((docSnap) => {
+          clientsList.push(docSnap.data() as Client);
+        });
+        storage.saveClients(clientsList);
+        this.currentCallbacks?.onClientsChange?.(clientsList);
+      }
+
+      // 4. Forçar busca de fichas de treino
+      const workoutsRef = collection(db, 'users', targetUid, 'workouts');
+      const workoutsSnap = await getDocs(workoutsRef);
+      if (!workoutsSnap.empty) {
+        const workoutsList: WorkoutProgram[] = [];
+        workoutsSnap.forEach((docSnap) => {
+          workoutsList.push(docSnap.data() as WorkoutProgram);
+        });
+        storage.saveWorkouts(workoutsList);
+        this.currentCallbacks?.onWorkoutsChange?.(workoutsList);
+      }
+
+      // 5. Forçar busca da agenda
+      const calendarRef = collection(db, 'users', targetUid, 'calendar');
+      const calendarSnap = await getDocs(calendarRef);
+      if (!calendarSnap.empty) {
+        const calendarList: CalendarEvent[] = [];
+        calendarSnap.forEach((docSnap) => {
+          calendarList.push(docSnap.data() as CalendarEvent);
+        });
+        storage.saveCalendarEvents(calendarList);
+        this.currentCallbacks?.onCalendarChange?.(calendarList);
+      }
+
+      // 6. Forçar busca da sessão ativa
+      const sessionDocRef = doc(db, 'users', targetUid, 'settings', 'activeSession');
+      const sessionSnap = await getDoc(sessionDocRef);
+      if (sessionSnap.exists()) {
+        const data = sessionSnap.data();
+        const session = data?.session as ActiveWorkoutSession | null;
+        if (session) {
+          storage.saveActiveSession(session);
+          this.currentCallbacks?.onActiveSessionChange?.(session);
+        }
+      }
+
+      // 7. Forçar busca do banco de exercícios customizados
+      const exercisesRef = collection(db, 'users', targetUid, 'customExercises');
+      const exercisesSnap = await getDocs(exercisesRef);
+      if (!exercisesSnap.empty) {
+        const exercisesList: DatabaseExercise[] = [];
+        exercisesSnap.forEach((docSnap) => {
+          exercisesList.push(docSnap.data() as DatabaseExercise);
+        });
+        storage.saveExerciseDatabase(exercisesList);
+        this.currentCallbacks?.onExerciseDbChange?.(exercisesList);
+      }
+
+      this.lastSyncTimestamp = Date.now();
+      this.currentCallbacks?.onSyncStatusChange?.('synced');
+
+      // Disparar evento global para todos os componentes reagirem à atualização
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('ironcoach:data-synced', {
+            detail: { timestamp: new Date().toISOString(), userId: targetUid },
+          })
+        );
+      }
+
+      return { success: true, count: completedList.length };
+    } catch (err) {
+      console.error('Error during forceSync with Firestore:', err);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return { success: false, error: String(err) };
+    } finally {
+      this.isSyncingNow = false;
     }
   }
 }

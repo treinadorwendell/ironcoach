@@ -1,124 +1,132 @@
-# Escala de PSE (0 a 10) na Execução de Treino e Gráficos de Evolução
+# Gestão Avançada da Agenda: Exclusão, Automação Pós-Treino e Relatórios com PDF
 
-Implementação de um seletor interativo de PSE (Percepção Subjetiva de Esforço de 0 a 10) posicionado entre as colunas "CARGA (KG)" e "CHECK" no registro de séries, acompanhado de modal/página dedicada com tabela de intensidade cromática explicativa, gravação automática no histórico ao "Concluir e Recolher" e exibição como métrica filtrável no gráfico de evolução do exercício.
+Plano abrangente para implementar a exclusão direta de compromissos na edição da Agenda, confirmação automática para marcar aula como "Realizada" ao concluir um treino, e módulo completo de Relatórios de Aulas (Realizadas, Reagendadas, Faltas) e Financeiro por plano de cliente (Mensal, Semanal e Avulsa com soma de valores), com exportação profissional para PDF.
 
-### User Review & Critical Decisions
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> **Decisões confirmadas para revisão e aprovação antes do início da codificação:**
+> As decisões de experiência do usuário confirmadas na Fase 1 foram incorporadas:
+> 1. **Visualização do Relatório**: Janela modal completa (fullscreen modal) sobreposta à Agenda, oferecendo amplo espaço para filtros, resumo financeiro, tabela detalhada e visualização de impressão/PDF sem perder o contexto do app.
+> 2. **Valores Financeiros**: Os valores e tipos de contrato (Avulsa, Semanal, Mensal) são obtidos diretamente do cadastro do aluno (`Client.contractType` e `Client.contractValue`), com campos de ajuste/personalização rápida na tela de relatório para flexibilidade do treinador.
+> 3. **Confirmação de Conclusão**: Diálogo integrado de confirmação ao finalizar o treino do aluno na aba Execução, perguntando se deseja marcar a aula na Agenda como "Realizada" na data correspondente.
 
-- **Localização do Botão**: O botão de PSE ficará em cada linha de série, exatamente entre o campo de `Carga (KG)` e o botão de `Check`, com coluna de cabeçalho correspondente.
-- **Estado Visual do Botão**:
-  - Quando não selecionado: exibe um ícone sutil de medidor de esforço/intensidade (`Gauge` ou `Activity`) com a sigla `PSE` em tom cinza escuro/borda sutil.
-  - Quando selecionado: o ícone dá lugar ao número selecionado (`0` a `10`) colorido com a cor da faixa de intensidade e fundo translúcido condizente.
-- **Página / Modal de Seleção de PSE**: Ao tocar no botão, abre-se uma tela/modal limpa e responsiva (estilo bottom-sheet / modal touch-friendly) com:
-  - Seletor numérico de 0 a 10 organizado em botões táteis largos (touch targets $\ge 44\text{px}$).
-  - Código cromático de intensidade padronizado (Escala de Borg / Foster CR10 adaptada):
-    - **0**: Repouso total (Cinza/Neutro - sem esforço)
-    - **1 - 2**: Muito Leve / Leve (Verde Esmeralda - respiração normal, aquecimento)
-    - **3 - 4**: Moderado (Ciano / Azul Claro - esforço perceptível, ritmo confortável)
-    - **5 - 6**: Pesado (Amarelo / Âmbar - exige foco e respiração acelerada)
-    - **7 - 8**: Muito Pesado (Laranja Intenso - próximo da falha, 1-2 reps de reserva)
-    - **9**: Quase Máximo (Vermelho - esforço extremo, limite da técnica)
-    - **10**: Máximo Absoluto (Roxo / Vermelho Escuro - falha muscular momentânea, 0 reps de reserva)
-  - Explicação descritiva direta para cada nível ou faixa, ajudando o atleta/aluno a calibrar a percepção.
-  - Botão de limpar/redefinir PSE e botão de confirmação.
-- **Persistência**: O valor de PSE de cada série é mantido no estado da sessão ativa (`ExecutionSet.pse`) e gravado no histórico quando o usuário toca em "Concluir e Recolher" (`storage.recordExerciseFinishedOnCollapse`) e ao finalizar o treino completo.
-- **Visualização no Gráfico**: Na tela de histórico da série (`SeriesHistoryModal` e `ExerciseHistoryChart`), um novo filtro de botão `PSE (0-10)` será adicionado ao lado de `Carga`, `Repetições` e `Volume`, exibindo a linha de evolução do esforço percebido ao longo dos treinos.
+- **Decisão Confirmada 1**: Visualização em modal completa para relatórios e exportação PDF.
+- **Decisão Confirmada 2**: Integração dos valores do cadastro de clientes com edição rápida de valores no relatório.
+- **Decisão Confirmada 3**: Pergunta de confirmação direta ao salvar/concluir o treino para sincronizar com a Agenda.
 
 ---
 
-### 1. Overview & Core Concept
+## 1. Overview & Core Concept
 
-- **O que faz**: Permite que o praticante ou treinador registre o grau de esforço subjetivo (PSE de 0 a 10) de forma rápida e visual durante o treino. Ao clicar no gatilho na linha da série, o usuário acessa uma interface táctil com escala de cores e legendas fisiológicas objetivas. O valor selecionado substitui o ícone pelo número colorido e alimenta a base de dados histórica para análise de sobrecarga progressiva e fadiga.
-- **Público-alvo**: Praticantes de musculação, atletas de força e personal trainers que utilizam a escala RPE/PSE para autorregulação de carga e monitoramento de fadiga.
-- **Valor agregado**: Remove a subjetividade vaga do treino sem poluir a tela inicial, permitindo correlação direta entre carga levantada (kg), repetições executadas e esforço real sentido.
-
----
-
-### 2. User Experience & Visual Design
-
-#### Fluxo do Usuário
-1. **Visualização na Série**: O usuário visualiza a linha da série com `Série`, `Reps`, `Carga (KG)`, `PSE` (botão neutro com ícone) e `Check`.
-2. **Abertura do Seletor**: O usuário toca no botão de PSE da série desejada. Uma janela modal táctil desliza suavemente sobre a tela com o título "Percepção de Esforço (PSE)" e a identificação do exercício e série.
-3. **Seleção e Compreensão**: O usuário visualiza os níveis de 0 a 10 dispostos com suas respectivas cores de intensidade e descrições claras (ex: "7 - Muito Pesado: Faltam ~2 reps para a falha"). Ao tocar em um número, há feedback tátil/visual imediato.
-4. **Fechamento e Atualização**: Ao confirmar ou selecionar, o modal fecha e o botão na linha agora exibe o número (ex: `8` com contorno laranja vibrante).
-5. **Finalização do Exercício**: Ao clicar em "Concluir e Recolher", os dados das séries incluindo o PSE são arquivados no histórico.
-6. **Consulta ao Gráfico**: Ao abrir o histórico da série ou do exercício, o usuário ativa o botão de filtro `PSE` para ver a linha do esforço ao longo das datas.
-
-#### Identidade Visual & Design Tokens
-- **Paleta de Intensidade (Dark Mode)**:
-  - Nível 0: `bg-slate-800 text-slate-300 border-slate-700` (Repouso)
-  - Níveis 1–2: `bg-emerald-950/70 text-emerald-400 border-emerald-500/50` (Leve)
-  - Níveis 3–4: `bg-cyan-950/70 text-cyan-400 border-cyan-500/50` (Moderado)
-  - Níveis 5–6: `bg-amber-950/70 text-amber-400 border-amber-500/50` (Pesado)
-  - Níveis 7–8: `bg-orange-950/70 text-orange-400 border-orange-500/50` (Muito Pesado)
-  - Nível 9: `bg-rose-950/70 text-rose-400 border-rose-500/50` (Extremo)
-  - Nível 10: `bg-purple-950/80 text-purple-300 border-purple-500/60 shadow-[0_0_12px_rgba(168,85,247,0.3)]` (Falha)
-- **Ergonomia Táctil**: Botões de seleção com altura mínima de 44px e área de toque expandida, respeitando o padrão mobile-first do PWA.
-- **Gráfico**: Linha de PSE com cor violeta/âmbar de destaque, eixo Y configurado de 0 a 10 e tooltip customizado com a respectiva legenda de esforço.
+- **O que faz**:
+  1. **Exclusão de Agendamentos na Edição**: Adiciona botão de exclusão com confirmação dentro do modal de edição de compromisso da Agenda (além das ações rápidas nos cards), permitindo remover aulas de forma segura.
+  2. **Automação Pós-Treino**: Ao finalizar uma sessão de treino na aba Execução, o sistema detecta a data e o aluno atendido, solicitando a confirmação do treinador para marcar a aula correspondente na Agenda como "Realizada" (ou criar o registro de aula realizada caso ainda não existisse na agenda para o dia).
+  3. **Relatório de Aulas e Financeiro**: Nova ferramenta acessível na Agenda com filtros por período (Hoje, Esta Semana, Este Mês, Intervalo customizado), filtro por aluno e status (Realizadas, Reagendadas, Faltas). Apresenta a descrição do treino realizado, data, horário e discriminação financeira por plano (Mensal, Semanal e Avulsa, com soma total dos valores avulsos e consolidação de receita).
+  4. **Exportação em PDF**: Layout otimizado para impressão/PDF de alta fidelidade visual, formatado para página A4, ocultando botões de navegação e exibindo cabeçalho profissional do Iron Coach, dados do período e tabelas legíveis.
+- **Público-Alvo**: Personal trainers e treinadores que gerenciam múltiplos alunos e precisam de controle de assiduidade, histórico de aulas e conciliação financeira simplificada.
+- **Valor Principal**: Elimina a duplicidade de trabalho (treinar o aluno e ter que ir na agenda marcar manualmente), dá poder de exclusão de horários e gera prestação de contas e relatórios financeiros instantâneos para cobrança e gestão.
 
 ---
 
-### 3. Key Product Decisions & Trade-Offs
+## 2. User Experience & Visual Design
 
-- **Decisão 1: Registro de PSE por Série individual vs. Exercício geral**
-  - *Abordagem Escolhida*: Registro por série diretamente na linha de execução (com cálculo automático da média do exercício para o histórico consolidado).
-  - *Motivo*: Permite que o praticante registre com precisão quando uma série de aquecimento foi PSE 3 e a última série de trabalho atingiu PSE 9 ou 10, que é a prática padrão de treinamento resistido (RPE/RIR).
-  - *Alternativa descartada*: Nota única genérica por exercício, que ocultaria a diferença de intensidade entre as séries de trabalho.
+### Fluxos Principais do Usuário
 
-- **Decisão 2: Modal dedicado vs. Dropdown/Select inline**
-  - *Abordagem Escolhida*: Modal dedicado responsivo com explicação de cada cor e nível de esforço.
-  - *Motivo*: Conforme solicitado pelo usuário ("ao clicar abre uma página com campo numérico de 0 a 10 com cores de intensidade, uma breve explicação de cada cor"). Um dropdown nativo é visualmente pobre e não comporta as explicações ergonômicas de intensidade.
+1. **Exclusão de Agendamento na Edição**:
+   - O treinador clica em um compromisso na Agenda para editar.
+   - No rodapé do modal de edição, além de "Cancelar" e "Atualizar Agendamento", haverá um botão destrutivo vermelho "Excluir Agendamento" com ícone de lixeira.
+   - Ao clicar, abre o modal de confirmação para evitar cliques acidentais e, confirmando, remove o evento do estado local e do Firestore.
 
-- **Decisão 3: Gráficos de Evolução Multimétricos**
-  - *Abordagem Escolhida*: Filtro independente no gráfico de histórico de séries (`ExerciseHistoryChart`), permitindo ligar e desligar a linha de PSE individualmente ou em conjunto com Carga (kg), Repetições e Volume.
-  - *Motivo*: Evita poluição visual no gráfico para quem deseja focar apenas na carga em kg, enquanto oferece visualização completa da sobrecarga progressiva para quem analisa PSE.
+2. **Automação ao Finalizar Treino**:
+   - O treinador conclui as séries e clica em "Finalizar Treino" na aba Execução.
+   - O modal de celebração apresenta um card destacado de integração com a Agenda:
+     - Pergunta: *"Deseja registrar esta aula na Agenda como Realizada para [Nome do Aluno] na data de hoje ([Data])?"*
+     - Botão de confirmação com 1 toque *"Sim, Marcar como Realizada"* e opção *"Apenas Concluir Treino"*.
+     - Se confirmado, localiza o agendamento do aluno na data e atualiza seu status para `realizado`, vinculando a descrição do split/treino; caso não exista agendamento prévio no dia, cria automaticamente a entrada como realizada.
+
+3. **Módulo de Relatórios da Agenda e Financeiro**:
+   - Botão no topo da Agenda: `[Relatório & Financeiro]`.
+   - Abre uma janela modal completa com tema dark slate consistente com o restante da aplicação.
+   - **Barra de Filtros**:
+     - Filtro rápido de datas: `Hoje` | `Esta Semana` | `Este Mês` | `Últimos 30 dias` | `Intervalo Personalizado (De / Até)`.
+     - Filtro por Aluno: `Todos os Alunos` ou seleção individual.
+     - Filtro por Status: `Realizadas` (verde), `Reagendadas` (âmbar), `Faltas` (rosa/vermelho).
+   - **Cards de Métricas Financeiras**:
+     - *Aulas Avulsas*: Contagem de aulas × valor individual = Total faturado em avulsas.
+     - *Planos Semanais*: Quantidade de alunos ativos e estimativa de receita.
+     - *Planos Mensais*: Quantidade de alunos ativos e receita mensal consolidada.
+     - *Receita Total do Período*: Soma geral das aulas realizadas e planos vigentes.
+   - **Tabela / Ledger de Sessões**:
+     - Colunas: Data & Hora, Aluno, Status, Treino Realizado (nome do split/exercícios), Plano & Valor, Observações/Reagendamento.
+   - **Exportação para PDF**:
+     - Botão `[Exportar PDF / Imprimir]`.
+     - Aciona o visualizador de impressão com estilos CSS `@media print` dedicados: fundo branco para economia de tinta, tipografia em alto contraste, tabelas nítidas sem corte de margens e resumo financeiro profissional no cabeçalho.
 
 ---
 
-### 4. Technical Architecture & Data Strategy
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decisão 1: Exclusão com Duplo Nível de Confirmação**:
+  - *Abordagem*: Manter tanto o botão rápido nos cards quanto um botão explícito no modal de edição. Ambos disparam o diálogo de confirmação para prevenir perda de histórico acidental.
+  - *Motivo*: Evita frustração do usuário ao mesmo tempo em que garante segurança contra toques involuntários em dispositivos móveis.
+- **Decisão 2: Correspondência Inteligente de Agendamento no Treino Concluído**:
+  - *Abordagem*: Comparar `clientId` e a data (`YYYY-MM-DD`). Se houver compromisso no dia para aquele aluno, atualizar para `'realizado'`. Se não houver, criar um novo evento com status `'realizado'` e horário do término.
+  - *Motivo*: O treinador frequentemente executa o treino sem ter agendado previamente no calendário; a automação deve cobrir ambos os cenários sem falhas.
+- **Decisão 3: Mecanismo de Exportação PDF**:
+  - *Abordagem*: Utilizar layout especializado de impressão via `@media print` e folha de estilo dedicada com acionamento nativo `window.print()`.
+  - *Motivo*: Garante fidelidade vetorial perfeita de fontes, tabelas e cabeçalhos em qualquer resolução de PDF (A4), com suporte a todas as impressoras virtuais de PDF (Chrome, Safari, Android, iOS) sem adicionar bibliotecas pesadas de 500KB ao bundle do PWA.
+
+---
+
+## 4. Technical Architecture & Data Strategy
+
+### Diagrama de Arquitetura e Fluxo de Dados
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        WorkoutExecutionSection                         │
-│                                                                        │
-│  [ Header ]: Série │ Reps │ Carga (KG) │ PSE (0-10) │ Check            │
-│  [ Row 1 ]:  #1    │ 10   │ 80 kg      │ [ Ícone ]  │ [ ✓ ]            │
-│                                              │                         │
-│                                              ▼ (Clique)                │
-│                                    ┌──────────────────┐                │
-│                                    │  PsePickerModal  │                │
-│                                    │ 0..10 + Legenda  │                │
-│                                    └─────────┬────────┘                │
-│                                              │ (Seleciona)             │
-│                                              ▼                         │
-│  [ Row 1 ]:  #1    │ 10   │ 80 kg      │ [ 8 (Laranja) ] │ [ ✓ ]       │
-└──────────────────────────────────────────────┬─────────────────────────┘
-                                               │
-                                               ▼ "Concluir e Recolher"
+│                          APLICAÇÃO IRON COACH                          │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+       ┌───────────────────────────┼───────────────────────────┐
+       ▼                           ▼                           ▼
+┌──────────────┐           ┌──────────────┐           ┌──────────────┐
+│ Aba Execução │           │  Aba Agenda  │           │ Aba Clientes │
+└──────┬───────┘           └──────┬───────┘           └──────┬───────┘
+       │                          │                          │
+       │ Ao finalizar:            │ Botão Relatório:         │ Planos &
+       │ Pergunta confirmação     │ Abre AgendaReportModal   │ Valores R$
+       ▼                          ▼                          ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                              lib/storage.ts                            │
-│  • recordExerciseFinishedOnCollapse (inclui pse em cada setSnapshot)  │
-│  • getSeriesHistory (retorna { weightKg, reps, volumeKg, pse })       │
-│  • completedWorkouts (persiste CompletedSetRecord.pse no Firestore/LS) │
-└──────────────────────────────────────────────┬─────────────────────────┘
-                                               │
-                                               ▼
+│                         AgendaReportModal                              │
+│  - Filtros: Período (Datas), Aluno, Status (Realizado/Reagendado/Falta)│
+│  - Resumo Financeiro: Avulsas (Soma R$), Semanais, Mensais             │
+│  - Tabela Detalhada com Treinos Realizados                             │
+│  - Exportação para PDF / Impressão A4                                  │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+                                   ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                  SeriesHistoryModal / ExerciseHistoryChart             │
-│  • Filtros: [ Carga (kg) ] [ Repetições ] [ Volume (kg) ] [ PSE (0-10) ]│
-│  • Recharts Line: Eixo Y dedicado de 0 a 10 com cor de intensidade    │
+│                        Estado Global & Firestore                       │
+│  - CalendarEvent (status: 'realizado', 'reagendado', 'falta', etc.)    │
+│  - CompletedWorkoutRecord (histórico técnico de treinos concluídos)    │
+│  - Client (contractType: 'Avulsa'|'Semanal'|'Mensal', contractValue)   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Entidades e Tipos Modificados
-- `ExecutionSet`: adição da propriedade opcional `pse?: number | null;`
-- `CompletedSetRecord`: adição de `pse?: number | null;`
-- `SeriesHistoryItem`: adição de `pse?: number | null;`
+### Componentes e Modificações Planejadas
 
-#### Mapeamento de Componentes
-1. **`components/PsePickerModal.tsx`**: Componente isolado para exibição da régua de esforço de 0 a 10 com botões táteis, indicador de cor, badge descritivo ("Leve", "Moderado", "Pesado", "Falha") e botão de confirmação.
-2. **`components/WorkoutExecutionSection.tsx`**: Ajuste das larguras do grid de séries (distribuição equilibrada para acomodar o botão de PSE), renderização do botão com troca dinâmica de ícone para número colorido e disparo do modal.
-3. **`lib/storage.ts`**: Salvamento do campo `pse` nos snapshots e histórico de séries.
-4. **`components/ExerciseHistoryChart.tsx`**: Inclusão do toggle `PSE` e da linha correspondente no Recharts.
+1. `components/AgendaSection.tsx`:
+   - Adicionar botão "Excluir Agendamento" no rodapé do modal de edição (`openEditModal`).
+   - Adicionar botão "Relatórios & Financeiro" no topo da visualização da Agenda.
+   - Integrar o componente `AgendaReportModal`.
+2. `components/AgendaReportModal.tsx` (Novo Componente):
+   - Modal completo em tela cheia com cabeçalho limpo, botões de fechar e exportar PDF.
+   - Controles de filtro por período, aluno e status.
+   - Resumo financeiro segmentado: Total Aulas Avulsas (soma exata dos valores), Planos Semanais e Planos Mensais.
+   - Tabela de conferência com descrição do treino realizado (cruzando com `CompletedWorkoutRecord` pelo aluno e data).
+   - Estilização `@media print` para renderização perfeita em folha A4.
+3. `components/WorkoutExecutionSection.tsx`:
+   - No modal de conclusão de treino (`isFinishedModalOpen`), adicionar opção/pergunta de confirmação: *"Registrar aula como Realizada na Agenda?"*.
+   - Integrar com `calendarEvents` e disparar callback `onConfirmRegisterInAgenda`.
+4. `app/page.tsx`:
+   - Conectar o callback de registro na agenda entre `WorkoutExecutionSection` e o estado `calendarEvents`, persistindo automaticamente no LocalStorage e no Firestore via `cloudSync`.

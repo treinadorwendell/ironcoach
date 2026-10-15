@@ -277,3 +277,22 @@ export interface CompletedWorkoutRecord {
   exercises: CompletedExerciseRecord[];
   trainerNotes?: string;
 }
+
+export interface ExerciseFinishedSnapshotSet {
+  setNumber: number;
+  weightKg: number | null;
+  completedReps: number;
+  volumeKg?: number;
+  completed: boolean;
+  pse?: number | null;
+}
+
+export interface ExerciseFinishedSnapshot {
+  id: string;
+  clientId: string;
+  exerciseName: string;
+  date: string;
+  timestamp: string;
+  sets: ExerciseFinishedSnapshotSet[];
+  userId?: string;
+}

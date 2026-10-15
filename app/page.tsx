@@ -22,7 +22,8 @@ import { WorkoutExecutionSection } from '@/components/WorkoutExecutionSection';
 import { AuthScreen } from '@/components/AuthScreen';
 import { testConnection, cloudSync, auth } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { LogIn, X } from 'lucide-react';
+import { LogIn, X, RefreshCw } from 'lucide-react';
+import { useInactivitySync } from '@/hooks/useInactivitySync';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('execucao');
@@ -43,6 +44,12 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
   const [dismissedAuthBanner, setDismissedAuthBanner] = useState(false);
+
+  // Hook de sincronização forçada com o Firestore ao retornar ao app após inatividade
+  const { isSyncing: isResumingSync, syncNotice } = useInactivitySync({
+    inactivityThresholdMs: 15000,
+    showToast: true,
+  });
 
   // Safely hydrate data from client storage and cloud on mount
   useEffect(() => {
@@ -103,10 +110,19 @@ export default function Home() {
       }
     });
 
+    // 4. Listener para reidratação de estado imediata ao concluir forceSync
+    const handleDataSynced = () => {
+      setClients(storage.getClients());
+      setWorkouts(storage.getWorkouts());
+      setCalendarEvents(storage.getCalendarEvents());
+    };
+    window.addEventListener('ironcoach:data-synced', handleDataSynced);
+
     return () => {
       clearTimeout(timer);
       unsubAuth();
       cloudSync.unsubscribe();
+      window.removeEventListener('ironcoach:data-synced', handleDataSynced);
     };
   }, []);
 
@@ -315,6 +331,7 @@ export default function Home() {
             <AgendaSection
               events={calendarEvents}
               clients={clients}
+              completedWorkouts={storage.getCompletedWorkouts()}
               onAddEvent={handleAddCalendarEvent}
               onUpdateEvent={handleUpdateCalendarEvent}
               onDeleteEvent={handleDeleteCalendarEvent}
@@ -338,6 +355,7 @@ export default function Home() {
               clients={clients}
               workouts={workouts}
               activeWorkout={activeWorkoutForExecution}
+              calendarEvents={calendarEvents}
               onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
               onNavigateToCreateWorkout={(clientId) => {
                 setPreSelectedClientId(clientId);
@@ -346,9 +364,47 @@ export default function Home() {
               onFinishWorkout={() => {
                 // Return to client list or stay
               }}
+              onRegisterWorkoutInAgenda={(clientId, clientName, workoutName, dateStr) => {
+                // Verificar se já existe um evento na agenda para este aluno nesta exata data
+                const existingEvt = calendarEvents.find(
+                  (e) => e.clientId === clientId && e.date === dateStr
+                );
+
+                if (existingEvt) {
+                  // Atualizar status para realizado e garantir título do treino
+                  const updated: CalendarEvent = {
+                    ...existingEvt,
+                    status: 'realizado',
+                    title: workoutName || existingEvt.title,
+                  };
+                  handleUpdateCalendarEvent(updated);
+                } else {
+                  // Criar novo evento como realizado na agenda para este dia
+                  const newEvt: CalendarEvent = {
+                    id: `evt-${Date.now()}`,
+                    clientId,
+                    clientName,
+                    title: workoutName,
+                    date: dateStr,
+                    startTime: '08:00',
+                    endTime: '09:00',
+                    status: 'realizado',
+                    notes: 'Registrado automaticamente ao concluir o treino.',
+                  };
+                  handleAddCalendarEvent(newEvt);
+                }
+              }}
             />
           )}
         </main>
+
+        {/* Toast Notificação de Sincronização após Inatividade com o Firestore */}
+        {syncNotice && (
+          <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-md text-emerald-300 text-xs font-bold animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-none">
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 shrink-0 ${isResumingSync ? 'animate-spin' : ''}`} />
+            <span>{syncNotice}</span>
+          </div>
+        )}
 
         {/* Fixed Touch-Friendly Bottom Navigation Bar */}
         <BottomNav

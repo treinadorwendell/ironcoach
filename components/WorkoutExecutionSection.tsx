@@ -40,29 +40,40 @@ import {
   Activity,
   Layers,
   Link2,
-  PenLine,
   FileText,
   X,
   Gauge,
+  Calendar as CalendarIcon,
+  PenLine,
 } from 'lucide-react';
 import { PsePickerModal, getPseInfo } from './PsePickerModal';
+import { CalendarEvent } from '@/types';
 
 interface WorkoutExecutionSectionProps {
   clients: Client[];
   workouts: WorkoutProgram[];
   activeWorkout: WorkoutProgram | null;
+  calendarEvents?: CalendarEvent[];
   onSelectWorkout: (workout: WorkoutProgram) => void;
   onNavigateToCreateWorkout?: (clientId: string) => void;
   onFinishWorkout?: () => void;
+  onRegisterWorkoutInAgenda?: (
+    clientId: string,
+    clientName: string,
+    workoutName: string,
+    dateStr: string
+  ) => void;
 }
 
 export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = ({
   clients,
   workouts,
   activeWorkout,
+  calendarEvents,
   onSelectWorkout,
   onNavigateToCreateWorkout,
   onFinishWorkout,
+  onRegisterWorkoutInAgenda,
 }) => {
   // Helper to build a session from a program (with split support)
   const buildSession = useCallback(
@@ -206,7 +217,13 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     totalSets: number;
     durationStr: string;
     trainerNotes?: string;
+    clientId?: string;
+    clientName?: string;
+    workoutName?: string;
+    dateFormatted?: string;
+    dateIso?: string;
   } | null>(null);
+  const [registerInAgendaConfirmed, setRegisterInAgendaConfirmed] = useState<boolean>(true);
 
   // Estado para a Página/Modal de Seleção de PSE (0 a 10)
   const [pseModalConfig, setPseModalConfig] = useState<{
@@ -304,11 +321,15 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     storage.saveActiveSession(updatedSession);
 
     // Grava imediatamente o snapshot para o histórico de evolução de cada série
-    storage.recordExerciseFinishedOnCollapse(
+    const savedSnapshot = storage.recordExerciseFinishedOnCollapse(
       session.clientId,
       ex.exerciseName,
       updatedSets
     );
+    if (savedSnapshot) {
+      cloudSync.syncFinishedExerciseSnapshot(savedSnapshot);
+    }
+    cloudSync.syncActiveSession(updatedSession);
 
     // Recolhe o exercício
     setExpandedExerciseIds((prev) => ({
@@ -896,13 +917,21 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     storage.saveCompletedWorkout(newRecord);
     cloudSync.syncCompletedWorkout(newRecord);
 
+    const dateIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
     setWorkoutSummary({
       totalVolumeKg,
       completedSets: completedSetsCount,
       totalSets: totalSetsCount,
       durationStr,
       trainerNotes: session.trainerNotes || '',
+      clientId: session.clientId,
+      clientName: session.clientName,
+      workoutName: splitName || cleanProgramName,
+      dateFormatted,
+      dateIso,
     });
+    setRegisterInAgendaConfirmed(true);
 
     setIsFinishedModalOpen(true);
 
@@ -1525,17 +1554,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                 }`}
                               >
                                 {/* Col 1: Set Number + Ícone de Evolução da Série */}
-                                <div className="col-span-2 flex flex-col items-center justify-center">
-                                  <div className="flex items-center gap-1">
+                                 <div className="col-span-2 flex flex-col items-center justify-center">
+                                  <div className="w-full sm:w-[69px] flex items-center justify-center gap-1 sm:gap-0">
                                     <span
-                                      className={`w-6 h-6 rounded-lg font-black text-[11px] flex items-center justify-center shrink-0 ${
+                                      className={`w-[22px] h-7 sm:w-6 sm:h-6 rounded-lg font-black text-[10px] sm:text-[11px] flex items-center justify-center shrink-0 ${
                                         set.completed
                                           ? 'bg-emerald-500 text-slate-950'
                                           : 'bg-slate-800 text-slate-200'
                                       }`}
-                                      title={`Série #${set.setNumber}`}
+                                      title={`Série ${set.setNumber}`}
                                     >
-                                      #{set.setNumber}
+                                      {set.setNumber}
                                     </span>
                                     <button
                                       type="button"
@@ -1546,10 +1575,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           ex.sets.length
                                         )
                                       }
-                                      className="w-6 h-6 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90"
+                                      className="w-[22px] h-7 sm:w-6 sm:h-6 sm:ml-3 px-0 shrink-0 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90"
                                       title={`Ver página de evolução da Série #${set.setNumber}`}
                                     >
-                                      <TrendingUp className="w-3.5 h-3.5" />
+                                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                     </button>
                                   </div>
                                   {set.extraVariation ? (
@@ -1599,15 +1628,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                                 {/* Col 3: Carga (KG) */}
                                 <div className="col-span-3 flex items-center justify-center">
-                                  <div className="relative w-16 sm:w-20 text-center">
+                                  <div className="relative flex justify-center text-center">
                                     <input
-                                      type="number"
-                                      step="0.5"
-                                      min="0"
+                                      type="text"
+                                      inputMode="decimal"
+                                      pattern="[0-9]*[.,]?[0-9]*"
                                       placeholder="—"
                                       value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
+                                      onKeyDown={(e) => {
+                                        if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
+                                        if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
+                                        if (/^[0-9]$/.test(e.key)) return;
+                                        if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
+                                        e.preventDefault();
+                                      }}
                                       onChange={(e) => {
-                                        const raw = e.target.value.trim();
+                                        const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
                                         if (raw === '') {
                                           setWeightDirect(exIndex, setIndex, null);
                                         } else {
@@ -1619,11 +1655,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           );
                                         }
                                       }}
-                                      className="w-full py-1.5 text-center font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
+                                      className="h-[38px] w-[50px] mx-0 text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
                                     />
-                                    <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
-                                      kg
-                                    </span>
                                   </div>
                                 </div>
 
@@ -1676,7 +1709,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => handleToggleSetCheck(exIndex, setIndex)}
-                                    className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation ${
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation ${
                                       set.completed
                                         ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-500/40'
                                         : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
@@ -1684,7 +1717,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     title={set.completed ? 'Desmarcar série' : 'Concluir série e iniciar descanso'}
                                   >
                                     <Check
-                                      className={`w-6 h-6 stroke-[3] transition-transform ${
+                                      className={`w-5 h-5 stroke-[3] transition-transform ${
                                         set.completed ? 'scale-110' : 'opacity-40'
                                       }`}
                                     />
@@ -1751,15 +1784,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                                       {/* Col 3: Carga (kg) */}
                                       <div className="col-span-3 flex items-center justify-center">
-                                        <div className="relative w-20 text-center">
+                                        <div className="relative flex justify-center text-center">
                                           <input
-                                            type="number"
-                                            step="0.5"
-                                            min="0"
+                                            type="text"
+                                            inputMode="decimal"
+                                            pattern="[0-9]*[.,]?[0-9]*"
                                             placeholder="—"
                                             value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
+                                            onKeyDown={(e) => {
+                                              if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
+                                              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
+                                              if (/^[0-9]$/.test(e.key)) return;
+                                              if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
+                                              e.preventDefault();
+                                            }}
                                             onChange={(e) => {
-                                              const raw = e.target.value.trim();
+                                              const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
                                               if (raw === '') {
                                                 handleSetSubSetWeightDirect(exIndex, setIndex, subIdx, null);
                                               } else {
@@ -1772,11 +1812,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                                 );
                                               }
                                             }}
-                                            className="w-full py-1 text-center font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
+                                            className="h-[34px] w-[50px] mx-0 text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
                                           />
-                                          <span className="text-[8px] text-slate-400 font-semibold block mt-0.5">
-                                            kg
-                                          </span>
                                         </div>
                                       </div>
 

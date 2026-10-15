@@ -102,7 +102,11 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
       setWorkouts(storage.getCompletedWorkouts());
     };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('ironcoach:data-synced', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('ironcoach:data-synced', handleStorage);
+    };
   }, []);
 
   const toggleWorkoutExpand = (id: string) => {

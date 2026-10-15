@@ -38,7 +38,15 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
       }
     });
 
-    return () => unsub();
+    const handleDataSynced = () => {
+      setSyncStatus('synced');
+    };
+    window.addEventListener('ironcoach:data-synced', handleDataSynced);
+
+    return () => {
+      unsub();
+      window.removeEventListener('ironcoach:data-synced', handleDataSynced);
+    };
   }, []);
 
   const handleOpenAuth = () => {
@@ -51,6 +59,20 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
       cloudSync.unsubscribe();
       await logoutUser();
       setIsOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleForceSyncFromCloud = async () => {
+    if (!user) return;
+    setIsBusy(true);
+    try {
+      await cloudSync.forceSync(user.uid);
+      if (onManualSyncTrigger) onManualSyncTrigger();
+      setSyncStatus('synced');
     } catch (err) {
       console.error(err);
     } finally {
@@ -150,12 +172,22 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
               <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
                 <button
                   type="button"
+                  onClick={handleForceSyncFromCloud}
+                  disabled={isBusy}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition active:scale-95 shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isBusy ? 'animate-spin' : ''}`} />
+                  <span>Atualizar Histórico e PSE da Nuvem</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleForceSeed}
                   disabled={isBusy}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition active:scale-95"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isBusy ? 'animate-spin' : ''}`} />
-                  <span>Sincronizar dados deste tablet</span>
+                  <span>Enviar dados deste tablet para a nuvem</span>
                 </button>
 
                 <button

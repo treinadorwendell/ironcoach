@@ -21,11 +21,16 @@ import {
   CalendarClock,
   Check,
   Filter,
+  FileText,
 } from 'lucide-react';
+import { AgendaReportModal } from '@/components/AgendaReportModal';
+import { storage } from '@/lib/storage';
+import { CompletedWorkoutRecord } from '@/types';
 
 interface AgendaSectionProps {
   events: CalendarEvent[];
   clients: Client[];
+  completedWorkouts?: CompletedWorkoutRecord[];
   onAddEvent: (event: CalendarEvent) => void;
   onUpdateEvent: (event: CalendarEvent) => void;
   onDeleteEvent: (eventId: string) => void;
@@ -51,6 +56,7 @@ const MONTHS_NAMES = [
 export const AgendaSection: React.FC<AgendaSectionProps> = ({
   events,
   clients,
+  completedWorkouts,
   onAddEvent,
   onUpdateEvent,
   onDeleteEvent,
@@ -59,6 +65,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [viewMode, setViewMode] = useState<AgendaViewMode>('dia');
   const [selectedDate, setSelectedDate] = useState<string>('2026-10-02');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(null);
 
@@ -241,14 +248,26 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             ))}
           </div>
 
-          <button
-            onClick={() => openNewModal()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/50 active:scale-95 transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Novo Compromisso</span>
-            <span className="sm:hidden">Novo</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsReportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700/80 shadow-md active:scale-95 transition"
+              title="Abrir Relatório de Aulas e Financeiro"
+            >
+              <FileText className="w-4 h-4 text-purple-400" />
+              <span className="hidden sm:inline">Relatório & Financeiro</span>
+              <span className="sm:hidden">Relatório</span>
+            </button>
+
+            <button
+              onClick={() => openNewModal()}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/50 active:scale-95 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Novo Compromisso</span>
+              <span className="sm:hidden">Novo</span>
+            </button>
+          </div>
         </div>
 
         {/* Date Navigator & Quick Jump */}
@@ -851,9 +870,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => onDeleteEvent(evt.id)}
-                        className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                        title="Excluir"
+                        onClick={() => setEventToDelete(evt)}
+                        className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95"
+                        title="Excluir Compromisso"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1149,21 +1168,40 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
-                </button>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                {editingEvent ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEventToDelete(editingEvent);
+                      setIsModalOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold transition active:scale-95"
+                    title="Excluir este agendamento"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir Agendamento</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1211,6 +1249,15 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
           </div>
         </div>
       )}
+
+      {/* Relatório de Aulas e Financeiro Modal */}
+      <AgendaReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        events={events}
+        clients={clients}
+        completedWorkouts={completedWorkouts || (typeof window !== 'undefined' ? storage.getCompletedWorkouts() : [])}
+      />
     </div>
   );
 };

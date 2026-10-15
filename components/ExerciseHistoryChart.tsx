@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useSyncExternalStore } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -167,11 +167,31 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
     pse: true,
   });
 
+  const storeKey = useSyncExternalStore(
+    (callback) => {
+      window.addEventListener('ironcoach:data-synced', callback);
+      window.addEventListener('storage', callback);
+      return () => {
+        window.removeEventListener('ironcoach:data-synced', callback);
+        window.removeEventListener('storage', callback);
+      };
+    },
+    () => {
+      if (typeof window === 'undefined') return '';
+      return (
+        (localStorage.getItem('ironcoach_completed_workouts_v1') || '') +
+        (localStorage.getItem('ironcoach_exercise_finished_snapshots_v1') || '')
+      );
+    },
+    () => ''
+  );
+
   // Query historical data strictly for this specific series from finished exercises ("Concluir e Recolher")
   const seriesData = useMemo(() => {
     if (!isOpen || !exerciseName) return [];
+    void storeKey;
     return storage.getSeriesHistory(exerciseName, activeSetNumber, clientId);
-  }, [isOpen, exerciseName, activeSetNumber, clientId]);
+  }, [isOpen, exerciseName, activeSetNumber, clientId, storeKey]);
 
   const hasHistory = seriesData.length > 0;
 

@@ -9,6 +9,7 @@ import {
   MuscleGroup,
   CompletedWorkoutRecord,
   ExecutionSet,
+  ExerciseFinishedSnapshot,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -845,20 +846,21 @@ export const storage = {
 
   /**
    * Grava o exercício e suas séries no histórico imediatamente quando o usuário clica em "Concluir e Recolher".
+   * Retorna o snapshot gravado para sincronização com Firestore.
    */
   recordExerciseFinishedOnCollapse(
     clientId: string | undefined,
     exerciseName: string,
     sets: ExecutionSet[]
-  ) {
-    if (typeof window === 'undefined' || !exerciseName) return;
+  ): ExerciseFinishedSnapshot | null {
+    if (typeof window === 'undefined' || !exerciseName) return null;
     try {
       const now = new Date();
       const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(
         now.getMonth() + 1
       ).padStart(2, '0')}`;
 
-      const newSnapshot = {
+      const newSnapshot: ExerciseFinishedSnapshot = {
         id: `snap-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         clientId: clientId || 'general',
         exerciseName: exerciseName.trim(),
@@ -881,19 +883,47 @@ export const storage = {
       const existingData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
       const list = existingData ? JSON.parse(existingData) : [];
       list.push(newSnapshot);
-      if (list.length > 80) {
-        list.splice(0, list.length - 80);
+      if (list.length > 120) {
+        list.splice(0, list.length - 120);
       }
       localStorage.setItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS, JSON.stringify(list));
+      return newSnapshot;
     } catch (e) {
       console.error('Error recording finished exercise snapshot:', e);
+      return null;
     }
   },
 
   /**
-   * Retorna o histórico de uma série específica (ex: Série 1) baseado estritamente
-   * nos registros de exercícios finalizados ao clicar em "Concluir e Recolher".
-   * Caso não tenha histórico, retorna array vazio [].
+   * Mescla snapshots recebidos do Firestore com o cache local.
+   */
+  mergeExerciseSnapshots(incoming: ExerciseFinishedSnapshot[]) {
+    if (typeof window === 'undefined' || !Array.isArray(incoming)) return;
+    try {
+      const existingData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
+      const existing: ExerciseFinishedSnapshot[] = existingData ? JSON.parse(existingData) : [];
+      const existingIds = new Set(existing.map((s) => s.id));
+      const merged = [...existing];
+      incoming.forEach((item) => {
+        if (!existingIds.has(item.id)) {
+          merged.push(item);
+          existingIds.add(item.id);
+        }
+      });
+      merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      if (merged.length > 120) {
+        merged.splice(0, merged.length - 120);
+      }
+      localStorage.setItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS, JSON.stringify(merged));
+    } catch (e) {
+      console.error('Error merging exercise snapshots:', e);
+    }
+  },
+
+  /**
+   * Retorna o histórico de uma série específica (ex: Série 1) baseado tanto nos
+   * registros de exercícios recolhidos ("Concluir e Recolher") quanto nos treinos
+   * finalizados sincronizados do Firestore, incluindo o PSE de 0 a 10.
    */
   getSeriesHistory(
     exerciseName: string,
@@ -921,7 +951,9 @@ export const storage = {
         pse?: number | null;
       }> = [];
 
-      // Buscar exclusivamente snapshots gravados via "Concluir e Recolher"
+      const registeredTimestamps = new Set<string>();
+
+      // 1. Buscar snapshots gravados via "Concluir e Recolher"
       const snapData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
       if (snapData) {
         const snapshots = JSON.parse(snapData);
@@ -940,9 +972,11 @@ export const storage = {
                   const w = typeof s.weightKg === 'number' ? s.weightKg : 0;
                   const vol = s.volumeKg != null ? Number(s.volumeKg) : w * reps;
                   const pseVal = typeof s.pse === 'number' ? s.pse : null;
+                  const ts = snap.timestamp || new Date().toISOString();
+                  registeredTimestamps.add(ts.substring(0, 16)); // chave por minuto para deduplicar
                   points.push({
                     date: snap.date || 'Hoje',
-                    timestamp: snap.timestamp || new Date().toISOString(),
+                    timestamp: ts,
                     weightKg: w,
                     reps,
                     volumeKg: vol,
@@ -953,6 +987,41 @@ export const storage = {
               }
             });
         }
+      }
+
+      // 2. Buscar nos treinos finalizados sincronizados no Firestore ("completedWorkouts")
+      const completedList = this.getCompletedWorkouts(clientId);
+      if (Array.isArray(completedList)) {
+        completedList.forEach((cw) => {
+          const ts = cw.completedAt || new Date().toISOString();
+          const minuteKey = ts.substring(0, 16);
+          // Se já registrou pelo snapshot no mesmo minuto, pula para evitar duplicata
+          if (registeredTimestamps.has(minuteKey)) return;
+
+          if (Array.isArray(cw.exercises)) {
+            cw.exercises.forEach((ex) => {
+              if (ex.name?.trim().toLowerCase() === cleanName && Array.isArray(ex.sets)) {
+                const s = ex.sets.find((item: any) => item.setNumber === setNumber);
+                if (s && ((typeof s.weightKg === 'number' && s.weightKg > 0) || (typeof s.pse === 'number') || s.completed)) {
+                  const reps = Number(s.completedReps) || 10;
+                  const w = typeof s.weightKg === 'number' ? s.weightKg : 0;
+                  const vol = w * reps;
+                  const pseVal = typeof s.pse === 'number' ? s.pse : null;
+                  registeredTimestamps.add(minuteKey);
+                  points.push({
+                    date: cw.date || 'Hoje',
+                    timestamp: ts,
+                    weightKg: w,
+                    reps,
+                    volumeKg: vol,
+                    setNumber,
+                    pse: pseVal,
+                  });
+                }
+              }
+            });
+          }
+        });
       }
 
       // Ordenar cronologicamente do mais antigo para o mais recente

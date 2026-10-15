@@ -125,6 +125,21 @@
         "updatedAt": { "type": "string", "maxLength": 50 }
       },
       "required": ["id", "userId"]
+    },
+    "ExerciseFinishedSnapshot": {
+      "title": "ExerciseFinishedSnapshot",
+      "description": "Snapshot de exercício finalizado com séries e PSE para gráficos de evolução",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "clientId": { "type": "string", "maxLength": 128 },
+        "exerciseName": { "type": "string", "maxLength": 150 },
+        "date": { "type": "string", "maxLength": 30 },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "sets": { "type": "array" }
+      },
+      "required": ["id", "clientId", "exerciseName", "timestamp", "sets"]
     }
   },
   "firestore": {
@@ -151,6 +166,10 @@
     "/users/{userId}/customExercises/{exerciseId}": {
       "schema": "DatabaseExercise",
       "description": "Exercícios customizados pelo personal"
+    },
+    "/users/{userId}/exerciseSnapshots/{snapshotId}": {
+      "schema": "ExerciseFinishedSnapshot",
+      "description": "Snapshots de exercícios finalizados com PSE e carga"
     },
     "/users/{userId}/settings/{settingId}": {
       "schema": "UserSettings",

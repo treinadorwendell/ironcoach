@@ -55,6 +55,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Snapshots de exercícios concluídos e PSE
+      match /exerciseSnapshots/{snapshotId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Settings and Active Sessions between tablets
       match /settings/{settingId} {
         allow read, write: if isOwner(userId);
