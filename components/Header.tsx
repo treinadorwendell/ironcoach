@@ -1,21 +1,26 @@
 'use client';
 
 import React from 'react';
-import { Dumbbell, Tablet, Maximize2 } from 'lucide-react';
+import { Dumbbell, Tablet, Maximize2, LogOut, User as UserIcon } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { CloudSyncBadge } from './CloudSyncBadge';
+import { User } from 'firebase/auth';
 
 interface HeaderProps {
   isTabletFramed: boolean;
   onToggleTabletFrame: () => void;
   activeClientName?: string;
+  currentUser?: User | null;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   isTabletFramed,
   onToggleTabletFrame,
   activeClientName,
+  currentUser,
+  onLogout,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
@@ -39,6 +44,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>
                   Aluno: <strong className="text-emerald-400 font-semibold">{activeClientName}</strong>
                 </span>
+              ) : currentUser?.email ? (
+                <span className="truncate max-w-[180px] sm:max-w-xs inline-block text-slate-300">
+                  Treinador: {currentUser.displayName || currentUser.email}
+                </span>
               ) : (
                 'Tablet Vertical • Musculação'
               )}
@@ -46,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right tools: Cloud Sync, Offline badge, Frame toggle, PWA install */}
+        {/* Right tools: Cloud Sync, Offline badge, Frame toggle, PWA install, Logout */}
         <div className="flex items-center gap-2">
           <CloudSyncBadge />
           <OfflineIndicator />
@@ -70,6 +79,17 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <PWAInstallButton />
+
+          {currentUser && onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-300 border border-slate-700 transition active:scale-95"
+              title="Sair da conta / Trocar de Treinador"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>

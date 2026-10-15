@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação para reestruturação do fluxo da aba Execução do Treino em 3 etapas sequenciais (Seleção de Programas Verticais -> Seleção de Treino/Split -> Tela de Execução Ativa) com navegação fluida e botão de retorno.",
-  "updatedAt": "2026-10-15T13:43:40.377930813Z",
+  "summary": "Plano de implementação para a tela de autenticação do treinador e isolamento de dados no Firestore por usuário.",
+  "updatedAt": "2026-10-15T19:12:19.493437521Z",
   "requestFeedback": true,
   "userFacing": true
 }
