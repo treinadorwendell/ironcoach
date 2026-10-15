@@ -1,6 +1,6 @@
 {
-  "summary": "Plano detalhado para exclusão de agendamentos na edição, automação de confirmação de treino realizado na Agenda e geração de relatório de aulas/financeiro com exportação em PDF.",
-  "updatedAt": "2026-10-14T17:19:40.208103113Z",
+  "summary": "Plano de implementação para reestruturação do fluxo da aba Execução do Treino em 3 etapas sequenciais (Seleção de Programas Verticais -> Seleção de Treino/Split -> Tela de Execução Ativa) com navegação fluida e botão de retorno.",
+  "updatedAt": "2026-10-15T13:43:40.377930813Z",
   "requestFeedback": true,
   "userFacing": true
 }

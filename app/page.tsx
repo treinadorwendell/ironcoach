@@ -24,6 +24,7 @@ import { testConnection, cloudSync, auth } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { LogIn, X, RefreshCw } from 'lucide-react';
 import { useInactivitySync } from '@/hooks/useInactivitySync';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('execucao');
@@ -118,11 +119,18 @@ export default function Home() {
     };
     window.addEventListener('ironcoach:data-synced', handleDataSynced);
 
+    // 5. Listener para atualização de status na agenda em tempo real
+    const handleCalendarUpdated = () => {
+      setCalendarEvents(storage.getCalendarEvents());
+    };
+    window.addEventListener('ironcoach:calendar-updated', handleCalendarUpdated);
+
     return () => {
       clearTimeout(timer);
       unsubAuth();
       cloudSync.unsubscribe();
       window.removeEventListener('ironcoach:data-synced', handleDataSynced);
+      window.removeEventListener('ironcoach:calendar-updated', handleCalendarUpdated);
     };
   }, []);
 
@@ -196,10 +204,25 @@ export default function Home() {
 
   // CALENDAR HANDLERS
   const handleAddCalendarEvent = (newEvent: CalendarEvent) => {
-    const updated = [newEvent, ...calendarEvents];
+    // Mecanismo de verificação de chave única (clientId + date) para evitar duplicidades
+    const existingIndex = calendarEvents.findIndex(
+      (e) => e.clientId === newEvent.clientId && e.date === newEvent.date
+    );
+    let updated: CalendarEvent[];
+    if (existingIndex >= 0) {
+      updated = [...calendarEvents];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        ...newEvent,
+        id: updated[existingIndex].id,
+      };
+      cloudSync.syncCalendarEvent(updated[existingIndex]);
+    } else {
+      updated = [newEvent, ...calendarEvents];
+      cloudSync.syncCalendarEvent(newEvent);
+    }
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
-    cloudSync.syncCalendarEvent(newEvent);
   };
 
   const handleUpdateCalendarEvent = (updatedEvent: CalendarEvent) => {
@@ -216,6 +239,68 @@ export default function Home() {
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
     cloudSync.removeCalendarEvent(eventId);
+  };
+
+  // Confirmação de treino realizado disparado a partir da aba Execução de Treino
+  const handleConfirmWorkoutCompletedInAgenda = (
+    clientId: string,
+    clientName: string,
+    workoutName: string,
+    dateIso: string,
+    startTimeStr?: string,
+    trainerNotes?: string
+  ) => {
+    // 1. Procurar se já existe agendamento deste aluno nesta data específica
+    const existingIndex = calendarEvents.findIndex(
+      (e) => e.clientId === clientId && e.date === dateIso
+    );
+
+    let updated: CalendarEvent[];
+    if (existingIndex >= 0) {
+      const existing = calendarEvents[existingIndex];
+      const updatedEvt: CalendarEvent = {
+        ...existing,
+        status: 'realizado',
+        title: existing.title || workoutName || 'Treino Realizado',
+        notes: trainerNotes
+          ? `${existing.notes ? existing.notes + ' • ' : ''}${trainerNotes}`
+          : existing.notes,
+      };
+      updated = [...calendarEvents];
+      updated[existingIndex] = updatedEvt;
+      cloudSync.syncCalendarEvent(updatedEvt);
+    } else {
+      // 2. Se não houver evento na data direta, verificar se há template de dia recorrente
+      const [y, m, d] = dateIso.split('-').map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      const recurringEvt = calendarEvents.find(
+        (e) => e.clientId === clientId && e.recurringDays?.includes(dayOfWeek)
+      );
+
+      const now = new Date();
+      const startH =
+        startTimeStr ||
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const endHourNum = (parseInt(startH.split(':')[0], 10) + 1) % 24;
+      const endH = `${String(endHourNum).padStart(2, '0')}:${startH.split(':')[1] || '00'}`;
+
+      const newEvt: CalendarEvent = {
+        id: `evt-${Date.now()}`,
+        clientId,
+        clientName,
+        title: recurringEvt?.title || workoutName || 'Treino Realizado',
+        date: dateIso,
+        startTime: recurringEvt?.startTime || startH,
+        endTime: recurringEvt?.endTime || endH,
+        status: 'realizado',
+        notes: trainerNotes || 'Treino finalizado na Execução de Treino',
+      };
+      updated = [newEvt, ...calendarEvents];
+      cloudSync.syncCalendarEvent(newEvt);
+    }
+
+    setCalendarEvents(updated);
+    storage.saveCalendarEvents(updated);
   };
 
   // CROSS-TAB ACTIONS
@@ -316,86 +401,94 @@ export default function Home() {
             </div>
           )}
 
-          {currentSection === 'cliente' && (
-            <ClientSection
-              clients={clients}
-              onAddClient={handleAddClient}
-              onUpdateClient={handleUpdateClient}
-              onDeleteClient={handleDeleteClient}
-              onStartWorkoutForClient={handleStartWorkoutForClient}
-              onCreateWorkoutForClient={handleCreateWorkoutForClient}
-            />
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            {currentSection === 'cliente' && (
+              <motion.div
+                key="section-cliente"
+                initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full"
+              >
+                <ClientSection
+                  clients={clients}
+                  onAddClient={handleAddClient}
+                  onUpdateClient={handleUpdateClient}
+                  onDeleteClient={handleDeleteClient}
+                  onStartWorkoutForClient={handleStartWorkoutForClient}
+                  onCreateWorkoutForClient={handleCreateWorkoutForClient}
+                />
+              </motion.div>
+            )}
 
-          {currentSection === 'agenda' && (
-            <AgendaSection
-              events={calendarEvents}
-              clients={clients}
-              completedWorkouts={storage.getCompletedWorkouts()}
-              onAddEvent={handleAddCalendarEvent}
-              onUpdateEvent={handleUpdateCalendarEvent}
-              onDeleteEvent={handleDeleteCalendarEvent}
-              onStartWorkoutForClient={handleStartWorkoutForClient}
-            />
-          )}
+            {currentSection === 'agenda' && (
+              <motion.div
+                key="section-agenda"
+                initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full"
+              >
+                <AgendaSection
+                  events={calendarEvents}
+                  clients={clients}
+                  onAddEvent={handleAddCalendarEvent}
+                  onUpdateEvent={handleUpdateCalendarEvent}
+                  onDeleteEvent={handleDeleteCalendarEvent}
+                  onStartWorkoutForClient={handleStartWorkoutForClient}
+                />
+              </motion.div>
+            )}
 
-          {currentSection === 'criar-treino' && (
-            <CreateWorkoutSection
-              clients={clients}
-              workouts={workouts}
-              preSelectedClientId={preSelectedClientId}
-              onSaveWorkout={handleSaveWorkout}
-              onDeleteWorkout={handleDeleteWorkout}
-              onStartExecution={handleStartExecutionFromBuilder}
-            />
-          )}
+            {currentSection === 'criar-treino' && (
+              <motion.div
+                key="section-criar-treino"
+                initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full"
+              >
+                <CreateWorkoutSection
+                  clients={clients}
+                  workouts={workouts}
+                  preSelectedClientId={preSelectedClientId}
+                  onSaveWorkout={handleSaveWorkout}
+                  onDeleteWorkout={handleDeleteWorkout}
+                  onStartExecution={handleStartExecutionFromBuilder}
+                />
+              </motion.div>
+            )}
 
-          {currentSection === 'execucao' && (
-            <WorkoutExecutionSection
-              clients={clients}
-              workouts={workouts}
-              activeWorkout={activeWorkoutForExecution}
-              calendarEvents={calendarEvents}
-              onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
-              onNavigateToCreateWorkout={(clientId) => {
-                setPreSelectedClientId(clientId);
-                setCurrentSection('criar-treino');
-              }}
-              onFinishWorkout={() => {
-                // Return to client list or stay
-              }}
-              onRegisterWorkoutInAgenda={(clientId, clientName, workoutName, dateStr) => {
-                // Verificar se já existe um evento na agenda para este aluno nesta exata data
-                const existingEvt = calendarEvents.find(
-                  (e) => e.clientId === clientId && e.date === dateStr
-                );
-
-                if (existingEvt) {
-                  // Atualizar status para realizado e garantir título do treino
-                  const updated: CalendarEvent = {
-                    ...existingEvt,
-                    status: 'realizado',
-                    title: workoutName || existingEvt.title,
-                  };
-                  handleUpdateCalendarEvent(updated);
-                } else {
-                  // Criar novo evento como realizado na agenda para este dia
-                  const newEvt: CalendarEvent = {
-                    id: `evt-${Date.now()}`,
-                    clientId,
-                    clientName,
-                    title: workoutName,
-                    date: dateStr,
-                    startTime: '08:00',
-                    endTime: '09:00',
-                    status: 'realizado',
-                    notes: 'Registrado automaticamente ao concluir o treino.',
-                  };
-                  handleAddCalendarEvent(newEvt);
-                }
-              }}
-            />
-          )}
+            {currentSection === 'execucao' && (
+              <motion.div
+                key="section-execucao"
+                initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full"
+              >
+                <WorkoutExecutionSection
+                  clients={clients}
+                  workouts={workouts}
+                  activeWorkout={activeWorkoutForExecution}
+                  calendarEvents={calendarEvents}
+                  onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
+                  onNavigateToCreateWorkout={(clientId) => {
+                    setPreSelectedClientId(clientId);
+                    setCurrentSection('criar-treino');
+                  }}
+                  onConfirmWorkoutCompletedInAgenda={handleConfirmWorkoutCompletedInAgenda}
+                  onFinishWorkout={() => {
+                    // Return to client list or stay
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
 
         {/* Toast Notificação de Sincronização após Inatividade com o Firestore */}

@@ -1,5 +1,5 @@
 // IronCoach PWA Service Worker - 100% Offline Support for Gym / Tablet
-const CACHE_NAME = 'ironcoach-pwa-v1';
+const CACHE_NAME = 'ironcoach-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -41,31 +41,43 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Skip chrome-extension and external non-http
+  // Skip chrome-extension, internal APIs and dev assets
   if (!url.protocol.startsWith('http')) return;
+  if (url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) {
+    return; // Pass through to network directly without service worker interception
+  }
 
-  // Stale-while-revalidate / Network-first with cache fallback
+  // Handle navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/').then((res) => res || Response.error());
+      })
+    );
+    return;
+  }
+
+  // Static assets cache
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If network failed and we have no cached response for navigation, return cached root
-          if (event.request.mode === 'navigate' && !cachedResponse) {
-            return caches.match('/');
-          }
-          return cachedResponse;
-        });
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
-      return cachedResponse || fetchPromise;
+      return fetch(event.request).then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === 'basic' &&
+          !url.pathname.startsWith('/_next/')
+        ) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      });
     })
   );
 });

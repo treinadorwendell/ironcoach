@@ -31,6 +31,9 @@ import {
   Trophy,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
+  ArrowLeft,
+  Target,
   User,
   Dumbbell,
   FilePlus,
@@ -63,6 +66,14 @@ interface WorkoutExecutionSectionProps {
     workoutName: string,
     dateStr: string
   ) => void;
+  onConfirmWorkoutCompletedInAgenda?: (
+    clientId: string,
+    clientName: string,
+    workoutName: string,
+    dateIso: string,
+    startTimeStr?: string,
+    trainerNotes?: string
+  ) => void;
 }
 
 export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = ({
@@ -74,6 +85,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   onNavigateToCreateWorkout,
   onFinishWorkout,
   onRegisterWorkoutInAgenda,
+  onConfirmWorkoutCompletedInAgenda,
 }) => {
   // Helper to build a session from a program (with split support)
   const buildSession = useCallback(
@@ -90,7 +102,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         : prog.exercises || [];
 
       const displayName = targetSplit
-        ? `${prog.name} • ${targetSplit.name}`
+        ? targetSplit.name
         : prog.name;
 
       const exercisesState: ExecutionExerciseState[] = exercisesToUse.map((ex) => {
@@ -167,10 +179,93 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     [clients]
   );
 
+  type ExecutionStep = 'programas' | 'selecao-treino' | 'execucao';
+
   // Selected student state for explicit selection
   const [selectedClientId, setSelectedClientId] = useState<string>(() => {
     return activeWorkout?.clientId || clients[0]?.id || '';
   });
+
+  // Sequential navigation steps:
+  // 1. 'programas': Vertical list of training programs for the selected student
+  // 2. 'selecao-treino': Choose which workout/split to execute from the chosen program
+  // 3. 'execucao': Hidden execution page rendered ready with timer waiting to start
+  const [currentStep, setCurrentStep] = useState<ExecutionStep>(() => {
+    if (activeWorkout) return 'execucao';
+    return 'programas';
+  });
+
+  const [selectedProgram, setSelectedProgram] = useState<WorkoutProgram | null>(() => {
+    if (activeWorkout) return activeWorkout;
+    const initialClientWorkouts = workouts.filter(
+      (w) => w.clientId === (activeWorkout?.clientId || clients[0]?.id || '')
+    );
+    return initialClientWorkouts[0] || null;
+  });
+
+  // Sync state when activeWorkout prop changes without triggering effect-cascading renders
+  const [prevActiveWorkoutId, setPrevActiveWorkoutId] = useState<string | null>(
+    activeWorkout?.id || null
+  );
+
+  if (activeWorkout && activeWorkout.id !== prevActiveWorkoutId) {
+    setPrevActiveWorkoutId(activeWorkout.id);
+    setSelectedClientId(activeWorkout.clientId);
+    setSelectedProgram(activeWorkout);
+    setCurrentStep('execucao');
+  }
+
+  // Helpers to format program dates (Vigência) and days of week
+  const formatVigencia = (start?: string, end?: string) => {
+    if (!start && !end) return 'Vigência contínua';
+    const formatSingle = (s?: string) => {
+      if (!s) return '';
+      try {
+        const parts = s.split('-');
+        if (parts.length === 3) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return s;
+      } catch {
+        return s;
+      }
+    };
+    if (start && end) {
+      return `${formatSingle(start)} até ${formatSingle(end)}`;
+    }
+    if (start) {
+      return `A partir de ${formatSingle(start)}`;
+    }
+    return `Até ${formatSingle(end)}`;
+  };
+
+  const formatProgramDays = (program: WorkoutProgram) => {
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const allDays: number[] = [];
+
+    if (program.splits && program.splits.length > 0) {
+      program.splits.forEach((s) => {
+        if (s.weekDays && Array.isArray(s.weekDays)) {
+          allDays.push(...s.weekDays);
+        }
+      });
+    } else if (program.weekDays && Array.isArray(program.weekDays)) {
+      allDays.push(...program.weekDays);
+    }
+
+    const uniqueDays = Array.from(new Set(allDays)).sort((a, b) => a - b);
+    if (uniqueDays.length === 0) return 'Dias flexíveis';
+    return uniqueDays.map((d) => dayNames[d]).join(', ');
+  };
+
+  // Helper to ensure only the workout name is shown
+  const getWorkoutDisplayName = (fullName?: string) => {
+    if (!fullName) return 'Treino';
+    if (fullName.includes(' • ')) {
+      return fullName.split(' • ').slice(1).join(' • ');
+    }
+    return fullName;
+  };
 
   // Dedicated hook that automatically persists active workout progress to localStorage and protects against data loss on refresh
   const {
@@ -217,11 +312,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     totalSets: number;
     durationStr: string;
     trainerNotes?: string;
-    clientId?: string;
-    clientName?: string;
-    workoutName?: string;
-    dateFormatted?: string;
-    dateIso?: string;
+    clientId: string;
+    clientName: string;
+    workoutName: string;
+    dateFormatted: string;
+    dateIso: string;
+    timeFormatted?: string;
   } | null>(null);
   const [registerInAgendaConfirmed, setRegisterInAgendaConfirmed] = useState<boolean>(true);
 
@@ -368,56 +464,41 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     [persistStartNewSession]
   );
 
-  // Switch student handler
+  // Switch student handler: Always stays on Step 1 ('programas') to display vertical program cards
   const handleSelectClient = (clientId: string) => {
     setSelectedClientId(clientId);
     const clientWorkouts = workouts.filter((w) => w.clientId === clientId);
     if (clientWorkouts.length > 0) {
-      const firstProg = clientWorkouts[0];
-      onSelectWorkout(firstProg);
-      startNewSession(firstProg);
-      setIsWorkoutExpanded(true);
+      setSelectedProgram(clientWorkouts[0]);
     } else {
-      setSession(null);
-      storage.saveActiveSession(null);
-      cloudSync.syncActiveSession(null);
-      setIsWorkoutExpanded(false);
+      setSelectedProgram(null);
     }
+    // Return to programs list when switching student
+    setCurrentStep('programas');
   };
 
-  // Switch workout program handler
-  const handleSelectProgram = (programId: string) => {
-    if (session?.programId === programId) {
-      // Toggle expansion when clicking the active program
-      setIsWorkoutExpanded((prev) => !prev);
-      return;
-    }
-    const targetProg = workouts.find((w) => w.id === programId);
-    if (targetProg) {
-      onSelectWorkout(targetProg);
-      startNewSession(targetProg);
-      setIsWorkoutExpanded(true);
-    }
+  // Switch workout program handler / Open splits (Etapa 1 -> Etapa 2)
+  const handleOpenProgramSplits = (prog: WorkoutProgram) => {
+    setSelectedProgram(prog);
+    onSelectWorkout(prog);
+    setCurrentStep('selecao-treino');
   };
 
-  // Switch specific split/treino da semana within program (with expansion toggle)
-  const handleSelectSplit = (prog: WorkoutProgram, split: WorkoutSplit) => {
-    const isAlreadyThisSplit =
-      session?.programId === prog.id &&
-      (session?.programName.includes(split.name) || (!prog.splits || prog.splits.length <= 1));
-
-    if (isAlreadyThisSplit) {
-      // Toggle expansion when clicking the already active split
-      setIsWorkoutExpanded((prev) => !prev);
-      return;
-    }
-
+  // Switch specific split/treino da semana and load execution page (Etapa 2 -> Etapa 3)
+  const handleStartSplitExecution = (prog: WorkoutProgram, split: WorkoutSplit) => {
+    setSelectedProgram(prog);
     const newSession = buildSession(prog, split);
+    // Explicitly guarantee timer starts at 00:00 awaiting tap on Iniciar Treino
+    newSession.isStarted = false;
+    newSession.isPaused = false;
+    newSession.elapsedSeconds = 0;
+
     setSession(newSession);
     storage.saveActiveSession(newSession);
     cloudSync.syncActiveSession(newSession);
     setIsWorkoutExpanded(true);
     setExpandedExerciseIds({});
+    setCurrentStep('execucao');
   };
 
   // Quick Starter Workout Generator if student doesn't have one yet
@@ -481,12 +562,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       createdAt: new Date().toISOString().split('T')[0],
     };
 
-    // Save and immediately start
+    // Save and immediately start on execution screen
     const allWorkouts = storage.getWorkouts();
     const updated = [quickProgram, ...allWorkouts];
     storage.saveWorkouts(updated);
+    cloudSync.syncWorkout(quickProgram);
     onSelectWorkout(quickProgram);
-    startNewSession(quickProgram);
+    setSelectedProgram(quickProgram);
+    handleStartSplitExecution(quickProgram, quickSplit);
   };
 
   const isSessionStarted = !!session?.isStarted;
@@ -930,6 +1013,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       workoutName: splitName || cleanProgramName,
       dateFormatted,
       dateIso,
+      timeFormatted,
     });
     setRegisterInAgendaConfirmed(true);
 
@@ -945,6 +1029,101 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     } catch {}
 
     clearActiveSession();
+  };
+
+  // Confirmação final do treino realizado e atualização do status na agenda
+  const handleConfirmFinishWorkout = () => {
+    if (!workoutSummary) {
+      setIsFinishedModalOpen(false);
+      return;
+    }
+
+    if (registerInAgendaConfirmed) {
+      // 1. Invocar callback fornecido pelo container principal (app/page.tsx)
+      if (onConfirmWorkoutCompletedInAgenda) {
+        onConfirmWorkoutCompletedInAgenda(
+          workoutSummary.clientId,
+          workoutSummary.clientName,
+          workoutSummary.workoutName,
+          workoutSummary.dateIso,
+          workoutSummary.timeFormatted,
+          workoutSummary.trainerNotes
+        );
+      } else if (onRegisterWorkoutInAgenda) {
+        onRegisterWorkoutInAgenda(
+          workoutSummary.clientId,
+          workoutSummary.clientName,
+          workoutSummary.workoutName,
+          workoutSummary.dateIso
+        );
+      }
+
+      // 2. Garantia de persistência direta local e nuvem
+      try {
+        const currentEvents = storage.getCalendarEvents();
+        const existingIdx = currentEvents.findIndex(
+          (e) => e.clientId === workoutSummary.clientId && e.date === workoutSummary.dateIso
+        );
+
+        let updatedEvents: CalendarEvent[];
+        if (existingIdx >= 0) {
+          const ex = currentEvents[existingIdx];
+          const updated: CalendarEvent = {
+            ...ex,
+            status: 'realizado',
+            title: ex.title || workoutSummary.workoutName,
+            notes: workoutSummary.trainerNotes
+              ? `${ex.notes ? ex.notes + ' • ' : ''}${workoutSummary.trainerNotes}`
+              : ex.notes,
+          };
+          updatedEvents = [...currentEvents];
+          updatedEvents[existingIdx] = updated;
+          cloudSync.syncCalendarEvent(updated);
+        } else {
+          // Verificar se há evento recorrente do aluno para o dia da semana
+          const [y, m, d] = workoutSummary.dateIso.split('-').map(Number);
+          const dayOfWeek = new Date(y, m - 1, d).getDay();
+          const recEvt = currentEvents.find(
+            (e) => e.clientId === workoutSummary.clientId && e.recurringDays?.includes(dayOfWeek)
+          );
+
+          const startH = workoutSummary.timeFormatted || '07:00';
+          const endHourNum = (parseInt(startH.split(':')[0], 10) + 1) % 24;
+          const endH = `${String(endHourNum).padStart(2, '0')}:${startH.split(':')[1] || '00'}`;
+
+          const newEvt: CalendarEvent = {
+            id: `evt-${Date.now()}`,
+            clientId: workoutSummary.clientId,
+            clientName: workoutSummary.clientName,
+            title: recEvt?.title || workoutSummary.workoutName || 'Treino Realizado',
+            date: workoutSummary.dateIso,
+            startTime: recEvt?.startTime || startH,
+            endTime: recEvt?.endTime || endH,
+            status: 'realizado',
+            notes: workoutSummary.trainerNotes || 'Treino finalizado na Execução',
+          };
+          updatedEvents = [newEvt, ...currentEvents];
+          cloudSync.syncCalendarEvent(newEvt);
+        }
+
+        storage.saveCalendarEvents(updatedEvents);
+
+        // Disparar evento global para re-renderizar a Agenda
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('ironcoach:calendar-updated', {
+              detail: { clientId: workoutSummary.clientId, date: workoutSummary.dateIso },
+            })
+          );
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar status na agenda:', err);
+      }
+    }
+
+    setIsFinishedModalOpen(false);
+    setCurrentStep('programas');
+    if (onFinishWorkout) onFinishWorkout();
   };
 
   // Current selected client details
@@ -977,44 +1156,106 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         onClose={() => setTimerOpen(false)}
       />
 
-      {/* STUDENT & WORKOUT SELECTOR BAR (SELEÇÃO DE ALUNO NO TOPO) */}
-      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
-        {/* Row 1: Explicit Student Selector */}
-        <div className="space-y-1 pb-3 border-b border-slate-800/80">
-          <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <User className="w-4 h-4 text-emerald-400" />
-            <span>Selecionar Aluno para o Treino</span>
-          </label>
+      <AnimatePresence mode="wait">
+        {/* ETAPA 1: PROGRAMAS DE TREINO (LISTA VERTICAL COMPLETA) */}
+        {currentStep === 'programas' && (
+          <motion.div
+            key="step-programas"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {/* Seletor de Aluno no Topo */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-emerald-400" />
+                  <span>Selecionar Aluno para o Treino</span>
+                </label>
 
-          <div className="relative">
-            <select
-              value={selectedClientId}
-              onChange={(e) => handleSelectClient(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700/80 hover:border-emerald-500/60 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition-colors touch-manipulation"
-            >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} — Plano {c.contractType} (R$ {c.contractValue})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+                <div className="relative">
+                  <select
+                    value={selectedClientId}
+                    onChange={(e) => handleSelectClient(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700/80 hover:border-emerald-500/60 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition-colors touch-manipulation cursor-pointer"
+                  >
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} — Plano {c.contractType} (R$ {c.contractValue})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-        {/* Row 2: Workout Program Selector for this Student */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Dumbbell className="w-4 h-4 text-cyan-400" />
-                <span>Ficha / Programa de Treino ({studentWorkouts.length})</span>
-              </label>
+              {/* Informações Físicas do Aluno */}
+              {selectedClient && (
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex-wrap">
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
+                    Plano: <strong className="text-white">{selectedClient.contractType}</strong>
+                  </span>
+                  {selectedClient.weight > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
+                      Peso: <strong className="text-white">{selectedClient.weight} kg</strong>
+                    </span>
+                  )}
+                  {selectedClient.height > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
+                      Altura: <strong className="text-white">{selectedClient.height} cm</strong>
+                    </span>
+                  )}
+                  {studentIMC && (
+                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
+                      IMC: <strong className="text-emerald-400">{studentIMC}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Banner de Treino em Andamento se houver sessão ativa iniciada */}
+            {session && session.isStarted && (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                    <Flame className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-emerald-300 block">
+                      Treino em Andamento: {session.programName}
+                    </span>
+                    <span className="text-[11px] text-slate-300 font-mono">
+                      Aluno: {session.clientName} • Tempo: {formatElapsed(session.elapsedSeconds)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep('execucao')}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md active:scale-95 transition flex items-center justify-center gap-2"
+                >
+                  <Play className="w-3.5 h-3.5 fill-slate-950" />
+                  <span>Continuar Treino Ativo</span>
+                </button>
+              </div>
+            )}
+
+            {/* Cabeçalho da Lista Vertical de Programas */}
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider">
+                  Programas de Treino do Aluno ({studentWorkouts.length})
+                </h3>
+              </div>
 
               {onNavigateToCreateWorkout && (
                 <button
                   type="button"
                   onClick={() => onNavigateToCreateWorkout(selectedClientId)}
-                  className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 active:scale-95"
+                  className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 active:scale-95 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 transition"
                 >
                   <FilePlus className="w-3.5 h-3.5" />
                   <span>Prescrever Novo</span>
@@ -1022,245 +1263,382 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               )}
             </div>
 
-            {studentWorkouts.length > 0 ? (
-              <select
-                value={session?.programId || ''}
-                onChange={(e) => handleSelectProgram(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-semibold text-slate-200 focus:outline-none focus:border-cyan-500"
-              >
-                {studentWorkouts.map((w) => {
-                  const exCount =
-                    w.splits?.[0]?.exercises?.length || w.exercises?.length || 0;
-                  return (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({exCount} exercícios)
-                    </option>
-                  );
-                })}
-              </select>
+            {/* Se o aluno não tiver programas prescritos */}
+            {studentWorkouts.length === 0 ? (
+              <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4 my-2">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+                  <Dumbbell className="w-7 h-7" />
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-white">
+                    Nenhum Programa Prescrito para {selectedClient?.name || 'este Aluno'}
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Prescreva um programa na aba &ldquo;Criar Treino&rdquo; ou inicie com um protocolo rápido de adaptação muscular com 1 toque.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={handleCreateQuickStarterWorkout}
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Gerar Treino de Adaptação Imediato</span>
+                  </button>
+
+                  {onNavigateToCreateWorkout && (
+                    <button
+                      onClick={() => onNavigateToCreateWorkout(selectedClientId)}
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2"
+                    >
+                      <FilePlus className="w-4 h-4 text-cyan-400" />
+                      <span>Montar Ficha Completa na Seção &ldquo;Criar Treino&rdquo;</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             ) : (
-              <div className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-dashed border-amber-500/40 text-xs text-amber-300 flex items-center justify-between">
-                <span>Nenhum treino cadastrado para este aluno</span>
-                <button
-                  onClick={handleCreateQuickStarterWorkout}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] active:scale-95 transition"
-                >
-                  + Gerar Treino Rápido
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Workout Tabs if student has multiple programs */}
-        {studentWorkouts.length > 1 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-1">
-            {studentWorkouts.map((prog) => {
-              const isSelected = session?.programId === prog.id;
-              return (
-                <button
-                  key={prog.id}
-                  onClick={() => handleSelectProgram(prog.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition active:scale-95 ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white shadow-md'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {prog.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Quick Workout Splits Cards (Treinos da Semana a Serem Realizados) */}
-        {(() => {
-          const currentProg =
-            studentWorkouts.find((w) => w.id === session?.programId) ||
-            studentWorkouts[0];
-
-          if (!currentProg) return null;
-
-          const splitsToDisplay: WorkoutSplit[] =
-            currentProg.splits && currentProg.splits.length > 0
-              ? currentProg.splits
-              : [
-                  {
-                    id: currentProg.id,
-                    name: currentProg.name,
-                    weekDays: currentProg.weekDays || [],
-                    exercises: currentProg.exercises || [],
-                  },
-                ];
-
-          return (
-            <div className="pt-3 border-t border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                <span className="flex items-center gap-1.5 uppercase tracking-wider">
-                  <Layers className="w-4 h-4 text-cyan-400" />
-                  <span>Selecione o Treino a ser Realizado:</span>
-                </span>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  {splitsToDisplay.length} opção(ões) de treino
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {splitsToDisplay.map((split) => {
-                  const isCurrentSplit =
-                    session?.programId === currentProg.id &&
-                    (session?.programName.includes(split.name) ||
-                      splitsToDisplay.length === 1);
-                  const isExpanded = isCurrentSplit && isWorkoutExpanded;
-                  const days = (split.weekDays || [])
-                    .map((d) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d])
-                    .join(', ');
-                  const exCount = split.exercises?.length || 0;
+              /* CARDS VERTICAIS DOS PROGRAMAS DE TREINO */
+              <div className="space-y-3.5">
+                {studentWorkouts.map((prog) => {
+                  const splits =
+                    prog.splits && prog.splits.length > 0
+                      ? prog.splits
+                      : [
+                          {
+                            id: prog.id,
+                            name: prog.name,
+                            weekDays: prog.weekDays || [],
+                            exercises: prog.exercises || [],
+                          },
+                        ];
+                  const splitsCount = splits.length;
+                  const totalExercises = splits.reduce(
+                    (sum, s) => sum + (s.exercises?.length || 0),
+                    0
+                  );
 
                   return (
                     <div
-                      key={split.id}
-                      onClick={() => handleSelectSplit(currentProg, split as WorkoutSplit)}
-                      className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 shadow-md ${
-                        isExpanded
-                          ? 'bg-slate-900 border-cyan-500 shadow-cyan-950/40 ring-2 ring-cyan-500/50'
-                          : isCurrentSplit
-                          ? 'bg-slate-950/90 border-slate-700'
-                          : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                      }`}
+                      key={prog.id}
+                      onClick={() => handleOpenProgramSplits(prog)}
+                      className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/60 shadow-lg hover:shadow-emerald-950/20 cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3.5"
                     >
-                      <div className="flex items-start justify-between gap-1.5">
-                        <div className="space-y-0.5 min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-sm text-white block truncate">
-                              {split.name}
-                            </span>
-                            {isExpanded && (
-                              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
-                            )}
+                      {/* Top Row: Nome do programa e contagem de divisões */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                            <h3 className="text-base sm:text-lg font-black text-white group-hover:text-emerald-300 transition">
+                              {prog.name}
+                            </h3>
                           </div>
-                          <span className="text-[11px] text-cyan-400 font-semibold block">
-                            Dias: {days || 'Dias flexíveis'}
-                          </span>
+                          <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                            <Target className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>
+                              Objetivo:{' '}
+                              <strong className="text-slate-200">
+                                {prog.goal || 'Hipertrofia e Condicionamento'}
+                              </strong>
+                            </span>
+                          </p>
                         </div>
 
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <div
-                            className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
-                              isExpanded
-                                ? 'bg-cyan-600 text-white shadow-md'
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                          >
-                            <span>{isExpanded ? 'Recolher' : 'Expandir Treino'}</span>
-                            {isExpanded ? (
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            ) : (
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            )}
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <span className="px-3 py-1 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs font-bold text-slate-200">
+                            {splitsCount} {splitsCount === 1 ? 'Treino' : 'Divisões (Splits)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Informações Obrigatórias: Dias dos Treinos e Vigência */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/20">
+                            <CalendarIcon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                              Dias dos Treinos
+                            </span>
+                            <span className="font-bold text-white truncate block">
+                              {formatProgramDays(prog)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                              Vigência do Programa
+                            </span>
+                            <span className="font-bold text-slate-200 truncate block">
+                              {formatVigencia(prog.startDate, prog.endDate)}
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2.5 pt-2 border-t border-slate-800/80">
-                        <span>{exCount} exercício{exCount === 1 ? '' : 's'}</span>
-                        {isExpanded ? (
-                          <span className="text-emerald-400 font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            Treino Pronto para Execução
+                      {/* Footer do Card com splits prévias e botão de ação */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-1 gap-2.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {splits.map((s, idx) => (
+                            <span
+                              key={s.id || idx}
+                              className="px-2 py-0.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-[11px] font-semibold text-slate-300"
+                            >
+                              {s.name}
+                            </span>
+                          ))}
+                          <span className="text-[11px] text-slate-400">
+                            • {totalExercises} exercício{totalExercises === 1 ? '' : 's'}
                           </span>
-                        ) : (
-                          <span className="text-slate-500">Toque para selecionar e expandir</span>
-                        )}
+                        </div>
+
+                        <div className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 group-hover:from-emerald-500 group-hover:to-teal-500 text-white font-bold text-xs shadow-md shrink-0 transition">
+                          <span>Ver Treinos deste Programa</span>
+                          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* IF NO WORKOUT IS AVAILABLE FOR SELECTED STUDENT */}
-      {!session ? (
-        <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4 my-4">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
-            <Dumbbell className="w-7 h-7" />
-          </div>
-
-          <div className="space-y-1">
-            <h3 className="text-lg font-black text-white">
-              Nenhum Treino em Execução para {selectedClient?.name || 'este Aluno'}
-            </h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Prescreva um programa personalizado na aba &ldquo;Criar Treino&rdquo; ou inicie com um protocolo rápido de adaptação muscular com 1 toque.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <button
-              onClick={handleCreateQuickStarterWorkout}
-              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Gerar Treino de Adaptação Imediato</span>
-            </button>
-
-            {onNavigateToCreateWorkout && (
-              <button
-                onClick={() => onNavigateToCreateWorkout(selectedClientId)}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2"
-              >
-                <FilePlus className="w-4 h-4 text-cyan-400" />
-                <span>Montar Ficha Completa na Seção &ldquo;Criar Treino&rdquo;</span>
-              </button>
             )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* SEÇÃO DO TREINO A SER REALIZADO (COM EFEITO DE EXPANSÃO / ANIMAÇÃO) */}
-          <AnimatePresence mode="wait">
-            {isWorkoutExpanded ? (
-              <motion.div
-                key={`${session.programId}-${session.programName}`}
-                initial={{ opacity: 0, height: 0, y: -8 }}
-                animate={{ opacity: 1, height: 'auto', y: 0 }}
-                exit={{ opacity: 0, height: 0, y: -8 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="space-y-4 overflow-hidden"
-              >
-                {/* Header com indicador de expansão do treino ativo */}
-                <div className="flex items-center justify-between px-2 pt-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                    <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider">
-                      Treino Expandido: {session.programName}
-                    </span>
-                    {session.isStarted ? (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        Em Execução
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-[10px] font-bold text-cyan-400">
-                        Pronto para Iniciar
-                      </span>
-                    )}
-                  </div>
+          </motion.div>
+        )}
 
-                  <button
-                    type="button"
-                    onClick={() => setIsWorkoutExpanded(false)}
-                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1 active:scale-95 transition bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800"
-                    title="Recolher visualização do treino"
-                  >
-                    <ChevronUp className="w-3.5 h-3.5" />
-                    <span>Recolher</span>
-                  </button>
+        {/* ETAPA 2: SELEÇÃO DO TREINO A SER EXECUTADO */}
+        {currentStep === 'selecao-treino' && (
+          <motion.div
+            key="step-selecao-treino"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {/* Top Bar com Botão Voltar aos Programas */}
+            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+              <button
+                type="button"
+                onClick={() => setCurrentStep('programas')}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4 text-emerald-400" />
+                <span>Voltar aos Programas</span>
+              </button>
+
+              <div className="text-right min-w-0">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block truncate">
+                  Aluno: {selectedClient?.name}
+                </span>
+                <span className="text-xs sm:text-sm font-black text-white block truncate">
+                  {selectedProgram?.name || 'Programa de Treino'}
+                </span>
+              </div>
+            </div>
+
+            {/* Card Resumo do Programa Selecionado */}
+            {selectedProgram && (
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-slate-300">
+                      Objetivo:{' '}
+                      <strong className="text-white">
+                        {selectedProgram.goal || 'Hipertrofia e Condicionamento'}
+                      </strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      Vigência:{' '}
+                      <strong className="text-slate-200">
+                        {formatVigencia(selectedProgram.startDate, selectedProgram.endDate)}
+                      </strong>
+                    </span>
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {/* Título da Seleção do Treino */}
+            <div className="px-1 space-y-0.5">
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-cyan-400" />
+                <span>Qual treino será executado hoje?</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Selecione a divisão/split para abrir o treino pronto com o cronômetro aguardando o início.
+              </p>
+            </div>
+
+            {/* Lista de Splits / Treinos Disponíveis */}
+            {(() => {
+              if (!selectedProgram) {
+                return (
+                  <div className="p-6 text-center rounded-2xl bg-slate-900 border border-slate-800">
+                    <p className="text-xs text-slate-400">Nenhum programa selecionado.</p>
+                  </div>
+                );
+              }
+
+              const splitsToDisplay: WorkoutSplit[] =
+                selectedProgram.splits && selectedProgram.splits.length > 0
+                  ? selectedProgram.splits
+                  : [
+                      {
+                        id: selectedProgram.id,
+                        name: selectedProgram.name,
+                        weekDays: selectedProgram.weekDays || [],
+                        exercises: selectedProgram.exercises || [],
+                      },
+                    ];
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {splitsToDisplay.map((split) => {
+                    const splitDays = (split.weekDays || [])
+                      .map((d) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d])
+                      .join(', ');
+                    const exCount = split.exercises?.length || 0;
+
+                    return (
+                      <div
+                        key={split.id}
+                        onClick={() =>
+                          handleStartSplitExecution(selectedProgram, split as WorkoutSplit)
+                        }
+                        className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/70 shadow-lg cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                              <h4 className="text-base sm:text-lg font-black text-white group-hover:text-cyan-300 transition">
+                                {split.name}
+                              </h4>
+                            </div>
+                            <p className="text-xs text-cyan-400 font-semibold flex items-center gap-1.5">
+                              <CalendarIcon className="w-3.5 h-3.5" />
+                              <span>Dias recomendados: {splitDays || 'Dias flexíveis'}</span>
+                            </p>
+                          </div>
+
+                          <span className="px-3 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-bold text-slate-200">
+                            {exCount} exercício{exCount === 1 ? '' : 's'}
+                          </span>
+                        </div>
+
+                        {/* Preview de exercícios do split */}
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                            Exercícios previstos neste treino:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {split.exercises?.slice(0, 5).map((ex, i) => (
+                              <span
+                                key={ex.id || i}
+                                className="px-2 py-0.5 rounded-md bg-slate-900 text-[11px] text-slate-300 border border-slate-800"
+                              >
+                                {ex.name}
+                              </span>
+                            ))}
+                            {exCount > 5 && (
+                              <span className="text-[11px] text-slate-500 font-semibold self-center">
+                                +{exCount - 5} outros
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-1 gap-2">
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            Toque para carregar o treino pronto com cronômetro.
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartSplitExecution(selectedProgram, split as WorkoutSplit);
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md flex items-center justify-center gap-2 group-hover:scale-105 transition cursor-pointer"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-slate-950" />
+                            <span>Selecionar este Treino</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </motion.div>
+        )}
+
+        {/* ETAPA 3: TELA DE EXECUÇÃO PRONTA (OCULTA ATÉ ESCOLHA DO TREINO) */}
+        {currentStep === 'execucao' && (
+          <motion.div
+            key="step-execucao"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {/* Top Bar de Execução com Botão Voltar ao Topo */}
+            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+              <button
+                type="button"
+                onClick={() => setCurrentStep('selecao-treino')}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
+                title="Voltar para a seleção de treinos deste programa"
+              >
+                <ArrowLeft className="w-4 h-4 text-emerald-400" />
+                <span>Voltar aos Treinos</span>
+              </button>
+
+              <div className="text-center min-w-0 flex-1 px-2">
+                <span className="text-sm sm:text-base font-black text-white block truncate">
+                  {session ? getWorkoutDisplayName(session.programName) : 'Treino Preparado'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentStep('programas')}
+                className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700/60 active:scale-95 transition hidden sm:flex items-center gap-1.5 cursor-pointer"
+                title="Ver lista de programas do aluno"
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Programas</span>
+              </button>
+            </div>
+
+            {!session ? (
+              <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+                <p className="text-xs text-slate-400">Nenhum treino carregado na sessão.</p>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep('programas')}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs cursor-pointer"
+                >
+                  Ver Programas do Aluno
+                </button>
+              </div>
+            ) : (
+              <>
 
                 {/* Active Workout Progress Bar (Clean & Focused) */}
                 {(() => {
@@ -1295,15 +1673,23 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                   {/* Botão de Iniciar Treino ou Indicador de Tempo */}
                   {!session.isStarted ? (
-                    <button
-                      type="button"
-                      onClick={handleStartWorkout}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs shadow-md shadow-emerald-950/40 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation self-start sm:self-auto"
-                      title="Clique para iniciar o treino e começar a contagem do tempo"
-                    >
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      <span>Iniciar Treino</span>
-                    </button>
+                    <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 font-mono text-xs font-bold text-slate-400">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <span>00:00</span>
+                        <span className="text-[10px] text-slate-500 font-sans font-normal">(Aguardando)</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleStartWorkout}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+                        title="Clique para iniciar o treino e começar a contagem do tempo"
+                      >
+                        <Play className="w-4 h-4 fill-slate-950" />
+                        <span>Iniciar Treino</span>
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                       <button
@@ -1313,7 +1699,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           setSession(updated);
                           storage.saveActiveSession(updated);
                         }}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs active:scale-95 touch-manipulation"
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs active:scale-95 touch-manipulation cursor-pointer"
                         title={session.isPaused ? 'Retomar Treino' : 'Pausar Cronômetro'}
                       >
                         {session.isPaused ? (
@@ -1974,42 +2360,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               </div>
             );
           })()}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="collapsed-treino-notice"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
-              className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
-                  <Dumbbell className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-white block">
-                    Treino Recolhido: {session.programName}
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    {session.exercises.length} exercícios preparados • Toque para expandir e iniciar a execução
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsWorkoutExpanded(true)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 active:scale-95 transition"
-              >
-                <span>Expandir Treino</span>
-                <ChevronDown className="w-4 h-4" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </>
-    )}
+              </>
+            )}
+        </motion.div>
+      )}
+    </AnimatePresence>
 
       {/* WORKOUT FINISHED CELEBRATION MODAL */}
       {isFinishedModalOpen && workoutSummary && (
@@ -2068,14 +2423,69 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               )}
             </div>
 
+            {/* Confirmação de Treino Realizado na Agenda */}
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                      registerInAgendaConfirmed
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm'
+                        : 'bg-slate-800 text-slate-500 border-slate-700'
+                    }`}
+                  >
+                    <CalendarIcon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white leading-tight">
+                      Confirmação na Agenda
+                    </p>
+                    <p className="text-[11px] text-slate-400 truncate">
+                      Mudar status para <span className="text-emerald-400 font-bold">&quot;Realizado&quot;</span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setRegisterInAgendaConfirmed(!registerInAgendaConfirmed)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    registerInAgendaConfirmed ? 'bg-emerald-500' : 'bg-slate-700'
+                  }`}
+                  role="switch"
+                  aria-checked={registerInAgendaConfirmed}
+                  title="Alternar confirmação de status na agenda"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      registerInAgendaConfirmed ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {registerInAgendaConfirmed ? (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 font-semibold animate-in fade-in duration-150">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">
+                    Agenda: <strong className="text-white">{workoutSummary.clientName}</strong> em <strong className="text-white">{workoutSummary.dateFormatted}</strong> ✓
+                  </span>
+                </div>
+              ) : (
+                <div className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400">
+                  O status do compromisso não será alterado na agenda.
+                </div>
+              )}
+            </div>
+
             <button
-              onClick={() => {
-                setIsFinishedModalOpen(false);
-                if (onFinishWorkout) onFinishWorkout();
-              }}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-950/50 active:scale-95 transition"
+              type="button"
+              onClick={handleConfirmFinishWorkout}
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center justify-center gap-2"
             >
-              Concluir e Salvar no Histórico
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Concluir e Salvar no Histórico</span>
             </button>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { CalendarEvent, Client, CompletedWorkoutRecord } from '@/types';
 import {
   FileText,
   Printer,
+  Download,
   X,
   Calendar,
   Filter,
@@ -19,6 +20,8 @@ import {
   Layers,
   ChevronDown,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface AgendaReportModalProps {
   isOpen: boolean;
@@ -243,9 +246,167 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     };
   }, [filteredEvents, clients, selectedClientId, getClientValue]);
 
-  // Função para acionar a impressão/PDF nativo do navegador
-  const handlePrintPdf = () => {
-    window.print();
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Exportação direta e garantida em arquivo PDF nativo (A4 Vetorial com tabelas e resumo financeiro)
+  const handleExportPdf = () => {
+    setIsGeneratingPdf(true);
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const primaryPurple: [number, number, number] = [124, 58, 237];
+      const darkSlate: [number, number, number] = [15, 23, 42];
+      const textMuted: [number, number, number] = [100, 116, 139];
+
+      // Header Banner
+      doc.setFillColor(...primaryPurple);
+      doc.rect(0, 0, 210, 22, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(255, 255, 255);
+      doc.text('IRONCOACH - RELATÓRIO DE AULAS & FINANCEIRO', 14, 14);
+
+      // Metadata Info
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...textMuted);
+      const generatedAt = new Date().toLocaleString('pt-BR');
+      doc.text(`Gerado em: ${generatedAt}`, 14, 29);
+      doc.text(
+        `Período: ${startDate.split('-').reverse().join('/')} até ${endDate.split('-').reverse().join('/')}`,
+        14,
+        34
+      );
+
+      const alunoNome =
+        selectedClientId === 'todos'
+          ? 'Todos os Alunos'
+          : clients.find((c) => c.id === selectedClientId)?.name || 'Aluno Selecionado';
+      doc.text(`Filtro Aluno: ${alunoNome}`, 14, 39);
+
+      // Card Resumo Financeiro & Métricas
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(14, 43, 182, 32, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(...darkSlate);
+      doc.text('RESUMO GERAL DO PERÍODO', 18, 50);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(`• Total de Aulas no Período: ${financialSummary.totalAulas}`, 18, 56);
+      doc.text(`• Aulas Realizadas: ${financialSummary.realizadas}`, 18, 61);
+      doc.text(`• Reagendadas: ${financialSummary.reagendadas}   |   • Faltas: ${financialSummary.faltas}`, 18, 66);
+
+      doc.text(
+        `• Avulsas (${financialSummary.avulsasCount} realizadas): R$ ${financialSummary.avulsasTotalValue.toFixed(2)}`,
+        105,
+        56
+      );
+      doc.text(
+        `• Planos Mensais/Semanais: R$ ${(financialSummary.totalMensalValue + financialSummary.totalSemanalValue).toFixed(2)}`,
+        105,
+        61
+      );
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(5, 150, 105);
+      doc.setFontSize(9);
+      doc.text(`TOTAL FATURADO ESTIMADO: R$ ${financialSummary.totalGeral.toFixed(2)}`, 105, 68);
+
+      // Tabela de Aulas
+      const tableData = filteredEvents.map((evt) => {
+        const client = clients.find((c) => c.id === evt.clientId);
+        const workoutDetails = getWorkoutDetailsForEvent(evt);
+        const statusLabel =
+          evt.status === 'realizado'
+            ? 'Realizado'
+            : evt.status === 'reagendado'
+            ? 'Reagendado'
+            : evt.status === 'falta'
+            ? 'Falta'
+            : 'Agendado';
+
+        const clientPlan = client ? `${client.contractType || 'Avulsa'}` : 'Avulsa';
+        const clientVal = client ? `R$ ${getClientValue(client).toFixed(2)}` : 'R$ 80,00';
+
+        const workoutDesc = workoutDetails.isFromExecution
+          ? `${workoutDetails.title}\n(${workoutDetails.summary}${workoutDetails.duration ? ` • ${workoutDetails.duration}` : ''})`
+          : `${workoutDetails.title}${evt.notes ? `\nObs: ${evt.notes}` : ''}`;
+
+        return [
+          `${evt.date.split('-').reverse().join('/')}\n${evt.startTime} - ${evt.endTime}`,
+          evt.clientName || client?.name || 'Aluno',
+          statusLabel,
+          workoutDesc,
+          `${clientPlan}\n${clientVal}`,
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 79,
+        head: [['Data / Hora', 'Aluno', 'Status', 'Descrição do Treino', 'Plano & Valor']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: primaryPurple,
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        styles: {
+          fontSize: 7.5,
+          cellPadding: 2,
+          valign: 'middle',
+        },
+        columnStyles: {
+          0: { cellWidth: 26 },
+          1: { cellWidth: 32, fontStyle: 'bold' },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 72 },
+          4: { cellWidth: 30 },
+        },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 2) {
+            const val = data.cell.raw;
+            if (val === 'Realizado') {
+              data.cell.styles.textColor = [5, 150, 105];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (val === 'Reagendado') {
+              data.cell.styles.textColor = [217, 119, 6];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (val === 'Falta') {
+              data.cell.styles.textColor = [225, 29, 72];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        },
+      });
+
+      const fileName = `Relatorio_Aulas_Financeiro_${startDate}_a_${endDate}.pdf`;
+      doc.save(fileName);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Função para impressão limpa
+  const handlePrintDocument = () => {
+    try {
+      window.print();
+    } catch {
+      handleExportPdf();
+    }
   };
 
   if (!isOpen) return null;
@@ -255,7 +416,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       {/* Container Principal do Modal de Relatório */}
       <div className="w-full max-w-5xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:border-none print:bg-white print:text-black print:rounded-none">
         
-        {/* CABEÇALHO DO MODAL (Oculto em partes na impressão para exibir cabeçalho limpo de PDF) */}
+        {/* CABEÇALHO DO MODAL */}
         <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between gap-4 print:border-b-2 print:border-black print:pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg print:hidden">
@@ -282,13 +443,21 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
           <div className="flex items-center gap-2 print:hidden">
             <button
-              onClick={handlePrintPdf}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-950/50 active:scale-95 transition"
-              title="Exportar em formato PDF ou Imprimir"
+              onClick={handleExportPdf}
+              disabled={isGeneratingPdf}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50"
+              title="Baixar arquivo PDF nativo no computador ou celular"
             >
-              <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Exportar PDF / Imprimir</span>
-              <span className="sm:hidden">PDF</span>
+              <Download className="w-4 h-4" />
+              <span>{isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}</span>
+            </button>
+            <button
+              onClick={handlePrintDocument}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 active:scale-95 transition"
+              title="Imprimir relatório"
+            >
+              <Printer className="w-4 h-4 text-purple-400" />
+              <span className="hidden sm:inline">Imprimir</span>
             </button>
             <button
               onClick={onClose}
@@ -755,11 +924,20 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={handlePrintPdf}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition"
+              onClick={handlePrintDocument}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 active:scale-95 transition"
             >
-              <Printer className="w-4 h-4" />
-              <span>Gerar PDF / Imprimir</span>
+              <Printer className="w-4 h-4 text-purple-400" />
+              <span>Imprimir</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isGeneratingPdf}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar Relatório (PDF)'}</span>
             </button>
           </div>
         </div>

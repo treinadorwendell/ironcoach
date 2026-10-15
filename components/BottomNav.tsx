@@ -3,6 +3,7 @@
 import React from 'react';
 import { MainNavSection } from '@/types';
 import { Users, CalendarDays, PlusCircle, Flame } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface BottomNavProps {
   currentSection: MainNavSection;
@@ -57,43 +58,62 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           const isActive = currentSection === item.id;
 
           return (
-            <button
+            <motion.button
               key={item.id}
               onClick={() => onSelectSection(item.id)}
-              className={`relative flex flex-col items-center justify-center py-2 px-1 min-h-[60px] rounded-2xl transition-all duration-150 active:scale-95 touch-manipulation ${
+              whileTap={{ scale: 0.94 }}
+              className={`relative flex flex-col items-center justify-center py-2 px-1 min-h-[60px] rounded-2xl transition-colors touch-manipulation ${
                 isActive
-                  ? 'bg-slate-800/90 text-white shadow-inner shadow-slate-700/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                  ? 'text-white'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {/* Active Indicator bar */}
+              {/* Sliding active background for smooth fluid feeling */}
               {isActive && (
-                <span className="absolute top-1 w-8 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                <motion.div
+                  layoutId="activeBottomNavBg"
+                  transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  className="absolute inset-0 bg-slate-800/90 rounded-2xl shadow-inner shadow-slate-700/40 border border-slate-700/60"
+                />
+              )}
+
+              {/* Sliding active indicator bar */}
+              {isActive && (
+                <motion.span
+                  layoutId="activeBottomNavIndicator"
+                  transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+                  className="absolute top-1.5 w-8 h-1 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)] z-10"
+                />
               )}
 
               {/* Badge for active workout */}
               {item.badge && (
-                <span className="absolute -top-1.5 right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[9px] font-black text-slate-950 tracking-wider animate-pulse shadow-md">
+                <span className="absolute -top-1.5 right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[9px] font-black text-slate-950 tracking-wider animate-pulse shadow-md z-10">
                   AO VIVO
                 </span>
               )}
 
-              <div className="relative">
-                <Icon
-                  className={`w-6 h-6 transition-transform ${
-                    isActive ? `${item.accentColor} scale-110` : 'text-slate-400'
-                  }`}
-                />
+              <div className="relative z-10">
+                <motion.div
+                  animate={{ scale: isActive ? 1.15 : 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                >
+                  <Icon
+                    className={`w-6 h-6 transition-colors ${
+                      isActive ? item.accentColor : 'text-slate-400'
+                    }`}
+                  />
+                </motion.div>
               </div>
 
               <span
-                className={`mt-1 text-[11px] sm:text-xs font-semibold tracking-tight text-center leading-tight ${
-                  isActive ? 'text-white' : 'text-slate-400'
+                className={`relative z-10 mt-1 text-[11px] sm:text-xs font-semibold tracking-tight text-center leading-tight transition-colors ${
+                  isActive ? 'text-white font-bold' : 'text-slate-400'
                 }`}
               >
                 {item.label}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, Client, AgendaViewMode, CalendarEventStatus } from '@/types';
 import {
   Calendar as CalendarIcon,
@@ -53,6 +53,15 @@ const MONTHS_NAMES = [
   'Dezembro',
 ];
 
+// Retorna a data atual no formato YYYY-MM-DD de acordo com o fuso local
+export const getTodayDateStr = (): string => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export const AgendaSection: React.FC<AgendaSectionProps> = ({
   events,
   clients,
@@ -63,7 +72,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   onStartWorkoutForClient,
 }) => {
   const [viewMode, setViewMode] = useState<AgendaViewMode>('dia');
-  const [selectedDate, setSelectedDate] = useState<string>('2026-10-02');
+  // Sempre inicializa com o dia atual de acordo com a data de hoje
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateStr);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -79,12 +89,21 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [eventTitle, setEventTitle] = useState('');
   const [startTime, setStartTime] = useState('07:00');
   const [endTime, setEndTime] = useState('08:00');
-  const [eventDate, setEventDate] = useState('2026-10-02');
-  const [recurringDays, setRecurringDays] = useState<number[]>([1, 3, 5]); // Seg, Qua, Sex
+  const [eventDate, setEventDate] = useState<string>(getTodayDateStr);
+  const [recurringDays, setRecurringDays] = useState<number[]>([]); // Inicializado vazio para evitar duplicações automáticas
   const [eventNotes, setEventNotes] = useState('');
   const [eventStatus, setEventStatus] = useState<CalendarEventStatus>('confirmado');
   const [rescheduledDate, setRescheduledDate] = useState('');
   const [rescheduledTime, setRescheduledTime] = useState('');
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
+  // Validação de chave única (clientId + date): impede a criação de múltiplos agendamentos no mesmo dia para o mesmo aluno
+  const duplicateConflict = useMemo(() => {
+    if (!selectedClientId || !eventDate || !isModalOpen) return null;
+    return events.find(
+      (e) => e.clientId === selectedClientId && e.date === eventDate && e.id !== editingEvent?.id
+    );
+  }, [selectedClientId, eventDate, events, editingEvent, isModalOpen]);
 
   // Quick 1-tap Status Change Handler
   const handleQuickStatusChange = (event: CalendarEvent, newStatus: CalendarEventStatus) => {
@@ -107,6 +126,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setEventStatus('confirmado');
     setRescheduledDate('');
     setRescheduledTime('');
+    setDuplicateError(null);
     setIsModalOpen(true);
   };
 
@@ -122,6 +142,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setEventStatus(event.status || 'confirmado');
     setRescheduledDate(event.rescheduledDate || '');
     setRescheduledTime(event.rescheduledTime || '');
+    setDuplicateError(null);
     setIsModalOpen(true);
   };
 
@@ -135,6 +156,15 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Verificação de chave única (clientId + date)
+    if (duplicateConflict) {
+      setDuplicateError(
+        `Já existe um agendamento cadastrado para este aluno nesta data (${eventDate.split('-').reverse().join('/')}) às ${duplicateConflict.startTime}. Não é permitido duplicar agendamentos no mesmo dia.`
+      );
+      return;
+    }
+
     const client = clients.find((c) => c.id === selectedClientId);
     const clientName = client ? client.name : 'Aluno';
 
@@ -171,34 +201,78 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       };
       onAddEvent(newEvt);
     }
+    setDuplicateError(null);
     setIsModalOpen(false);
   };
 
-  // Date navigation helpers
+  // Date navigation helpers que tratam corretamente os limites de mês e ano
   const handlePrevDate = () => {
-    const d = new Date(selectedDate + 'T12:00:00');
-    if (viewMode === 'dia') d.setDate(d.getDate() - 1);
-    else if (viewMode === 'semana') d.setDate(d.getDate() - 7);
-    else if (viewMode === 'mes') d.setMonth(d.getMonth() - 1);
-    else if (viewMode === 'ano') d.setFullYear(d.getFullYear() - 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    if (viewMode === 'dia') {
+      const cur = new Date(y, m - 1, d);
+      cur.setDate(cur.getDate() - 1);
+      const newY = cur.getFullYear();
+      const newM = String(cur.getMonth() + 1).padStart(2, '0');
+      const newD = String(cur.getDate()).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-${newD}`);
+    } else if (viewMode === 'semana') {
+      const cur = new Date(y, m - 1, d);
+      cur.setDate(cur.getDate() - 7);
+      const newY = cur.getFullYear();
+      const newM = String(cur.getMonth() + 1).padStart(2, '0');
+      const newD = String(cur.getDate()).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-${newD}`);
+    } else if (viewMode === 'mes') {
+      const prevDate = new Date(y, m - 2, 1);
+      const newY = prevDate.getFullYear();
+      const newM = String(prevDate.getMonth() + 1).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-01`);
+    } else if (viewMode === 'ano') {
+      const newY = y - 1;
+      const newM = String(m).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-01`);
+    }
   };
 
   const handleNextDate = () => {
-    const d = new Date(selectedDate + 'T12:00:00');
-    if (viewMode === 'dia') d.setDate(d.getDate() + 1);
-    else if (viewMode === 'semana') d.setDate(d.getDate() + 7);
-    else if (viewMode === 'mes') d.setMonth(d.getMonth() + 1);
-    else if (viewMode === 'ano') d.setFullYear(d.getFullYear() + 1);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    if (viewMode === 'dia') {
+      const cur = new Date(y, m - 1, d);
+      cur.setDate(cur.getDate() + 1);
+      const newY = cur.getFullYear();
+      const newM = String(cur.getMonth() + 1).padStart(2, '0');
+      const newD = String(cur.getDate()).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-${newD}`);
+    } else if (viewMode === 'semana') {
+      const cur = new Date(y, m - 1, d);
+      cur.setDate(cur.getDate() + 7);
+      const newY = cur.getFullYear();
+      const newM = String(cur.getMonth() + 1).padStart(2, '0');
+      const newD = String(cur.getDate()).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-${newD}`);
+    } else if (viewMode === 'mes') {
+      const nextDate = new Date(y, m, 1);
+      const newY = nextDate.getFullYear();
+      const newM = String(nextDate.getMonth() + 1).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-01`);
+    } else if (viewMode === 'ano') {
+      const newY = y + 1;
+      const newM = String(m).padStart(2, '0');
+      setSelectedDate(`${newY}-${newM}-01`);
+    }
   };
 
   const handleToday = () => {
-    setSelectedDate('2026-10-02');
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${d}`);
   };
 
   // Format date display
-  const currentDateObj = new Date(selectedDate + 'T12:00:00');
+  const [selYear, selMonth, selDay] = selectedDate.split('-').map(Number);
+  const currentDateObj = new Date(selYear, selMonth - 1, selDay);
   const formattedDayStr = `${
     DAYS_NAMES[currentDateObj.getDay()]
   }, ${currentDateObj.getDate()} de ${MONTHS_NAMES[currentDateObj.getMonth()]} de ${currentDateObj.getFullYear()}`;
@@ -210,13 +284,110 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     return e.status === statusFilter;
   });
 
-  // Filter events for the current date (single date or matching recurring day)
+  // Filter events for the current date (single date or matching recurring day strictly if defined)
   const currentDayOfWeek = currentDateObj.getDay();
-  const dayEvents = filteredEvents.filter((e) => {
-    const isDirectDate = e.date === selectedDate;
-    const isRecurring = e.recurringDays && e.recurringDays.includes(currentDayOfWeek);
-    return isDirectDate || isRecurring;
-  });
+  const dayEvents = useMemo(() => {
+    const directEvents = filteredEvents.filter((e) => e.date === selectedDate);
+    const clientsWithDirect = new Set(directEvents.map((e) => e.clientId));
+
+    const recurringEvents = filteredEvents.filter((e) => {
+      if (e.date === selectedDate) return false;
+      const isRecurring =
+        e.recurringDays &&
+        e.recurringDays.length > 0 &&
+        e.recurringDays.includes(currentDayOfWeek);
+      return isRecurring && !clientsWithDirect.has(e.clientId);
+    });
+
+    return [...directEvents, ...recurringEvents];
+  }, [filteredEvents, selectedDate, currentDayOfWeek]);
+
+  // Cálculo dinâmico dos 7 dias da semana atual para a visualização 'semana'
+  const currentWeekDays = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const cur = new Date(y, m - 1, d);
+    const dayOfWeek = cur.getDay(); // 0 = Dom .. 6 = Sab
+    const startOfWeek = new Date(cur);
+    startOfWeek.setDate(cur.getDate() - dayOfWeek);
+
+    return Array.from({ length: 7 }).map((_, idx) => {
+      const dayDate = new Date(startOfWeek);
+      dayDate.setDate(startOfWeek.getDate() + idx);
+      const yearStr = dayDate.getFullYear();
+      const monthStr = String(dayDate.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(dayDate.getDate()).padStart(2, '0');
+      const dateKey = `${yearStr}-${monthStr}-${dayStr}`;
+
+      return {
+        idx,
+        dayName: DAYS_NAMES[idx],
+        dateStr: dateKey,
+        dayNum: dayDate.getDate(),
+        monthShort: MONTHS_NAMES[dayDate.getMonth()].slice(0, 3),
+        isToday: dateKey === selectedDate,
+      };
+    });
+  }, [selectedDate]);
+
+  // Grade dinâmica de dias do mês com cálculo preciso dos dias da semana de acordo com o mês
+  const monthData = useMemo(() => {
+    const [y, m] = selectedDate.split('-').map(Number);
+    const year = y;
+    const monthIndex = m - 1; // 0..11
+
+    const firstDayOfWeek = new Date(year, monthIndex, 1).getDay(); // 0 = Dom..6 = Sab
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, monthIndex, 0).getDate();
+
+    // Dias do mês anterior para preencher a primeira semana
+    const prevMonthCells: Array<{ dayNum: number; dateKey: string; isCurrentMonth: boolean }> = [];
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const dNum = daysInPrevMonth - i;
+      const prevDate = new Date(year, monthIndex - 1, dNum);
+      const prevY = prevDate.getFullYear();
+      const prevM = String(prevDate.getMonth() + 1).padStart(2, '0');
+      const prevD = String(dNum).padStart(2, '0');
+      prevMonthCells.push({
+        dayNum: dNum,
+        dateKey: `${prevY}-${prevM}-${prevD}`,
+        isCurrentMonth: false,
+      });
+    }
+
+    // Dias do mês atual
+    const currentMonthCells: Array<{ dayNum: number; dateKey: string; isCurrentMonth: boolean }> = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      currentMonthCells.push({
+        dayNum: d,
+        dateKey,
+        isCurrentMonth: true,
+      });
+    }
+
+    // Dias do próximo mês para completar semanas de 7 dias
+    const totalCells = prevMonthCells.length + currentMonthCells.length;
+    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    const nextMonthCells: Array<{ dayNum: number; dateKey: string; isCurrentMonth: boolean }> = [];
+    for (let d = 1; d <= remaining; d++) {
+      const nextDate = new Date(year, monthIndex + 1, d);
+      const nextY = nextDate.getFullYear();
+      const nextM = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const nextD = String(d).padStart(2, '0');
+      nextMonthCells.push({
+        dayNum: d,
+        dateKey: `${nextY}-${nextM}-${nextD}`,
+        isCurrentMonth: false,
+      });
+    }
+
+    return {
+      year,
+      monthIndex,
+      monthName: MONTHS_NAMES[monthIndex],
+      cells: [...prevMonthCells, ...currentMonthCells, ...nextMonthCells],
+    };
+  }, [selectedDate]);
 
   return (
     <div className="space-y-4 pb-24">
@@ -294,7 +465,13 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               </button>
             </div>
             <h2 className="text-sm font-bold text-white capitalize hidden sm:block">
-              {formattedDayStr}
+              {viewMode === 'mes'
+                ? `${monthData.monthName} de ${monthData.year}`
+                : viewMode === 'ano'
+                ? `Ano ${monthData.year}`
+                : viewMode === 'semana'
+                ? `Semana (${currentWeekDays[0].displayLabel || `${currentWeekDays[0].dayNum} ${currentWeekDays[0].monthShort}`} a ${currentWeekDays[6].displayLabel || `${currentWeekDays[6].dayNum} ${currentWeekDays[6].monthShort}`})`
+                : formattedDayStr}
             </h2>
           </div>
 
@@ -306,7 +483,13 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
           />
         </div>
         <h2 className="text-xs font-bold text-slate-300 capitalize sm:hidden">
-          {formattedDayStr}
+          {viewMode === 'mes'
+            ? `${monthData.monthName} de ${monthData.year}`
+            : viewMode === 'ano'
+            ? `Ano ${monthData.year}`
+            : viewMode === 'semana'
+            ? `Semana (${currentWeekDays[0].dayNum} ${currentWeekDays[0].monthShort} a ${currentWeekDays[6].dayNum} ${currentWeekDays[6].monthShort})`
+            : formattedDayStr}
         </h2>
 
         {/* Attendance Status Filter & Counters Bar */}
@@ -610,29 +793,45 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       )}
 
       {/* VIEW: SEMANA (Weekly Columns) */}
+      {/* VIEW: SEMANA (Weekly Columns com datas reais e alinhadas) */}
       {viewMode === 'semana' && (
         <div className="grid grid-cols-7 gap-1.5 overflow-x-auto pb-2">
-          {DAYS_NAMES.map((dayName, idx) => {
-            const dayEvts = filteredEvents.filter((e) => {
-              if (e.recurringDays && e.recurringDays.includes(idx)) return true;
-              const dateOfEvent = new Date(e.date + 'T12:00:00');
-              return dateOfEvent.getDay() === idx;
+          {currentWeekDays.map((day) => {
+            const dayEvts = filteredEvents.filter((e) => e.date === day.dateStr);
+            const clientsWithDirect = new Set(dayEvts.map((e) => e.clientId));
+            const recurringEvts = filteredEvents.filter((e) => {
+              if (e.date === day.dateStr) return false;
+              const isRecurring =
+                e.recurringDays &&
+                e.recurringDays.length > 0 &&
+                e.recurringDays.includes(day.idx);
+              return isRecurring && !clientsWithDirect.has(e.clientId);
             });
+            const allDayEvts = [...dayEvts, ...recurringEvts];
 
             return (
               <div
-                key={dayName}
-                className="min-w-[100px] p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 flex flex-col"
+                key={day.dateStr}
+                className={`min-w-[110px] p-2.5 rounded-xl border space-y-2 flex flex-col transition ${
+                  day.isToday
+                    ? 'bg-purple-950/25 border-purple-500/50 ring-1 ring-purple-500/40'
+                    : 'bg-slate-900 border-slate-800'
+                }`}
               >
                 <div className="text-center pb-2 border-b border-slate-800">
-                  <span className="text-xs font-bold text-white uppercase">{dayName}</span>
-                  <span className="block text-[10px] text-slate-500 font-mono mt-0.5">
-                    {dayEvts.length} aulas
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-xs font-bold text-white uppercase">{day.dayName}</span>
+                    <span className={`text-xs font-black font-mono ${day.isToday ? 'text-purple-300' : 'text-slate-300'}`}>
+                      {day.dayNum}
+                    </span>
+                  </div>
+                  <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
+                    {day.monthShort} • {allDayEvts.length} {allDayEvts.length === 1 ? 'aula' : 'aulas'}
                   </span>
                 </div>
 
                 <div className="space-y-1.5 flex-1">
-                  {dayEvts.map((evt) => {
+                  {allDayEvts.map((evt) => {
                     const isRealizado = evt.status === 'realizado';
                     const isReagendado = evt.status === 'reagendado';
                     const isFalta = evt.status === 'falta';
@@ -684,8 +883,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 </div>
 
                 <button
-                  onClick={() => openNewModal(selectedDate)}
-                  className="w-full py-1 text-[11px] text-slate-400 hover:text-white bg-slate-950 rounded-lg border border-slate-800 hover:border-slate-700"
+                  onClick={() => openNewModal(day.dateStr)}
+                  className="w-full py-1 text-[11px] text-slate-400 hover:text-white bg-slate-950 rounded-lg border border-slate-800 hover:border-slate-700 active:scale-95 transition"
                 >
                   + Add
                 </button>
@@ -695,44 +894,95 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         </div>
       )}
 
-      {/* VIEW: MÊS (Month Grid) */}
+      {/* VIEW: MÊS (Month Grid Dinâmica e Alinhada com os Dias da Semana) */}
       {viewMode === 'mes' && (
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
-          <div className="text-center font-bold text-base text-white">
-            {MONTHS_NAMES[currentDateObj.getMonth()]} {currentDateObj.getFullYear()}
+          <div className="flex items-center justify-between text-white pb-2 border-b border-slate-800">
+            <span className="font-black text-base tracking-wide">
+              {monthData.monthName} {monthData.year}
+            </span>
+            <span className="text-xs text-purple-400 font-semibold bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
+              {events.filter((e) => e.date.startsWith(`${monthData.year}-${String(monthData.monthIndex + 1).padStart(2, '0')}`)).length} agendamentos no mês
+            </span>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400">
+
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">
             {DAYS_NAMES.map((d) => (
-              <div key={d} className="py-1">
+              <div key={d} className="py-1 uppercase text-[11px] tracking-wider">
                 {d}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 31 }).map((_, i) => {
-              const dayNum = i + 1;
-              const dateKey = `2026-10-${String(dayNum).padStart(2, '0')}`;
-              const count = events.filter((e) => e.date === dateKey).length;
-              const isSelected = selectedDate === dateKey;
+          <div className="grid grid-cols-7 gap-1.5">
+            {monthData.cells.map((cell) => {
+              const dayEvts = events.filter((e) => e.date === cell.dateKey);
+              const count = dayEvts.length;
+              const isSelected = selectedDate === cell.dateKey;
+              const hasRealizado = dayEvts.some((e) => e.status === 'realizado');
+              const hasReagendado = dayEvts.some((e) => e.status === 'reagendado');
+              const hasFalta = dayEvts.some((e) => e.status === 'falta');
+              const hasAgendado = dayEvts.some((e) => !e.status || e.status === 'confirmado');
+
+              if (!cell.isCurrentMonth) {
+                return (
+                  <button
+                    key={cell.dateKey}
+                    onClick={() => {
+                      setSelectedDate(cell.dateKey);
+                      setViewMode('dia');
+                    }}
+                    className="p-1.5 rounded-xl text-center transition flex flex-col items-center justify-between min-h-[56px] bg-slate-950/20 text-slate-600 border border-slate-900/40 hover:bg-slate-900/60 hover:text-slate-400"
+                    title={`Ver dia ${cell.dayNum}`}
+                  >
+                    <span className="text-[11px] font-mono">{cell.dayNum}</span>
+                    {count > 0 && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                    )}
+                  </button>
+                );
+              }
 
               return (
                 <button
-                  key={dayNum}
+                  key={cell.dateKey}
                   onClick={() => {
-                    setSelectedDate(dateKey);
+                    setSelectedDate(cell.dateKey);
                     setViewMode('dia');
                   }}
-                  className={`p-2 rounded-xl text-center transition flex flex-col items-center justify-between min-h-[50px] ${
+                  className={`p-1.5 sm:p-2 rounded-xl text-center transition flex flex-col items-center justify-between min-h-[56px] relative group active:scale-95 ${
                     isSelected
-                      ? 'bg-purple-600 text-white font-bold ring-2 ring-purple-400'
-                      : 'bg-slate-950/60 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                      ? 'bg-purple-600 text-white font-black ring-2 ring-purple-400 shadow-lg shadow-purple-950/60'
+                      : 'bg-slate-950/70 hover:bg-slate-800 text-slate-200 border border-slate-800/90'
                   }`}
+                  title={`${cell.dayNum} de ${monthData.monthName} - ${count} aula(s)`}
                 >
-                  <span className="text-xs">{dayNum}</span>
-                  {count > 0 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  )}
+                  <div className="w-full flex items-center justify-between">
+                    <span className={`text-xs font-mono font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                      {cell.dayNum}
+                    </span>
+                    {count > 0 && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-950 text-purple-300 border border-purple-800/60'}`}>
+                        {count}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Badges de Status das aulas do dia */}
+                  <div className="flex items-center gap-1 mt-1">
+                    {hasRealizado && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Possui aula realizada" />
+                    )}
+                    {hasReagendado && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Possui aula reagendada" />
+                    )}
+                    {hasFalta && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400" title="Possui falta" />
+                    )}
+                    {hasAgendado && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" title="Possui aula agendada" />
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -740,27 +990,32 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         </div>
       )}
 
-      {/* VIEW: ANO (Annual Overview) */}
+      {/* VIEW: ANO (Annual Overview Dinâmico) */}
       {viewMode === 'ano' && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {MONTHS_NAMES.map((m, idx) => (
-            <div
-              key={m}
-              onClick={() => {
-                const newD = new Date(selectedDate);
-                newD.setMonth(idx);
-                setSelectedDate(newD.toISOString().split('T')[0]);
-                setViewMode('mes');
-              }}
-              className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-purple-500 cursor-pointer text-center transition"
-            >
-              <h4 className="text-xs font-bold text-white">{m}</h4>
-              <p className="text-[10px] text-slate-400 mt-1">2026</p>
-              <span className="mt-2 inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-purple-300 font-semibold">
-                {events.length} aulas
-              </span>
-            </div>
-          ))}
+          {MONTHS_NAMES.map((m, idx) => {
+            const yearStr = selectedDate.split('-')[0];
+            const monthPrefix = `${yearStr}-${String(idx + 1).padStart(2, '0')}`;
+            const monthEvts = events.filter((e) => e.date.startsWith(monthPrefix));
+
+            return (
+              <div
+                key={m}
+                onClick={() => {
+                  const newM = String(idx + 1).padStart(2, '0');
+                  setSelectedDate(`${yearStr}-${newM}-01`);
+                  setViewMode('mes');
+                }}
+                className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-purple-500 hover:bg-slate-850 cursor-pointer text-center transition active:scale-95"
+              >
+                <h4 className="text-xs font-bold text-white">{m}</h4>
+                <p className="text-[10px] text-slate-400 mt-1">{yearStr}</p>
+                <span className="mt-2 inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-purple-300 font-semibold border border-slate-700/60">
+                  {monthEvts.length} {monthEvts.length === 1 ? 'aula' : 'aulas'}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1038,6 +1293,42 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 </div>
               </div>
 
+              {/* Alerta de chave única duplicada (mesmo aluno no mesmo dia) */}
+              {duplicateConflict && (
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 flex items-start gap-2.5 text-xs text-amber-200 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-300">
+                        ⚠️ Aluno já possui agendamento nesta data!
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-mono font-bold">
+                        {duplicateConflict.startTime} - {duplicateConflict.endTime}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                      O aluno <strong>{duplicateConflict.clientName}</strong> já está agendado em {eventDate.split('-').reverse().join('/')} ({duplicateConflict.title}). Para evitar agendamentos duplicados, edite o compromisso existente ou escolha outra data.
+                    </p>
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(duplicateConflict)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] transition active:scale-95 shadow-sm"
+                      >
+                        Abrir e Editar Agendamento Existente
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {duplicateError && (
+                <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-500/50 flex items-center gap-2 text-xs text-rose-200 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{duplicateError}</span>
+                </div>
+              )}
+
               {/* Dias da Semana Recorrentes */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -1196,7 +1487,12 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition"
+                    disabled={Boolean(duplicateConflict)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg transition ${
+                      duplicateConflict
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50 active:scale-95'
+                    }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
