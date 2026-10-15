@@ -1,24 +1,17 @@
-# Plano de Implementação - Autenticação de Treinador & Isolamento de Dados Firebase
+# Plano de Implementação - Seleção Inicial de Aluno na Aba Execução do Treino
 
 ## 1. Visão Geral
-Criar uma tela de login dedicada antes de acessar o aplicativo, suportando:
-- Acesso com E-mail e Senha (Login e Cadastro de novos treinadores).
-- Login com Conta do Google (Firebase Authentication Popup).
-- Isolamento completo de dados por treinador (`userId`), garantindo que clientes, treinos, agenda e relatórios sejam salvos e consultados de forma segura e independente por usuário no Firestore.
+Ajustar o fluxo da aba **Execução do Treino** (`WorkoutExecutionSection.tsx`) para que, ao abrir a aba (caso não haja um treino em andamento / iniciado `session?.isStarted`), a tela inicial exiba uma lista limpa e interativa de **seleção de aluno** (com cards de alunos, busca rápida e indicação de planos/avaliações). 
+
+Apenas se houver um treino ativo e em andamento (`session?.isStarted === true`), o app irá direto para a tela de execução do treino. Ao selecionar o aluno, o sistema avança para a visualização dos programas de treino daquele aluno (Etapa 1 / Etapa 2 / Etapa 3).
 
 ## 2. Passos de Implementação
-1. **Módulo de Autenticação Firebase (`src/lib/firebaseAuth.ts` ou `lib/firebase.ts`)**:
-   - Inicializar Auth e Firestore.
-   - Prover funções `signInWithEmail`, `signUpWithEmail`, `signInWithGoogle`, `logoutUser`, e observador `onAuthStateChanged`.
-2. **Componente de Tela de Login Dedicada (`components/AuthScreen.tsx`)**:
-   - Interface moderna (compatível com desktop, mobile e tablet / frame).
-   - Abas ou alternância entre Entrar e Cadastrar.
-   - Campos de E-mail, Senha e botões de ação e Google Sign-In.
-   - Tratamento de erros amigável em português.
-3. **Isolamento de Dados no Firestore (`hooks/useFirebaseSync.ts` ou gerenciamento de estado em `page.tsx`)**:
-   - Ajustar as coleções e consultas do Firestore para filtrar por `userId` do treinador logado (ex: `users/{userId}/clients`, `users/{userId}/workouts`, etc.).
-4. **Integração com `page.tsx`**:
-   - Se o usuário não estiver autenticado (`!user`), exibir a `AuthScreen` dedicada.
-   - Se autenticado, carregar o painel do treinador com seus respectivos dados do Firestore.
-5. **Regras de Segurança (`firestore.rules`)**:
-   - Garantir regras rigorosas onde cada usuário (`request.auth.uid`) só pode ler/escrever em seus próprios subdocumentos e coleções vinculadas.
+1. **Modificação do Estado Inicial em `WorkoutExecutionSection.tsx`**:
+   - Adicionar uma etapa inicial chamada `'selecao-aluno'` quando não houver um treino ativo em andamento.
+   - Caso `session?.isStarted` seja verdadeiro, definir o passo como `'execucao'`.
+2. **Criação da Tela de Seleção de Aluno**:
+   - Exibir grid ou lista vertical de alunos cadastrados (`clients`), mostrando foto/avatar ou iniciais, nome, plano, peso e botão "Selecionar Aluno".
+   - Campo de busca rápida de alunos.
+3. **Transição de Etapas**:
+   - Ao selecionar o aluno na tela inicial, atualizar `selectedClientId` e transicionar para o passo `'programas'` (mostrando os programas de treino verticalmente daquele aluno).
+   - Botão "Voltar à Seleção de Alunos" na Etapa de Programas.

@@ -179,20 +179,21 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     [clients]
   );
 
-  type ExecutionStep = 'programas' | 'selecao-treino' | 'execucao';
+  type ExecutionStep = 'selecao-aluno' | 'programas' | 'selecao-treino' | 'execucao';
 
   // Selected student state for explicit selection
   const [selectedClientId, setSelectedClientId] = useState<string>(() => {
-    return activeWorkout?.clientId || clients[0]?.id || '';
+    return activeWorkout?.clientId || '';
   });
 
   // Sequential navigation steps:
+  // 0. 'selecao-aluno': Choose student first
   // 1. 'programas': Vertical list of training programs for the selected student
   // 2. 'selecao-treino': Choose which workout/split to execute from the chosen program
   // 3. 'execucao': Hidden execution page rendered ready with timer waiting to start
   const [currentStep, setCurrentStep] = useState<ExecutionStep>(() => {
     if (activeWorkout) return 'execucao';
-    return 'programas';
+    return 'selecao-aluno';
   });
 
   const [selectedProgram, setSelectedProgram] = useState<WorkoutProgram | null>(() => {
@@ -203,17 +204,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     return initialClientWorkouts[0] || null;
   });
 
-  // Sync state when activeWorkout prop changes without triggering effect-cascading renders
-  const [prevActiveWorkoutId, setPrevActiveWorkoutId] = useState<string | null>(
-    activeWorkout?.id || null
-  );
 
-  if (activeWorkout && activeWorkout.id !== prevActiveWorkoutId) {
-    setPrevActiveWorkoutId(activeWorkout.id);
-    setSelectedClientId(activeWorkout.clientId);
-    setSelectedProgram(activeWorkout);
-    setCurrentStep('execucao');
-  }
 
   // Helpers to format program dates (Vigência) and days of week
   const formatVigencia = (start?: string, end?: string) => {
@@ -981,7 +972,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     }));
 
     const newRecord: CompletedWorkoutRecord = {
-      id: `hist-${Date.now()}`,
+      id: `hist-${crypto.randomUUID()}`,
       clientId: session.clientId,
       clientName: session.clientName,
       programId: session.programId,
@@ -1157,6 +1148,137 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       />
 
       <AnimatePresence mode="wait">
+        {/* ETAPA 0: SELEÇÃO DE ALUNO (OBRIGATÓRIA AO ENTRAR NA ABA SE SEM TREINO ATIVO) */}
+        {currentStep === 'selecao-aluno' && (
+          <motion.div
+            key="step-selecao-aluno"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {/* Banner se houver treino ativo */}
+            {session && session.isStarted && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                    <Flame className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-emerald-300 block">
+                      Treino em Andamento: {session.programName}
+                    </span>
+                    <span className="text-[11px] text-slate-300 font-mono">
+                      Aluno: {session.clientName} • Tempo: {formatElapsed(session.elapsedSeconds)}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep('execucao')}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-slate-950" />
+                  <span>Retomar Treino Ativo</span>
+                </button>
+              </div>
+            )}
+
+            {/* Cabeçalho da Seleção de Aluno */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      Selecione um Aluno para Iniciar
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Escolha o aluno abaixo para visualizar seus programas de treino e iniciar a sessão.
+                  </p>
+                </div>
+
+                <span className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 self-start sm:self-auto">
+                  {clients.length} aluno{clients.length === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+
+            {/* Lista de Alunos */}
+            {clients.length === 0 ? (
+              <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+                <p className="text-xs text-slate-400">Nenhum aluno cadastrado no momento.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {clients.map((client) => {
+                  const clientWorkouts = workouts.filter((w) => w.clientId === client.id);
+                  const imcVal = calculateIMC(client.weight, client.height);
+
+                  return (
+                    <div
+                      key={client.id}
+                      onClick={() => handleSelectClient(client.id)}
+                      className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/70 shadow-lg cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shadow-md shrink-0">
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm sm:text-base font-black text-white group-hover:text-emerald-300 transition truncate">
+                              {client.name}
+                            </h4>
+                            <p className="text-xs text-slate-400 truncate">
+                              Plano: <strong className="text-slate-200">{client.contractType}</strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-[11px] font-bold text-emerald-400 shrink-0">
+                          {clientWorkouts.length} programa{clientWorkouts.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-[11px] text-slate-400 flex-wrap">
+                        {client.weight > 0 && (
+                          <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800">
+                            Peso: <strong className="text-white">{client.weight} kg</strong>
+                          </span>
+                        )}
+                        {client.height > 0 && (
+                          <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800">
+                            Altura: <strong className="text-white">{client.height} cm</strong>
+                          </span>
+                        )}
+                        {imcVal && (
+                          <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800">
+                            IMC: <strong className="text-emerald-400">{imcVal}</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[11px] text-slate-400 group-hover:text-emerald-300 font-semibold transition">
+                          Selecionar Aluno ➔
+                        </span>
+                        <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-slate-950 transition">
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
+
         {/* ETAPA 1: PROGRAMAS DE TREINO (LISTA VERTICAL COMPLETA) */}
         {currentStep === 'programas' && (
           <motion.div
@@ -1167,53 +1289,29 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             transition={{ duration: 0.2 }}
             className="space-y-4"
           >
-            {/* Seletor de Aluno no Topo */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-emerald-400" />
-                  <span>Selecionar Aluno para o Treino</span>
-                </label>
+            {/* Top Bar com Botão Trocar Aluno */}
+            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+              <button
+                type="button"
+                onClick={() => setCurrentStep('selecao-aluno')}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
+                title="Voltar para a seleção de alunos"
+              >
+                <ArrowLeft className="w-4 h-4 text-emerald-400" />
+                <span>Trocar Aluno</span>
+              </button>
 
-                <div className="relative">
-                  <select
-                    value={selectedClientId}
-                    onChange={(e) => handleSelectClient(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700/80 hover:border-emerald-500/60 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition-colors touch-manipulation cursor-pointer"
-                  >
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} — Plano {c.contractType} (R$ {c.contractValue})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="text-right min-w-0">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block truncate">
+                  Aluno Selecionado
+                </span>
+                <span className="text-xs sm:text-sm font-black text-white block truncate">
+                  {selectedClient?.name || 'Aluno'}
+                </span>
               </div>
-
-              {/* Informações Físicas do Aluno */}
-              {selectedClient && (
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex-wrap">
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
-                    Plano: <strong className="text-white">{selectedClient.contractType}</strong>
-                  </span>
-                  {selectedClient.weight > 0 && (
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
-                      Peso: <strong className="text-white">{selectedClient.weight} kg</strong>
-                    </span>
-                  )}
-                  {selectedClient.height > 0 && (
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
-                      Altura: <strong className="text-white">{selectedClient.height} cm</strong>
-                    </span>
-                  )}
-                  {studentIMC && (
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-medium">
-                      IMC: <strong className="text-emerald-400">{studentIMC}</strong>
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
+
+
 
             {/* Banner de Treino em Andamento se houver sessão ativa iniciada */}
             {session && session.isStarted && (

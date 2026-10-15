@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação para a tela de autenticação do treinador e isolamento de dados no Firestore por usuário.",
-  "updatedAt": "2026-10-15T19:12:19.493437521Z",
+  "summary": "Plano de implementação para o fluxo inicial de seleção de aluno na aba Execução do Treino.",
+  "updatedAt": "2026-10-15T19:51:39.091401868Z",
   "requestFeedback": true,
   "userFacing": true
 }

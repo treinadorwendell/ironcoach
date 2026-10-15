@@ -454,6 +454,7 @@ export default function Home() {
                 className="w-full"
               >
                 <WorkoutExecutionSection
+                  key={activeWorkoutForExecution?.id || 'no-workout'}
                   clients={clients}
                   workouts={workouts}
                   activeWorkout={activeWorkoutForExecution}
