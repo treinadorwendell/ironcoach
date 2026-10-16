@@ -302,19 +302,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
 
   // Modo de visualização dos exercícios durante o treino: 'pagina' (página dedicada com todas as informações) ou 'lista' (expansão em lista)
-  const [exerciseViewMode, setExerciseViewMode] = useState<'pagina' | 'lista'>('pagina');
-  // ID do exercício atualmente focado na página dedicada
-  const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
-
-  // Carrega e sincroniza a preferência salva de modo de visualização
-  useEffect(() => {
+  const [exerciseViewMode, setExerciseViewMode] = useState<'pagina' | 'lista'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ironcoach_exercise_view_mode');
       if (saved === 'pagina' || saved === 'lista') {
-        setExerciseViewMode(saved);
+        return saved;
       }
     }
-  }, []);
+    return 'pagina';
+  });
+  // ID do exercício atualmente focado na página dedicada
+  const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
 
   const handleSetExerciseViewMode = (mode: 'pagina' | 'lista') => {
     setExerciseViewMode(mode);

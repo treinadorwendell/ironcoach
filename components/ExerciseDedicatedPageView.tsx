@@ -532,8 +532,8 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                     </button>
                   </div>
 
-                  {/* Col 3: Carga (KG) com Stepper Rápido e Input */}
-                  <div className="col-span-3 flex flex-col items-center justify-center gap-1">
+                  {/* Col 3: Carga (KG) */}
+                  <div className="col-span-3 flex items-center justify-center">
                     <div className="relative flex justify-center text-center">
                       <input
                         type="text"
@@ -563,24 +563,6 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                         }}
                         className="h-[40px] w-[56px] text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
                       />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onAdjustWeight(focusedExerciseIndex, setIndex, -1)}
-                        className="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-mono font-bold text-slate-400 hover:text-white border border-slate-800"
-                        title="-1kg"
-                      >
-                        -1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onAdjustWeight(focusedExerciseIndex, setIndex, +1)}
-                        className="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-mono font-bold text-slate-400 hover:text-white border border-slate-800"
-                        title="+1kg"
-                      >
-                        +1
-                      </button>
                     </div>
                   </div>
 

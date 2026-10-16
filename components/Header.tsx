@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Dumbbell, Tablet, Maximize2, LogOut, User as UserIcon } from 'lucide-react';
+import { Dumbbell, LogOut, User as UserIcon } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { CloudSyncBadge } from './CloudSyncBadge';
@@ -35,9 +35,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="font-extrabold text-base tracking-tight text-white">
                 IronCoach
               </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                PRO PWA
-              </span>
             </div>
             <p className="text-[11px] text-slate-400">
               {activeClientName ? (
@@ -55,28 +52,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right tools: Cloud Sync, Offline badge, Frame toggle, PWA install, Logout */}
+        {/* Right tools: Cloud Sync, Offline badge, PWA install, Logout */}
         <div className="flex items-center gap-2">
           <CloudSyncBadge />
           <OfflineIndicator />
-
-          <button
-            onClick={onToggleTabletFrame}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-700/80 bg-slate-800/70 text-slate-300 hover:text-white hover:bg-slate-700 text-xs font-medium transition active:scale-95"
-            title={isTabletFramed ? 'Ver em tela cheia' : 'Simular borda de Tablet Vertical 3:4'}
-          >
-            {isTabletFramed ? (
-              <>
-                <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Cheia</span>
-              </>
-            ) : (
-              <>
-                <Tablet className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Modo Tablet</span>
-              </>
-            )}
-          </button>
 
           <PWAInstallButton />
 
