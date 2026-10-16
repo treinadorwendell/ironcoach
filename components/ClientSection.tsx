@@ -363,12 +363,32 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       {/* Client List Cards */}
       <div className="space-y-3">
         {filteredClients.length === 0 ? (
-          <div className="text-center py-12 px-4 rounded-2xl bg-slate-900/50 border border-slate-800">
-            <UserPlus className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-300">Nenhum aluno encontrado</p>
-            <p className="text-xs text-slate-500 mt-1">
-              Cadastre um novo aluno ou altere os termos da busca.
-            </p>
+          <div className="text-center py-12 px-4 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
+              <UserPlus className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-white">
+                {clients.length === 0 ? 'Nenhum aluno cadastrado ainda' : 'Nenhum aluno encontrado'}
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {clients.length === 0
+                  ? 'Comece cadastrando seu primeiro aluno para gerenciar treinos, avaliações e agendamentos.'
+                  : 'Nenhum aluno corresponde aos filtros selecionados. Tente ajustar a busca.'}
+              </p>
+            </div>
+            {clients.length === 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={openNewClientModal}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 active:scale-95 transition cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Cadastrar Primeiro Aluno</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           filteredClients.map((client) => {

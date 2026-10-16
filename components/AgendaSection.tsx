@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CalendarEvent, Client, AgendaViewMode, CalendarEventStatus } from '@/types';
 import {
   Calendar as CalendarIcon,
@@ -12,6 +12,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   User,
   Repeat,
@@ -72,6 +73,24 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   onStartWorkoutForClient,
 }) => {
   const [viewMode, setViewMode] = useState<AgendaViewMode>('dia');
+  const [isViewModeMenuOpen, setIsViewModeMenuOpen] = useState(false);
+  const viewModeMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o dropdown de seleção de visualização ao clicar fora
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (viewModeMenuRef.current && !viewModeMenuRef.current.contains(e.target as Node)) {
+        setIsViewModeMenuOpen(false);
+      }
+    };
+    if (isViewModeMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isViewModeMenuOpen]);
+
   // Sempre inicializa com o dia atual de acordo com a data de hoje
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateStr);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -395,28 +414,80 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md space-y-3">
         {/* View Switcher: Dia | Semana | Mês | Ano | Programação */}
         <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-1 overflow-x-auto p-1 bg-slate-950/80 rounded-xl border border-slate-800">
-            {(
-              [
-                { id: 'dia', label: 'Dia' },
-                { id: 'semana', label: 'Semana' },
-                { id: 'mes', label: 'Mês' },
-                { id: 'ano', label: 'Ano' },
-                { id: 'programacao', label: 'Programação' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setViewMode(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 ${
-                  viewMode === tab.id
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white'
+          {/* Botão seletor de modo de visualização (Dia, Semana, Mês, Ano, Programação) */}
+          <div ref={viewModeMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsViewModeMenuOpen((prev) => !prev)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md border transition-all active:scale-95 cursor-pointer ${
+                isViewModeMenuOpen
+                  ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
+                  : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
+              }`}
+              aria-expanded={isViewModeMenuOpen}
+              aria-haspopup="true"
+              title="Alternar modo de visualização da agenda"
+            >
+              <CalendarIcon className={`w-3.5 h-3.5 ${isViewModeMenuOpen ? 'text-white' : 'text-purple-400'}`} />
+              <span className="font-extrabold tracking-tight">
+                {viewMode === 'dia'
+                  ? 'Dia'
+                  : viewMode === 'semana'
+                  ? 'Semana'
+                  : viewMode === 'mes'
+                  ? 'Mês'
+                  : viewMode === 'ano'
+                  ? 'Ano'
+                  : 'Programação'}
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                  isViewModeMenuOpen ? 'rotate-180 text-white' : ''
                 }`}
+              />
+            </button>
+
+            {/* Menu Dropdown com as opções */}
+            {isViewModeMenuOpen && (
+              <div
+                role="menu"
+                className="absolute left-0 top-full mt-2 w-44 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
               >
-                {tab.label}
-              </button>
-            ))}
+                <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
+                  Visualização
+                </div>
+                {(
+                  [
+                    { id: 'dia', label: 'Dia' },
+                    { id: 'semana', label: 'Semana' },
+                    { id: 'mes', label: 'Mês' },
+                    { id: 'ano', label: 'Ano' },
+                    { id: 'programacao', label: 'Programação' },
+                  ] as const
+                ).map((tab) => {
+                  const isSelected = viewMode === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setViewMode(tab.id);
+                        setIsViewModeMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
+                        isSelected
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -470,7 +541,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 : viewMode === 'ano'
                 ? `Ano ${monthData.year}`
                 : viewMode === 'semana'
-                ? `Semana (${currentWeekDays[0].displayLabel || `${currentWeekDays[0].dayNum} ${currentWeekDays[0].monthShort}`} a ${currentWeekDays[6].displayLabel || `${currentWeekDays[6].dayNum} ${currentWeekDays[6].monthShort}`})`
+                ? `Semana (${currentWeekDays[0]?.dayNum} ${currentWeekDays[0]?.monthShort} a ${currentWeekDays[6]?.dayNum} ${currentWeekDays[6]?.monthShort})`
                 : formattedDayStr}
             </h2>
           </div>

@@ -27,10 +27,10 @@ import { useInactivitySync } from '@/hooks/useInactivitySync';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
-  const [currentSection, setCurrentSection] = useState<MainNavSection>('execucao');
+  const [currentSection, setCurrentSection] = useState<MainNavSection>('agenda');
   const [isTabletFramed, setIsTabletFramed] = useState(false);
 
-  // Initialize with deterministic seed data matching SSR server HTML
+  // Initialize with empty clean slate state matching SSR server HTML
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
   const [workouts, setWorkouts] = useState<WorkoutProgram[]>(INITIAL_WORKOUTS);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(INITIAL_CALENDAR);
@@ -38,7 +38,8 @@ export default function Home() {
   // Cross-navigation context
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | undefined>(undefined);
   const [activeWorkoutForExecution, setActiveWorkoutForExecution] =
-    useState<WorkoutProgram | null>(INITIAL_WORKOUTS[0]);
+    useState<WorkoutProgram | null>(null);
+  const [hasActiveRunningSession, setHasActiveRunningSession] = useState(false);
 
   // Auth Screen & User state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -69,14 +70,15 @@ export default function Home() {
 
       if (loadedWorkouts.length > 0) {
         const savedSession = storage.getActiveSession();
-        if (savedSession) {
+        if (savedSession && savedSession.isStarted) {
           const matchingWorkout = loadedWorkouts.find((w) => w.id === savedSession.programId);
           if (matchingWorkout) {
             setActiveWorkoutForExecution(matchingWorkout);
             return;
           }
         }
-        setActiveWorkoutForExecution(loadedWorkouts[0]);
+      } else {
+        setActiveWorkoutForExecution(null);
       }
     }, 0);
 
@@ -84,6 +86,8 @@ export default function Home() {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user) {
+        // Guarantee trainer always lands on Agenda after login or registration
+        setCurrentSection('agenda');
         cloudSync.subscribe(user.uid, {
           onClientsChange: (cloudClients) => {
             setClients(cloudClients);
@@ -132,6 +136,17 @@ export default function Home() {
       window.removeEventListener('ironcoach:data-synced', handleDataSynced);
       window.removeEventListener('ironcoach:calendar-updated', handleCalendarUpdated);
     };
+  }, []);
+
+  // Monitora continuamente se há sessão ativa iniciada para refletir no badge do BottomNav
+  useEffect(() => {
+    const updateActiveRunningSession = () => {
+      const sess = storage.getActiveSession();
+      setHasActiveRunningSession(Boolean(sess && sess.isStarted));
+    };
+    updateActiveRunningSession();
+    const interval = setInterval(updateActiveRunningSession, 1500);
+    return () => clearInterval(interval);
   }, []);
 
   // CLIENT HANDLERS
@@ -333,7 +348,10 @@ export default function Home() {
         <AuthScreen
           mode="fullscreen"
           isOpen={true}
-          onSuccess={(user) => setCurrentUser(user)}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setCurrentSection('agenda');
+          }}
         />
       </div>
     );
@@ -440,6 +458,7 @@ export default function Home() {
                   onSaveWorkout={handleSaveWorkout}
                   onDeleteWorkout={handleDeleteWorkout}
                   onStartExecution={handleStartExecutionFromBuilder}
+                  onNavigateToClients={() => setCurrentSection('cliente')}
                 />
               </motion.div>
             )}
@@ -460,6 +479,7 @@ export default function Home() {
                   activeWorkout={activeWorkoutForExecution}
                   calendarEvents={calendarEvents}
                   onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
+                  onNavigateToClients={() => setCurrentSection('cliente')}
                   onNavigateToCreateWorkout={(clientId) => {
                     setPreSelectedClientId(clientId);
                     setCurrentSection('criar-treino');
@@ -486,7 +506,7 @@ export default function Home() {
         <BottomNav
           currentSection={currentSection}
           onSelectSection={(sec) => setCurrentSection(sec)}
-          hasActiveSession={true}
+          hasActiveSession={hasActiveRunningSession}
         />
       </div>
     </div>

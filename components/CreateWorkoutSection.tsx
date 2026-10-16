@@ -29,6 +29,7 @@ import {
   Info,
   Calendar,
   User,
+  UserPlus,
   Clock,
   ChevronRight,
   ChevronDown,
@@ -73,6 +74,7 @@ interface CreateWorkoutSectionProps {
   onSaveWorkout: (workout: WorkoutProgram) => void;
   onDeleteWorkout?: (workoutId: string) => void;
   onStartExecution: (workout: WorkoutProgram) => void;
+  onNavigateToClients?: () => void;
 }
 
 const WEEKDAYS = [
@@ -212,6 +214,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   onSaveWorkout,
   onDeleteWorkout,
   onStartExecution,
+  onNavigateToClients,
 }) => {
   // 1. CLIENT SELECTION
   const [clientId, setClientId] = useState<string>(
@@ -2425,6 +2428,38 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       </div>
     );
   };
+
+  if (clients.length === 0) {
+    return (
+      <div className="space-y-5 pb-24">
+        <div className="p-8 sm:p-12 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4 my-4 shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+            <User className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-black text-white">
+              Nenhum aluno cadastrado para prescrever treinos
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Cada ficha de treino e periodização é vinculada diretamente a um aluno. Cadastre seu primeiro aluno para começar a prescrever.
+            </p>
+          </div>
+          {onNavigateToClients && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onNavigateToClients}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 active:scale-95 transition cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Cadastrar Primeiro Aluno</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pb-24">
