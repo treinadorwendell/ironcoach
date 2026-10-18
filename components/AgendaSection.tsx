@@ -135,6 +135,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       ...event,
       status: newStatus,
     };
+    if (newStatus !== 'reagendado') {
+      delete updated.rescheduledDate;
+      delete updated.rescheduledTime;
+    }
     onUpdateEvent(updated);
   };
 
@@ -204,9 +208,22 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         recurringDays,
         notes: eventNotes.trim(),
         status: eventStatus,
-        rescheduledDate: eventStatus === 'reagendado' ? rescheduledDate : undefined,
-        rescheduledTime: eventStatus === 'reagendado' ? rescheduledTime : undefined,
       };
+      if (eventStatus === 'reagendado') {
+        if (rescheduledDate && rescheduledDate.trim()) {
+          updated.rescheduledDate = rescheduledDate.trim();
+        } else {
+          delete updated.rescheduledDate;
+        }
+        if (rescheduledTime && rescheduledTime.trim()) {
+          updated.rescheduledTime = rescheduledTime.trim();
+        } else {
+          delete updated.rescheduledTime;
+        }
+      } else {
+        delete updated.rescheduledDate;
+        delete updated.rescheduledTime;
+      }
       onUpdateEvent(updated);
     } else {
       const newEvt: CalendarEvent = {
@@ -220,9 +237,15 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         recurringDays,
         notes: eventNotes.trim(),
         status: eventStatus,
-        rescheduledDate: eventStatus === 'reagendado' ? rescheduledDate : undefined,
-        rescheduledTime: eventStatus === 'reagendado' ? rescheduledTime : undefined,
       };
+      if (eventStatus === 'reagendado') {
+        if (rescheduledDate && rescheduledDate.trim()) {
+          newEvt.rescheduledDate = rescheduledDate.trim();
+        }
+        if (rescheduledTime && rescheduledTime.trim()) {
+          newEvt.rescheduledTime = rescheduledTime.trim();
+        }
+      }
       onAddEvent(newEvt);
     }
     setDuplicateError(null);

@@ -301,32 +301,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // Individual exercise expansion states (default: collapsed on workout selection)
   const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
 
-  // Modo de visualização dos exercícios durante o treino: 'pagina' (página dedicada com todas as informações) ou 'lista' (expansão em lista)
-  const [exerciseViewMode, setExerciseViewMode] = useState<'pagina' | 'lista'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ironcoach_exercise_view_mode');
-      if (saved === 'pagina' || saved === 'lista') {
-        return saved;
-      }
-    }
-    return 'pagina';
-  });
   // ID do exercício atualmente focado na página dedicada
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
 
-  const handleSetExerciseViewMode = (mode: 'pagina' | 'lista') => {
-    setExerciseViewMode(mode);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ironcoach_exercise_view_mode', mode);
-    }
-  };
-
   const handleSelectExercise = (exId: string) => {
-    if (exerciseViewMode === 'pagina') {
-      setFocusedExerciseId(exId);
-    } else {
-      handleToggleExerciseExpand(exId);
-    }
+    setFocusedExerciseId(exId);
   };
 
   // Active Rest Timer state
@@ -427,6 +406,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     const ex = session.exercises[exIndex];
     if (!ex) return;
 
+    if (ex.exerciseComment && ex.exerciseComment.trim()) {
+      storage.saveExerciseComment(session.clientId, ex.exerciseName, ex.exerciseComment);
+    }
+
     // Marca todas as séries como concluídas se ainda não estavam
     const updatedSets = ex.sets.map((s) => ({
       ...s,
@@ -473,8 +456,24 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     }, 3500);
   };
 
+  const handleUpdateExerciseComment = (exIndex: number, comment: string) => {
+    if (!session) return;
+    const updatedExercises = [...session.exercises];
+    updatedExercises[exIndex] = {
+      ...updatedExercises[exIndex],
+      exerciseComment: comment,
+    };
+    const updatedSession = {
+      ...session,
+      exercises: updatedExercises,
+    };
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+  };
+
   // Conclui o exercício atual, salva o snapshot e avança para o próximo exercício na página dedicada
   const handleFinishAndAdvanceExercise = (exIndex: number) => {
+    setTimerOpen(false);
     handleFinishAndCollapseExercise(exIndex);
     if (session && exIndex < session.exercises.length - 1) {
       setFocusedExerciseId(session.exercises[exIndex + 1].exerciseId);
@@ -1211,7 +1210,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     session && focusedExerciseIndex >= 0 ? session.exercises[focusedExerciseIndex] : null;
 
   return (
-    <div className={`space-y-4 ${timerOpen ? 'pb-48' : 'pb-28'}`}>
+    <div className={`space-y-4 ${timerOpen ? 'pb-64' : 'pb-36'}`}>
       {/* Rest Countdown Floating Overlay */}
       <RestCountdownTimer
         key={`${timerExerciseName}-${timerSetNumber}`}
@@ -1792,35 +1791,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             transition={{ duration: 0.2 }}
             className="space-y-4"
           >
-            {/* Top Bar de Execução com Botão Voltar ao Topo */}
-            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
-              <button
-                type="button"
-                onClick={() => setCurrentStep('selecao-treino')}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
-                title="Voltar para a seleção de treinos deste programa"
-              >
-                <ArrowLeft className="w-4 h-4 text-emerald-400" />
-                <span>Voltar aos Treinos</span>
-              </button>
-
-              <div className="text-center min-w-0 flex-1 px-2">
-                <span className="text-sm sm:text-base font-black text-white block truncate">
-                  {session ? getWorkoutDisplayName(session.programName) : 'Treino Preparado'}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setCurrentStep('programas')}
-                className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700/60 active:scale-95 transition hidden sm:flex items-center gap-1.5 cursor-pointer"
-                title="Ver lista de programas do aluno"
-              >
-                <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Programas</span>
-              </button>
-            </div>
-
             {!session ? (
               <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
                 <p className="text-xs text-slate-400">Nenhum treino carregado na sessão.</p>
@@ -1857,6 +1827,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 onFinishAndAdvance={handleFinishAndAdvanceExercise}
                 onFinishWorkout={handleFinishWorkout}
                 onCopyFirstSetWeightToAll={handleCopyFirstSetWeightToAll}
+                onUpdateExerciseComment={handleUpdateExerciseComment}
                 isSessionStarted={isSessionStarted}
                 isSessionPaused={isSessionPaused}
                 onStartWorkout={handleStartWorkout}
@@ -1957,58 +1928,19 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             );
           })()}
 
-          {/* OPÇÃO DE VISUALIZAÇÃO DA EXECUÇÃO: PÁGINA DEDICADA VS LISTA EM ACORDEÃO */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-white flex items-center gap-1.5">
-                  <LayoutList className="w-4 h-4 text-emerald-400" />
-                  <span>Opção de Visualização na Execução</span>
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  {exerciseViewMode === 'pagina' ? 'Página Dedicada Ativa' : 'Acordeão Ativo'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                {exerciseViewMode === 'pagina'
-                  ? 'Ao selecionar o exercício, uma nova página é aberta com todas as informações e controles ampliados.'
-                  : 'Os exercícios são expandidos diretamente nesta lista vertical em formato de acordeão.'}
-              </p>
-            </div>
 
-            <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 shrink-0 self-stretch sm:self-auto">
-              <button
-                type="button"
-                onClick={() => handleSetExerciseViewMode('pagina')}
-                className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  exerciseViewMode === 'pagina'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Abrir o exercício selecionado em uma página dedicada com todas as informações"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Página Dedicada</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetExerciseViewMode('lista')}
-                className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  exerciseViewMode === 'lista'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Expandir exercícios diretamente na lista em formato de acordeão"
-              >
-                <LayoutList className="w-3.5 h-3.5" />
-                <span>Lista em Acordeão</span>
-              </button>
-            </div>
-          </div>
 
           {/* HEADER DA LISTA DE EXERCÍCIOS: INDICAÇÃO E BOTÕES EXPANDIR/RECOLHER */}
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentStep('selecao-treino')}
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 active:scale-95 transition cursor-pointer"
+                title="Voltar aos Treinos"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
+              </button>
               <Dumbbell className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-black text-slate-200 uppercase tracking-wider">
                 Exercícios do Treino ({session.exercises.length})
@@ -2115,45 +2047,18 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           </span>
                         </span>
 
-                        {exerciseViewMode === 'pagina' ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFocusedExerciseId(ex.exerciseId);
-                            }}
-                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer"
-                            title="Abrir página dedicada com todas as informações deste exercício"
-                          >
-                            <span>Executar</span>
-                            <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFocusedExerciseId(ex.exerciseId);
-                              }}
-                              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 text-xs transition active:scale-95 cursor-pointer"
-                              title="Abrir este exercício em página dedicada com todas as informações"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleExerciseExpand(ex.exerciseId);
-                              }}
-                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 border border-slate-700 active:scale-95 transition shadow-sm cursor-pointer"
-                            >
-                              <span>Expandir</span>
-                              <ChevronDown className="w-4 h-4 text-cyan-400" />
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFocusedExerciseId(ex.exerciseId);
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer"
+                          title="Abrir página dedicada com todas as informações deste exercício"
+                        >
+                          <span>Executar</span>
+                          <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                        </button>
                       </div>
                     </div>
                   ) : (

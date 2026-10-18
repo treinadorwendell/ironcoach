@@ -295,11 +295,17 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     <div className="space-y-4 pb-24">
       {/* Top Banner & KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div
+          style={{ width: '346.86px', height: '119.5px' }}
+          className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md flex flex-col justify-between"
+        >
+          <span
+            style={{ width: '80.47px', height: '30px' }}
+            className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center"
+          >
             Total de Alunos
           </span>
-          <div className="flex items-baseline gap-2 mt-1">
+          <div style={{ height: '49px' }} className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-black text-white">{clients.length}</span>
             <span className="text-xs text-emerald-400 font-medium">Ativos</span>
           </div>

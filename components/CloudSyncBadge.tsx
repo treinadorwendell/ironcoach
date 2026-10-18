@@ -100,18 +100,16 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
         {user ? (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 text-xs font-semibold transition active:scale-95 shadow-sm"
-            title="Conta conectada • Sincronização em nuvem ativa"
+            style={{ width: '94.47px', height: '25px' }}
+            className="flex items-center justify-center p-0 rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition active:scale-95 shadow-sm cursor-pointer"
+            title={`${user.displayName || user.email || 'Conta conectada'} • Sincronização em nuvem ativa`}
+            aria-label="Sincronização em nuvem"
           >
-            <span className="relative flex h-2 w-2">
+            <span className="relative flex h-2 w-2 mr-1">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline font-bold">
-              {user.displayName ? user.displayName.split(' ')[0] : 'Conectado'}
-            </span>
-            <span className="sm:hidden">Nuvem</span>
+            <Cloud className="w-[18px] h-[18px] text-emerald-400" />
           </button>
         ) : (
           <button

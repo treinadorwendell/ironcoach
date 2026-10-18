@@ -3,6 +3,7 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   turbopack: {},
+  allowedDevOrigins: ['*.run.app', 'localhost:3000', 'localhost:8080'],
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -183,6 +183,7 @@ export interface ExecutionExerciseState {
   combinationGroupId?: string;
   combinationLabel?: string;
   combinationOrder?: number;
+  exerciseComment?: string;
 }
 
 export interface ActiveWorkoutSession {
@@ -296,3 +297,13 @@ export interface ExerciseFinishedSnapshot {
   sets: ExerciseFinishedSnapshotSet[];
   userId?: string;
 }
+
+export interface ExerciseCommentRecord {
+  id: string;
+  clientId: string;
+  exerciseName: string;
+  comment: string;
+  date: string; // e.g. "04/10/2026"
+  timestamp: string; // ISO
+}
+

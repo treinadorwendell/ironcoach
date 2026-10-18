@@ -28,7 +28,9 @@ import {
   Copy,
   Flame,
   Layers,
+  MessageSquare,
 } from 'lucide-react';
+import { ExerciseCommentsHistoryModal } from './ExerciseCommentsHistoryModal';
 
 interface ExerciseDedicatedPageViewProps {
   session: ActiveWorkoutSession;
@@ -55,6 +57,7 @@ interface ExerciseDedicatedPageViewProps {
   onFinishAndAdvance: (exIndex: number) => void;
   onFinishWorkout: () => void;
   onCopyFirstSetWeightToAll: (exIndex: number) => void;
+  onUpdateExerciseComment: (exIndex: number, comment: string) => void;
   isSessionStarted: boolean;
   isSessionPaused: boolean;
   onStartWorkout: () => void;
@@ -82,6 +85,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   onFinishAndAdvance,
   onFinishWorkout,
   onCopyFirstSetWeightToAll,
+  onUpdateExerciseComment,
   isSessionStarted,
   isSessionPaused,
   onStartWorkout,
@@ -89,6 +93,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   elapsedSeconds,
   formatElapsed,
 }) => {
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = React.useState(false);
   const totalExercises = session.exercises.length;
   const isFirst = focusedExerciseIndex === 0;
   const isLast = focusedExerciseIndex === totalExercises - 1;
@@ -211,49 +216,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
         </div>
       </div>
 
-      {/* 2. HORIZONTAL EXERCISE CAROUSEL / NAVIGATOR */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {session.exercises.map((item, idx) => {
-          const isCurrent = item.exerciseId === focusedExercise.exerciseId;
-          const completedInItem = item.sets.filter((s) => s.completed).length;
-          const isItemDone = item.sets.length > 0 && completedInItem === item.sets.length;
-
-          return (
-            <button
-              key={item.exerciseId}
-              type="button"
-              onClick={() => onSelectExercise(item.exerciseId)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 border transition active:scale-95 cursor-pointer ${
-                isCurrent
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 border-emerald-400 shadow-md font-black ring-2 ring-emerald-400/40'
-                  : isItemDone
-                  ? 'bg-slate-900/90 text-emerald-400 border-emerald-500/40 hover:bg-slate-800'
-                  : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-lg text-[10px] flex items-center justify-center font-black ${
-                  isCurrent
-                    ? 'bg-slate-950 text-white'
-                    : isItemDone
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-slate-800 text-slate-400'
-                }`}
-              >
-                {idx + 1}
-              </span>
-              <span className="truncate max-w-[140px] sm:max-w-[180px]">
-                {item.exerciseName}
-              </span>
-              {isItemDone && (
-                <Check className={`w-3.5 h-3.5 stroke-[3] ${isCurrent ? 'text-slate-950' : 'text-emerald-400'}`} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 3. HERO: TODAS AS INFORMAÇÕES DO EXERCÍCIO */}
+      {/* 2. HERO: TODAS AS INFORMAÇÕES DO EXERCÍCIO */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-4">
         {/* Header com Nome, Grupo Muscular, Método e Descanso */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
@@ -408,6 +371,41 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             <span>Ver Gráfico de Evolução</span>
           </button>
         </div>
+
+        {/* COMENTÁRIO INDIVIDUAL DO EXERCÍCIO & BOTÃO DE COMENTÁRIOS ANTERIORES */}
+        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+              <MessageSquare className="w-4 h-4 text-purple-400" />
+              <span>Comentário da Sessão Atual para este Exercício</span>
+            </span>
+
+            {(() => {
+              const previousComments = storage.getExerciseComments(
+                focusedExercise.exerciseName,
+                session.clientId
+              );
+              return (
+                <button
+                  type="button"
+                  onClick={() => setIsCommentsModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer self-start sm:self-auto shadow-sm"
+                  title="Abrir página com os comentários anteriores deste exercício"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Comentários Anteriores ({previousComments.length})</span>
+                </button>
+              );
+            })()}
+          </div>
+
+          <textarea
+            value={focusedExercise.exerciseComment || ''}
+            onChange={(e) => onUpdateExerciseComment(focusedExerciseIndex, e.target.value)}
+            placeholder="Ex: Aluno realizou com excelente amplitude, ajustada a pegada..."
+            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-purple-500 transition resize-none h-20"
+          />
+        </div>
       </div>
 
       {/* 4. TABELA INTERATIVA DE SÉRIES E EXECUÇÃO */}
@@ -460,9 +458,9 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                 >
                   {/* Col 1: Número da Série + Ícone de Evolução */}
                   <div className="col-span-2 flex flex-col items-center justify-center">
-                    <div className="w-full flex items-center justify-center gap-1">
+                    <div className="w-full flex items-center justify-center">
                       <span
-                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 ${
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 ${
                           set.completed
                             ? 'bg-emerald-500 text-slate-950 shadow-md'
                             : 'bg-slate-800 text-slate-200'
@@ -471,20 +469,6 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       >
                         {set.setNumber}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onOpenSeriesHistory(
-                            focusedExercise.exerciseName,
-                            set.setNumber,
-                            totalSetsCount
-                          )
-                        }
-                        className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90 cursor-pointer"
-                        title={`Ver evolução histórica da Série #${set.setNumber}`}
-                      >
-                        <TrendingUp className="w-3.5 h-3.5" />
-                      </button>
                     </div>
 
                     {set.extraVariation ? (
@@ -760,6 +744,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           <button
             type="button"
             onClick={onBackToList}
+            style={{ marginRight: '62px' }}
             className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition cursor-pointer"
           >
             Lista de Exercícios
@@ -790,6 +775,13 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           )}
         </div>
       </div>
+
+      <ExerciseCommentsHistoryModal
+        isOpen={isCommentsModalOpen}
+        onClose={() => setIsCommentsModalOpen(false)}
+        exerciseName={focusedExercise.exerciseName}
+        clientId={session.clientId}
+      />
     </motion.div>
   );
 };

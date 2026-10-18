@@ -101,6 +101,34 @@ export function handleFirestoreError(
   }
 }
 
+/**
+ * Recursively removes all `undefined` values from an object or array,
+ * because Firestore setDoc / updateDoc rejects documents with `undefined` properties.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return null as unknown as T;
+  }
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof data === 'object') {
+    if (data instanceof Date) {
+      return data as unknown as T;
+    }
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data as Record<string, any>)) {
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return data;
+}
+
 // Connectivity test
 export async function testConnection(): Promise<boolean> {
   try {
@@ -442,27 +470,39 @@ class FirestoreSyncService {
 
       localClients.forEach((client) => {
         const ref = doc(db, 'users', userId, 'clients', client.id);
-        batch.set(ref, { ...client, userId, updatedAt: new Date().toISOString() }, { merge: true });
+        batch.set(
+          ref,
+          sanitizeForFirestore({ ...client, userId, updatedAt: new Date().toISOString() }),
+          { merge: true }
+        );
       });
 
       localWorkouts.forEach((w) => {
         const ref = doc(db, 'users', userId, 'workouts', w.id);
-        batch.set(ref, { ...w, userId, updatedAt: new Date().toISOString() }, { merge: true });
+        batch.set(
+          ref,
+          sanitizeForFirestore({ ...w, userId, updatedAt: new Date().toISOString() }),
+          { merge: true }
+        );
       });
 
       localCalendar.forEach((evt) => {
         const ref = doc(db, 'users', userId, 'calendar', evt.id);
-        batch.set(ref, { ...evt, userId, updatedAt: new Date().toISOString() }, { merge: true });
+        batch.set(
+          ref,
+          sanitizeForFirestore({ ...evt, userId, updatedAt: new Date().toISOString() }),
+          { merge: true }
+        );
       });
 
       localCompleted.forEach((rec) => {
         const ref = doc(db, 'users', userId, 'completedWorkouts', rec.id);
-        batch.set(ref, { ...rec, userId }, { merge: true });
+        batch.set(ref, sanitizeForFirestore({ ...rec, userId }), { merge: true });
       });
 
       localExercises.forEach((ex) => {
         const ref = doc(db, 'users', userId, 'customExercises', ex.id);
-        batch.set(ref, { ...ex, userId }, { merge: true });
+        batch.set(ref, sanitizeForFirestore({ ...ex, userId }), { merge: true });
       });
 
       await batch.commit();
@@ -477,11 +517,14 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/clients/${client.id}`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'clients', client.id), {
-        ...client,
-        userId: this.currentUserId,
-        updatedAt: new Date().toISOString(),
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'clients', client.id),
+        sanitizeForFirestore({
+          ...client,
+          userId: this.currentUserId,
+          updatedAt: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -501,11 +544,14 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/workouts/${workout.id}`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'workouts', workout.id), {
-        ...workout,
-        userId: this.currentUserId,
-        updatedAt: new Date().toISOString(),
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'workouts', workout.id),
+        sanitizeForFirestore({
+          ...workout,
+          userId: this.currentUserId,
+          updatedAt: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -525,11 +571,14 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/calendar/${event.id}`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'calendar', event.id), {
-        ...event,
-        userId: this.currentUserId,
-        updatedAt: new Date().toISOString(),
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'calendar', event.id),
+        sanitizeForFirestore({
+          ...event,
+          userId: this.currentUserId,
+          updatedAt: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -549,10 +598,13 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/completedWorkouts/${record.id}`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'completedWorkouts', record.id), {
-        ...record,
-        userId: this.currentUserId,
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'completedWorkouts', record.id),
+        sanitizeForFirestore({
+          ...record,
+          userId: this.currentUserId,
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -572,11 +624,14 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/settings/activeSession`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'settings', 'activeSession'), {
-        session: session || null,
-        userId: this.currentUserId,
-        updatedAt: new Date().toISOString(),
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'settings', 'activeSession'),
+        sanitizeForFirestore({
+          session: session || null,
+          userId: this.currentUserId,
+          updatedAt: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -586,10 +641,13 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/customExercises/${exercise.id}`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'customExercises', exercise.id), {
-        ...exercise,
-        userId: this.currentUserId,
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'customExercises', exercise.id),
+        sanitizeForFirestore({
+          ...exercise,
+          userId: this.currentUserId,
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -609,10 +667,13 @@ class FirestoreSyncService {
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/exerciseSnapshots/${snapshot.id}`;
     try {
-      await setDoc(doc(db, 'users', this.currentUserId, 'exerciseSnapshots', snapshot.id), {
-        ...snapshot,
-        userId: this.currentUserId,
-      });
+      await setDoc(
+        doc(db, 'users', this.currentUserId, 'exerciseSnapshots', snapshot.id),
+        sanitizeForFirestore({
+          ...snapshot,
+          userId: this.currentUserId,
+        })
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }

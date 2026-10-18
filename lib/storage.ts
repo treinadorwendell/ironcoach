@@ -10,6 +10,7 @@ import {
   CompletedWorkoutRecord,
   ExecutionSet,
   ExerciseFinishedSnapshot,
+  ExerciseCommentRecord,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -22,6 +23,7 @@ const STORAGE_KEYS = {
   COMPLETED_WORKOUTS: 'ironcoach_completed_workouts_v1',
   EXERCISE_DATABASE: 'ironcoach_exercise_db_v2',
   EXERCISE_FINISHED_SNAPSHOTS: 'ironcoach_exercise_finished_snapshots_v1',
+  EXERCISE_COMMENTS: 'ironcoach_exercise_comments_v1',
 };
 
 // Clean initial state (no dummy clients, workouts, calendar events, or histories)
@@ -646,4 +648,50 @@ export const storage = {
     }
     return updated;
   },
+
+  saveExerciseComment(clientId: string, exerciseName: string, commentText: string) {
+    if (typeof window === 'undefined' || !commentText.trim()) return;
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_COMMENTS);
+      const allComments: ExerciseCommentRecord[] = data ? JSON.parse(data) : [];
+      const now = new Date();
+      const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(
+        now.getMonth() + 1
+      ).padStart(2, '0')}/${now.getFullYear()}`;
+
+      const newRecord: ExerciseCommentRecord = {
+        id: `com-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        clientId,
+        exerciseName,
+        comment: commentText.trim(),
+        date: dateStr,
+        timestamp: now.toISOString(),
+      };
+
+      allComments.push(newRecord);
+      localStorage.setItem(STORAGE_KEYS.EXERCISE_COMMENTS, JSON.stringify(allComments));
+      window.dispatchEvent(new Event('ironcoach:data-synced'));
+    } catch (e) {
+      console.error('Error saving exercise comment:', e);
+    }
+  },
+
+  getExerciseComments(exerciseName: string, clientId?: string): ExerciseCommentRecord[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_COMMENTS);
+      if (!data) return [];
+      const allComments: ExerciseCommentRecord[] = JSON.parse(data);
+      return allComments
+        .filter(
+          (c) =>
+            c.exerciseName.toLowerCase() === exerciseName.toLowerCase() &&
+            (!clientId || c.clientId === clientId)
+        )
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch {
+      return [];
+    }
+  },
 };
+

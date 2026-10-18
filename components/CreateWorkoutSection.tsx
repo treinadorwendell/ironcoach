@@ -2464,52 +2464,24 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   return (
     <div className="space-y-5 pb-24">
       {/* 1. SELEÇÃO DE ALUNO DESTACADA */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex-1 space-y-1">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-4 h-4 text-emerald-400" />
-              <span>1. Aluno Selecionado</span>
-            </label>
-            <select
-              value={clientId}
-              onChange={(e) => handleClientChange(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700 hover:border-emerald-500/50 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition touch-manipulation"
-            >
-              {clients.map((c) => {
-                const count = workouts.filter((w) => w.clientId === c.id).length;
-                return (
-                  <option key={c.id} value={c.id}>
-                    {c.name} — Plano {c.contractType} ({count} programa{count === 1 ? '' : 's'})
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {selectedClient && (
-            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-950/80 border border-slate-800">
-              <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-sm shadow-md ${
-                  selectedClient.gender === 'Feminino'
-                    ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
-                    : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
-                }`}
-              >
-                {selectedClient.name.charAt(0)}
-              </div>
-              <div className="text-xs">
-                <span className="font-bold text-white block">
-                  {selectedClient.name}
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  {selectedClient.weight}kg • {selectedClient.height}cm • {clientPrograms.length} programa(s)
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 px-1">
+        <User className="w-4 h-4 text-emerald-400" />
+        <span>1. Aluno Selecionado</span>
+      </label>
+      <select
+        value={clientId}
+        onChange={(e) => handleClientChange(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700 hover:border-emerald-500/50 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition touch-manipulation cursor-pointer"
+      >
+        {clients.map((c) => {
+          const count = workouts.filter((w) => w.clientId === c.id).length;
+          return (
+            <option key={c.id} value={c.id}>
+              {c.name} — Plano {c.contractType} ({count} programa{count === 1 ? '' : 's'})
+            </option>
+          );
+        })}
+      </select>
 
       {/* 2. PROGRAMAS DE TREINO VINCULADOS AO ALUNO */}
       <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
@@ -2940,33 +2912,25 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
             {/* EXERCISE BUILDER FOR THIS SPLIT */}
             <div className="space-y-3 pt-2">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2">
-                  <Dumbbell className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                    Exercícios de {activeSplit.name} ({activeSplit.exercises.length})
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Botões de Expandir/Recolher Todos */}
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-end gap-2 flex-wrap">
+                {/* Botões de Expandir/Recolher Todos */}
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
                     <button
                       type="button"
                       onClick={handleExpandAllExercises}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition"
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
                       title="Expandir todos os exercícios para ver e editar detalhes"
                     >
-                      Expandir Todos
+                      Expandir
                     </button>
                     <span className="text-slate-700">|</span>
                     <button
                       type="button"
                       onClick={handleCollapseAllExercises}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition"
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
                       title="Recolher todos os exercícios para visão limpa e compacta"
                     >
-                      Recolher Todos
+                      Recolher
                     </button>
                   </div>
 
@@ -2974,39 +2938,41 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   <button
                     type="button"
                     onClick={handleOpenCombineModal}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold shadow-sm active:scale-95 transition"
-                    title="Combinar 2 ou mais exercícios para serem realizados em sequência sem descanso"
+                    className="p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer"
+                    title="Combinar Exercícios (Bi-Set / Tri-Set)"
+                    aria-label="Combinar Exercícios (Bi-Set / Tri-Set)"
                   >
-                    <Link2 className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Combinar Exercícios (Bi-Set / Tri-Set)</span>
+                    <Link2 className="w-4 h-4 text-purple-400" />
                   </button>
 
+                  {/* Botão Acompanhar Alterações */}
                   <button
                     type="button"
                     onClick={() => {
                       setIsChangesDrawerOpen(true);
                       setChangesDrawerTab('log');
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 text-cyan-200 border border-cyan-500/40 text-xs font-bold shadow-sm active:scale-95 transition"
-                    title="Acompanhar todas as alterações feitas no treino em painel lateral direito"
+                    className="relative p-2 rounded-xl bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 text-cyan-200 border border-cyan-500/40 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer"
+                    title="Acompanhar Alterações"
+                    aria-label="Acompanhar Alterações"
                   >
-                    <History className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Acompanhar Alterações</span>
+                    <History className="w-4 h-4 text-cyan-400" />
                     {changesLog.length > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/30 text-cyan-200 text-[10px] font-mono font-black border border-cyan-400/40 animate-pulse">
+                      <span className="absolute -top-1 -right-1 px-1 min-w-[16px] h-4 rounded-full bg-cyan-500 text-slate-950 text-[9px] font-mono font-black flex items-center justify-center shadow-sm">
                         {changesLog.length}
                       </span>
                     )}
                   </button>
 
+                  {/* Botão Banco de Exercícios */}
                   <button
                     type="button"
                     onClick={() => openExerciseDbModal(null)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
-                    title="Acessar catálogo completo de exercícios e cadastrar novos"
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer"
+                    title={`Banco de Exercícios (${exerciseDatabase.length})`}
+                    aria-label={`Banco de Exercícios (${exerciseDatabase.length})`}
                   >
-                    <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Banco de Exercícios ({exerciseDatabase.length})</span>
+                    <BookOpen className="w-4 h-4 text-purple-400" />
                   </button>
 
                   {/* Botão Mover / Reordenar Ordem */}
@@ -3024,18 +2990,17 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                         setDraggingIndex(0);
                       }
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-sm active:scale-95 transition ${
+                    className={`p-2 rounded-xl border shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer ${
                       isReorderMode
                         ? 'bg-cyan-400 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/60 font-black shadow-lg shadow-cyan-500/20'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                     }`}
-                    title="Mover e trocar a ordem dos exercícios da divisão a qualquer momento"
+                    title={isReorderMode ? 'Concluir Ordem' : 'Mover / Reordenar'}
+                    aria-label={isReorderMode ? 'Concluir Ordem' : 'Mover / Reordenar'}
                   >
-                    <ArrowUpDown className={`w-3.5 h-3.5 ${isReorderMode ? 'text-slate-950 font-black' : 'text-cyan-400'}`} />
-                    <span>{isReorderMode ? 'Concluir Ordem' : 'Mover / Reordenar'}</span>
+                    <ArrowUpDown className={`w-4 h-4 ${isReorderMode ? 'text-slate-950 font-black' : 'text-cyan-400'}`} />
                   </button>
                 </div>
-              </div>
 
               {/* LIVE SÉRIES POR GRUPAMENTO MUSCULAR SUMMARY */}
               <div className="p-3.5 rounded-2xl bg-slate-950/95 border border-slate-800 space-y-2">
