@@ -33,6 +33,7 @@ interface AgendaSectionProps {
   clients: Client[];
   completedWorkouts?: CompletedWorkoutRecord[];
   onAddEvent: (event: CalendarEvent) => void;
+  onAddEvents?: (events: CalendarEvent[]) => void;
   onUpdateEvent: (event: CalendarEvent) => void;
   onDeleteEvent: (eventId: string) => void;
   onStartWorkoutForClient: (client: Client) => void;
@@ -68,6 +69,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   clients,
   completedWorkouts,
   onAddEvent,
+  onAddEvents,
   onUpdateEvent,
   onDeleteEvent,
   onStartWorkoutForClient,
@@ -151,7 +153,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     );
   }, [selectedClientId, eventDate, events, editingEvent, isModalOpen]);
 
-  // Quick 1-tap Status Change Handler com suporte a escopo de recorrência
+  // Quick 1-tap Status Change Handler: altera diretamente apenas o status do dia selecionado
   const handleQuickStatusChange = (
     event: CalendarEvent,
     newStatus: CalendarEventStatus,
@@ -159,13 +161,41 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   ) => {
     const effectiveDate = targetDate || selectedDate || event.date;
 
-    // Se o evento é recorrente (tem dias da semana configurados), pergunta o escopo
+    // Compatibilidade com agendamentos legados que ainda possuam recurringDays compartilhado:
+    // desmembra automaticamente a data selecionada sem alterar os demais dias da semana
     if (event.recurringDays && event.recurringDays.length > 0) {
-      setRecurringScopePrompt({
-        event,
-        targetDate: effectiveDate,
-        newStatus,
-      });
+      const individualEvent: CalendarEvent = {
+        id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        clientId: event.clientId,
+        clientName: event.clientName,
+        title: event.title,
+        date: effectiveDate,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        recurringDays: [],
+        recurringEndDate: event.recurringEndDate,
+        recurringParentId: event.id,
+        status: newStatus,
+        notes: event.notes || '',
+      };
+      if (newStatus === 'reagendado') {
+        if (event.rescheduledDate) individualEvent.rescheduledDate = event.rescheduledDate;
+        if (event.rescheduledTime) individualEvent.rescheduledTime = event.rescheduledTime;
+      }
+
+      const updatedExceptions = Array.from(
+        new Set([...(event.recurringExceptions || []), effectiveDate])
+      );
+      const updatedParent: CalendarEvent = {
+        ...event,
+        status: 'confirmado',
+        recurringExceptions: updatedExceptions,
+      };
+      delete updatedParent.rescheduledDate;
+      delete updatedParent.rescheduledTime;
+
+      onUpdateEvent(updatedParent);
+      onAddEvent(individualEvent);
       return;
     }
 
@@ -308,7 +338,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Verificação de data limite obrigatória para agendamentos recorrentes
+    // Gera todas as datas correspondentes aos dias da semana escolhidos até a data limite
+    let generatedDates: string[] = [];
     if (recurringDays.length > 0) {
       if (!recurringEndDate || !recurringEndDate.trim()) {
         setDuplicateError('Por favor, informe no campo de calendário até qual data a recorrência ficará ativa.');
@@ -318,10 +349,33 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         setDuplicateError('A data limite da recorrência não pode ser anterior à data de início do agendamento.');
         return;
       }
+
+      const [sy, sm, sd] = eventDate.split('-').map(Number);
+      const [ey, em, ed] = recurringEndDate.split('-').map(Number);
+      const cur = new Date(sy, sm - 1, sd);
+      const end = new Date(ey, em - 1, ed);
+      let safety = 0;
+      while (cur <= end && safety < 370) {
+        if (recurringDays.includes(cur.getDay())) {
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, '0');
+          const d = String(cur.getDate()).padStart(2, '0');
+          generatedDates.push(`${y}-${m}-${d}`);
+        }
+        cur.setDate(cur.getDate() + 1);
+        safety++;
+      }
+
+      if (generatedDates.length === 0) {
+        setDuplicateError(
+          'Nenhum dos dias da semana selecionados ocorre entre a data inicial e a data limite informada.'
+        );
+        return;
+      }
     }
 
-    // Verificação de chave única (clientId + date)
-    if (duplicateConflict) {
+    // Verificação de chave única (clientId + date) para agendamento único
+    if (recurringDays.length === 0 && duplicateConflict) {
       setDuplicateError(
         `Já existe um agendamento cadastrado para este aluno nesta data (${eventDate.split('-').reverse().join('/')}) às ${duplicateConflict.startTime}. Não é permitido duplicar agendamentos no mesmo dia.`
       );
@@ -330,29 +384,150 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
     const client = clients.find((c) => c.id === selectedClientId);
     const clientName = client ? client.name : 'Aluno';
+    const cleanTitle = eventTitle.trim() || `Treino com ${clientName}`;
+    const cleanNotes = eventNotes.trim();
 
-    if (editingEvent) {
-      const isRecurring = editingEvent.recurringDays && editingEvent.recurringDays.length > 0;
+    // Caso o usuário tenha selecionado dias de recorrência, gera agendamentos independentes para cada dia até a data limite
+    if (recurringDays.length > 0 && generatedDates.length > 0) {
+      const seriesId = editingEvent?.recurringParentId || editingEvent?.id || `series-${Date.now()}`;
+      const baseTs = Date.now();
 
-      // Se for recorrente e estiver sendo editado, pergunta se o escopo é só para este dia ou todos
-      if (isRecurring) {
-        setRecurringScopePrompt({
-          event: editingEvent,
-          targetDate: eventDate || selectedDate,
-          isFromFormModal: true,
-          formData: {
+      if (editingEvent) {
+        const [firstDate, ...restDates] = generatedDates;
+        const updatedFirst: CalendarEvent = {
+          ...editingEvent,
+          clientId: selectedClientId,
+          clientName,
+          title: cleanTitle,
+          date: firstDate,
+          startTime,
+          endTime,
+          recurringDays: [],
+          recurringExceptions: [],
+          recurringEndDate,
+          recurringParentId: seriesId,
+          notes: cleanNotes,
+          status: firstDate === eventDate ? eventStatus : 'confirmado',
+        };
+        if (updatedFirst.status === 'reagendado') {
+          if (rescheduledDate && rescheduledDate.trim()) {
+            updatedFirst.rescheduledDate = rescheduledDate.trim();
+          } else {
+            delete updatedFirst.rescheduledDate;
+          }
+          if (rescheduledTime && rescheduledTime.trim()) {
+            updatedFirst.rescheduledTime = rescheduledTime.trim();
+          } else {
+            delete updatedFirst.rescheduledTime;
+          }
+        } else {
+          delete updatedFirst.rescheduledDate;
+          delete updatedFirst.rescheduledTime;
+        }
+        onUpdateEvent(updatedFirst);
+
+        const additionalEvents: CalendarEvent[] = restDates.map((dStr, idx) => ({
+          id: `evt-${baseTs}-${idx + 1}-${Math.random().toString(36).substring(2, 6)}`,
+          clientId: selectedClientId,
+          clientName,
+          title: cleanTitle,
+          date: dStr,
+          startTime,
+          endTime,
+          recurringDays: [],
+          recurringExceptions: [],
+          recurringEndDate,
+          recurringParentId: seriesId,
+          notes: cleanNotes,
+          status: 'confirmado',
+        }));
+
+        if (additionalEvents.length > 0) {
+          if (onAddEvents) {
+            onAddEvents(additionalEvents);
+          } else {
+            additionalEvents.forEach((ev) => onAddEvent(ev));
+          }
+        }
+      } else {
+        const independentSeries: CalendarEvent[] = generatedDates.map((dStr, idx) => {
+          const ev: CalendarEvent = {
+            id: `evt-${baseTs}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
             clientId: selectedClientId,
             clientName,
-            title: eventTitle.trim() || `Treino com ${clientName}`,
+            title: cleanTitle,
+            date: dStr,
             startTime,
             endTime,
-            notes: eventNotes.trim(),
-            status: eventStatus,
-            recurringEndDate: recurringDays.length > 0 ? recurringEndDate : undefined,
-            rescheduledDate: eventStatus === 'reagendado' && rescheduledDate ? rescheduledDate.trim() : undefined,
-            rescheduledTime: eventStatus === 'reagendado' && rescheduledTime ? rescheduledTime.trim() : undefined,
-          },
+            recurringDays: [],
+            recurringExceptions: [],
+            recurringEndDate,
+            recurringParentId: seriesId,
+            notes: cleanNotes,
+            status: idx === 0 && dStr === eventDate ? eventStatus : 'confirmado',
+          };
+          if (ev.status === 'reagendado') {
+            if (rescheduledDate && rescheduledDate.trim()) {
+              ev.rescheduledDate = rescheduledDate.trim();
+            }
+            if (rescheduledTime && rescheduledTime.trim()) {
+              ev.rescheduledTime = rescheduledTime.trim();
+            }
+          }
+          return ev;
         });
+
+        if (onAddEvents) {
+          onAddEvents(independentSeries);
+        } else {
+          independentSeries.forEach((ev) => onAddEvent(ev));
+        }
+      }
+
+      setDuplicateError(null);
+      setIsModalOpen(false);
+      return;
+    }
+
+    if (editingEvent) {
+      // Se era um evento legado com recurringDays ainda preenchido e o usuário salvou a edição de um dia específico
+      if (editingEvent.recurringDays && editingEvent.recurringDays.length > 0) {
+        const targetDate = eventDate || selectedDate;
+        const individualEvent: CalendarEvent = {
+          id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          clientId: selectedClientId,
+          clientName,
+          title: cleanTitle,
+          date: targetDate,
+          startTime,
+          endTime,
+          recurringDays: [],
+          recurringEndDate: editingEvent.recurringEndDate,
+          recurringParentId: editingEvent.id,
+          notes: cleanNotes,
+          status: eventStatus,
+        };
+        if (eventStatus === 'reagendado') {
+          if (rescheduledDate && rescheduledDate.trim()) {
+            individualEvent.rescheduledDate = rescheduledDate.trim();
+          }
+          if (rescheduledTime && rescheduledTime.trim()) {
+            individualEvent.rescheduledTime = rescheduledTime.trim();
+          }
+        }
+        const updatedExceptions = Array.from(
+          new Set([...(editingEvent.recurringExceptions || []), targetDate])
+        );
+        const updatedParent: CalendarEvent = {
+          ...editingEvent,
+          status: 'confirmado',
+          recurringExceptions: updatedExceptions,
+        };
+        delete updatedParent.rescheduledDate;
+        delete updatedParent.rescheduledTime;
+
+        onUpdateEvent(updatedParent);
+        onAddEvent(individualEvent);
         setDuplicateError(null);
         setIsModalOpen(false);
         return;
@@ -362,13 +537,12 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         ...editingEvent,
         clientId: selectedClientId,
         clientName,
-        title: eventTitle.trim() || `Treino com ${clientName}`,
+        title: cleanTitle,
         date: eventDate,
         startTime,
         endTime,
-        recurringDays,
-        recurringEndDate: recurringDays.length > 0 ? recurringEndDate : undefined,
-        notes: eventNotes.trim(),
+        recurringDays: [],
+        notes: cleanNotes,
         status: eventStatus,
       };
       if (eventStatus === 'reagendado') {
@@ -392,13 +566,12 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         id: `evt-${Date.now()}`,
         clientId: selectedClientId,
         clientName,
-        title: eventTitle.trim() || `Treino com ${clientName}`,
+        title: cleanTitle,
         date: eventDate,
         startTime,
         endTime,
-        recurringDays,
-        recurringEndDate: recurringDays.length > 0 ? recurringEndDate : undefined,
-        notes: eventNotes.trim(),
+        recurringDays: [],
+        notes: cleanNotes,
         status: eventStatus,
       };
       if (eventStatus === 'reagendado') {
@@ -497,7 +670,11 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   // Filter events for the current date (single date or matching recurring day strictly if defined)
   const currentDayOfWeek = currentDateObj.getDay();
   const dayEvents = useMemo(() => {
-    const directEvents = filteredEvents.filter((e) => e.date === selectedDate);
+    const directEvents = filteredEvents.filter(
+      (e) =>
+        e.date === selectedDate &&
+        !(e.recurringDays && e.recurringDays.length > 0 && e.recurringExceptions?.includes(selectedDate))
+    );
     const clientsWithDirect = new Set(directEvents.map((e) => e.clientId));
 
     const recurringEvents = filteredEvents.filter((e) => {
@@ -991,7 +1168,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                         </span>
                                       )}
 
-                                      {evt.recurringDays && evt.recurringDays.length > 0 && (
+                                      {(evt.recurringParentId || (evt.recurringDays && evt.recurringDays.length > 0)) && (
                                         <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                                           <Repeat className="w-2.5 h-2.5" />
                                           Recorrente{evt.recurringEndDate ? ` (até ${evt.recurringEndDate.split('-').reverse().join('/')})` : ''}
@@ -1133,7 +1310,11 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       {viewMode === 'semana' && (
         <div className="grid grid-cols-7 gap-1.5 overflow-x-auto pb-2">
           {currentWeekDays.map((day) => {
-            const dayEvts = filteredEvents.filter((e) => e.date === day.dateStr);
+            const dayEvts = filteredEvents.filter(
+              (e) =>
+                e.date === day.dateStr &&
+                !(e.recurringDays && e.recurringDays.length > 0 && e.recurringExceptions?.includes(day.dateStr))
+            );
             const clientsWithDirect = new Set(dayEvts.map((e) => e.clientId));
             const recurringEvts = filteredEvents.filter((e) => {
               if (e.date === day.dateStr) return false;
@@ -1255,7 +1436,11 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
           <div className="grid grid-cols-7 gap-1.5">
             {monthData.cells.map((cell) => {
-              const directEvts = events.filter((e) => e.date === cell.dateKey);
+              const directEvts = events.filter(
+                (e) =>
+                  e.date === cell.dateKey &&
+                  !(e.recurringDays && e.recurringDays.length > 0 && e.recurringExceptions?.includes(cell.dateKey))
+              );
               const clientsWithDirect = new Set(directEvts.map((e) => e.clientId));
               const [cy, cm, cd] = cell.dateKey.split('-').map(Number);
               const cellDayIdx = new Date(cy, cm - 1, cd).getDay();
@@ -1442,7 +1627,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                             Agendado
                           </span>
                         )}
-                        {evt.recurringDays && evt.recurringDays.length > 0 && (
+                        {(evt.recurringParentId || (evt.recurringDays && evt.recurringDays.length > 0)) && (
                           <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                             <Repeat className="w-2.5 h-2.5" />
                             Recorrente{evt.recurringEndDate ? ` (até ${evt.recurringEndDate.split('-').reverse().join('/')})` : ''}

@@ -1,56 +1,44 @@
-# Plano de Implementação: Data Limite Obrigatória para Agendamentos Recorrentes
+# Plano de Implementação: Correção Definitiva de Status e Recorrência na Agenda
 
-## 1. Visão Geral
-Adicionar o campo de **Data Limite da Recorrência** ao agendar um novo horário ou editar um horário existente quando dias da semana forem selecionados:
-- **Campo de calendário específico**: Permite ao treinador definir a data exata de término do contrato/pacote ou ciclo de treinos recorrentes.
-- **Obrigatoriedade estrita**: Caso o usuário selecione um ou mais dias de repetição na semana, a data limite se torna obrigatória para salvar o agendamento.
-- **Cálculo de Expiração na Agenda**: O evento recorrente deixará de ser gerado e exibido após a data limite selecionada em todas as visualizações (Dia, Semana, Mês, Ano e Programação).
-- **Indicador Visual**: Nos cards de aula recorrente, exibir a data de vigência final (ex.: `Recorrente até 20/12/2026`).
+## 1. Causa Raiz Identificada
+Atualmente, quando um agendamento com recorrência é criado, o sistema salvava apenas **um único objeto `CalendarEvent`** compartilhado entre todos os dias da semana selecionados. Além disso:
+- Em `app/page.tsx`, a função `handleAddCalendarEvent` procurava por `(e.clientId === newEvent.clientId && e.date === newEvent.date)` e mesclava o novo evento com o evento pai (`{ ...updated[existingIndex], ...newEvent }`), sobrescrevendo o `status` do evento pai quando a alteração ocorria na data inicial ou propagando o mesmo status para todas as datas da recorrência.
+- Nos filtros de visualização (`dayEvents`, `semana`, `mes`), todas as datas liam o `e.status` do mesmo registro pai.
 
 ---
 
-## 2. Modificações Propostas
+## 2. Solução Arquitetural (100% Independente por Dia)
 
-### A. Tipagem (`types/index.ts`)
-- Adicionar a propriedade opcional `recurringEndDate?: string; // YYYY-MM-DD até qual data a recorrência fica ativa` na interface `CalendarEvent`.
+### A. Geração de Agendamentos Independentes até a Data Limite (`components/AgendaSection.tsx` & `app/page.tsx`)
+1. **Expansão Real de Datas no Momento da Criação**:
+   - Ao criar um agendamento com dias da semana selecionados (`recurringDays.length > 0`) e data limite (`recurringEndDate`):
+   - O sistema calculará todas as datas correspondentes aos dias da semana escolhidos no intervalo entre a **Data de Início (`eventDate`)** e a **Data Limite (`recurringEndDate`)**.
+   - Para cada data encontrada no período, será criado um registro `CalendarEvent` **individual e independente** no banco de dados / LocalStorage / Firebase, cada um com seu próprio `id` único e sua própria propriedade `date: YYYY-MM-DD`.
+   - Dessa forma, cada aula da semana existe como um compromisso real e autônomo na agenda e nos relatórios financeiros.
 
-### B. Interface do Formulário de Agendamento (`components/AgendaSection.tsx`)
-1. **Estado do Formulário**:
-   - Adicionar estado `recurringEndDate`:
-     - Inicializado vazio em `openNewModal`.
-     - Carregado com `event.recurringEndDate || ''` em `openEditModal`.
-2. **Exibição Condicional do Campo**:
-   - Assim que `recurringDays.length > 0` (pelo menos 1 dia da semana selecionado), exibir o bloco:
-     - Rótulo: **"Até qual data a recorrência fica ativa? *"** com indicador visual de obrigatoriedade.
-     - Campo `<input type="date" required min={eventDate} value={recurringEndDate} ... />`.
-     - Mensagem informativa dinâmica indicando o período de validade (ex.: `De 19/10/2026 até 19/11/2026`).
-3. **Validação ao Salvar (`handleSubmit`)**:
-   - Se `recurringDays.length > 0`:
-     - Verificar se `recurringEndDate` está preenchido. Se não estiver: exibir aviso `Por favor, informe até qual data a recorrência ficará ativa.`
-     - Verificar se `recurringEndDate >= eventDate`. Se for menor: exibir aviso `A data limite não pode ser anterior à data de início do agendamento.`
-4. **Propagação no Diálogo de Escopo**:
-   - Incluir `recurringEndDate` nos dados passados ao `recurringScopePrompt` para que alterações em "Todos os eventos da recorrência" preservem ou atualizem a data final.
+### B. Alteração Direta de Status Apenas do Dia Selecionado (`components/AgendaSection.tsx`)
+1. **Mudança Instantânea em 1 Toque (`handleQuickStatusChange`)**:
+   - Ao clicar nos botões de status (**Realizado**, **Reagendado**, **Falta** ou **Agendado**) ou ao editar um agendamento no modal:
+   - O sistema aplicará a mudança de status **diretamente e exclusivamente ao agendamento daquele dia**, sem exibir modal intermediário e sem afetar nenhum outro dia da semana.
+2. **Compatibilidade Automática com Agendamentos Recorrentes Antigos (Legados)**:
+   - Caso já exista na agenda do usuário algum agendamento antigo salvo no formato compartilhado anterior (`recurringDays.length > 0`), ao alterar o status em uma data específica (`targetDate`), o sistema automaticamente:
+     - Adiciona `targetDate` em `recurringExceptions` do registro antigo;
+     - Cria um registro individual autônomo para `targetDate` com o novo status (`recurringDays: []`), garantindo que mesmo agendamentos criados antes desta atualização jamais alterem os outros dias da semana.
 
-### C. Filtros de Exibição da Agenda (`components/AgendaSection.tsx`)
-- **Visualização Diária (`dayEvents`)**:
-  - Adicionar checagem: se `e.recurringEndDate && selectedDate > e.recurringEndDate`, o evento recorrente não deve ser retornado.
-- **Visualização Semanal (`currentWeekDays`)**:
-  - Adicionar checagem: se `e.recurringEndDate && day.dateStr > e.recurringEndDate`, o evento recorrente não deve ser gerado para aquele dia da semana.
-- **Visualização Programação / Geral**:
-  - Em cards com repetição, exibir `Recorrente até DD/MM/AAAA`.
+### C. Correção do Handler de Persistência (`app/page.tsx`)
+1. **Atualização de `handleAddCalendarEvent` e `handleUpdateCalendarEvent`**:
+   - Garantir que `handleUpdateCalendarEvent` sincronize imediatamente a alteração no `localStorage` e no Firebase (`cloudSync.syncCalendarEvent`).
+   - Evitar que `handleAddCalendarEvent` mescle acidentalmente propriedades de eventos recorrentes ao criar agendamentos individuais.
+   - Suportar a criação em lote de todas as datas geradas até `recurringEndDate` sem perda de estado concorrente.
 
 ---
 
-## 3. Plano de Verificação e Testes
-1. **Teste de Agendamento sem Recorrência**:
-   - Cadastrar um agendamento pontual em uma data única. Confirmar que o campo de data limite não é exibido nem exigido.
-2. **Teste de Agendamento com Recorrência**:
-   - Selecionar Seg/Qua/Sex. Verificar que o campo de calendário de data limite surge instantaneamente.
-   - Tentar salvar sem preencher a data limite e verificar mensagem de bloqueio amigável.
-   - Definir uma data limite (ex.: 2 semanas à frente) e salvar.
-3. **Teste de Limite de Exibição**:
-   - Navegar para datas anteriores à data limite: confirmar que o evento é gerado normalmente.
-   - Navegar para datas posteriores à data limite: confirmar que o evento não aparece mais no calendário.
-4. **Compilação e Integridade**:
-   - Executar `npx tsc --noEmit` para validação estrita de tipos.
-   - Testar portas 3000 e 8080.
+## 3. Fluxo de Verificação
+1. **Criar Agendamento Recorrente**:
+   - Selecionar Seg, Qua, Sex com data limite para o final do mês.
+   - Confirmar que cada segunda, quarta e sexta até a data limite recebe seu próprio agendamento independente.
+2. **Alterar Status de um Único Dia**:
+   - Marcar a aula de Segunda-feira como **Realizado** (ou **Falta** / **Reagendado**).
+   - Navegar para Quarta-feira e Sexta-feira e confirmar que permanecem com status **Agendado** inalterado.
+3. **Relatório e Histórico**:
+   - Abrir o Relatório da Agenda e confirmar que apenas a data marcada consta como Realizada/Falta/Reagendada.

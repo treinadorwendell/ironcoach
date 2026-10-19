@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação para adicionar campo obrigatório de data limite (calendário) ao ativar recorrência de agendamentos na Agenda, com validação e encerramento automático da exibição após a data definida.",
-  "updatedAt": "2026-10-19T20:30:48.894237091Z",
+  "summary": "Plano de implementação para corrigir definitivamente a recorrência na Agenda: geração de agendamentos independentes para cada dia até a data limite e alteração direta de status exclusiva para o dia selecionado.",
+  "updatedAt": "2026-10-19T21:26:31.422355308Z",
   "requestFeedback": true,
   "userFacing": true
 }

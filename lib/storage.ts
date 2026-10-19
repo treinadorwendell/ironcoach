@@ -72,6 +72,130 @@ export const INITIAL_CALENDAR: CalendarEvent[] = [];
 export const INITIAL_COMPLETED_WORKOUTS: CompletedWorkoutRecord[] = [];
 
 
+export function expandLegacyRecurringEvents(rawEvents: CalendarEvent[]): {
+  events: CalendarEvent[];
+  changedEvents: CalendarEvent[];
+} {
+  const hasLegacy = rawEvents.some(
+    (e) => Array.isArray(e.recurringDays) && e.recurringDays.length > 0
+  );
+  if (!hasLegacy) {
+    return { events: rawEvents, changedEvents: [] };
+  }
+
+  const independentEvents = rawEvents.filter(
+    (e) => !Array.isArray(e.recurringDays) || e.recurringDays.length === 0
+  );
+  const legacyEvents = rawEvents.filter(
+    (e) => Array.isArray(e.recurringDays) && e.recurringDays.length > 0
+  );
+
+  const resultEvents: CalendarEvent[] = [...independentEvents];
+  const changedEvents: CalendarEvent[] = [];
+  const existingKeys = new Set(
+    independentEvents.map((e) => `${e.clientId}::${e.date}`)
+  );
+
+  for (const leg of legacyEvents) {
+    const startDateStr = leg.date;
+    const [sy, sm, sd] = startDateStr.split('-').map(Number);
+    let endDateStr = leg.recurringEndDate;
+    if (!endDateStr || endDateStr < startDateStr) {
+      const fallbackEnd = new Date(sy, sm - 1, sd);
+      fallbackEnd.setDate(fallbackEnd.getDate() + 56); // 8 semanas padrão para eventos legados sem data limite
+      const fy = fallbackEnd.getFullYear();
+      const fm = String(fallbackEnd.getMonth() + 1).padStart(2, '0');
+      const fd = String(fallbackEnd.getDate()).padStart(2, '0');
+      endDateStr = `${fy}-${fm}-${fd}`;
+    }
+
+    const [ey, em, ed] = endDateStr.split('-').map(Number);
+    const cur = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    const exceptions = new Set(leg.recurringExceptions || []);
+    const recDays = leg.recurringDays || [];
+
+    const matchingDates: string[] = [];
+    let safety = 0;
+    while (cur <= end && safety < 370) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      const dStr = `${y}-${m}-${d}`;
+      if (recDays.includes(cur.getDay()) && !exceptions.has(dStr)) {
+        matchingDates.push(dStr);
+      }
+      cur.setDate(cur.getDate() + 1);
+      safety++;
+    }
+
+    if (matchingDates.length === 0 && !exceptions.has(startDateStr)) {
+      matchingDates.push(startDateStr);
+    }
+
+    let parentIdReused = false;
+
+    matchingDates.forEach((dStr) => {
+      const key = `${leg.clientId}::${dStr}`;
+      if (!parentIdReused) {
+        parentIdReused = true;
+        const firstEvt: CalendarEvent = {
+          ...leg,
+          id: leg.id,
+          date: dStr,
+          recurringDays: [],
+          recurringExceptions: [],
+          recurringEndDate: endDateStr,
+          recurringParentId: leg.recurringParentId || leg.id,
+          status: dStr === startDateStr ? leg.status || 'confirmado' : 'confirmado',
+        };
+        if (firstEvt.status !== 'reagendado') {
+          delete firstEvt.rescheduledDate;
+          delete firstEvt.rescheduledTime;
+        }
+        resultEvents.push(firstEvt);
+        changedEvents.push(firstEvt);
+        existingKeys.add(key);
+        return;
+      }
+
+      if (existingKeys.has(key)) return;
+
+      const childEvt: CalendarEvent = {
+        ...leg,
+        id: `${leg.id}-${dStr}`,
+        date: dStr,
+        recurringDays: [],
+        recurringExceptions: [],
+        recurringEndDate: endDateStr,
+        recurringParentId: leg.recurringParentId || leg.id,
+        status: 'confirmado',
+      };
+      delete childEvt.rescheduledDate;
+      delete childEvt.rescheduledTime;
+
+      resultEvents.push(childEvt);
+      changedEvents.push(childEvt);
+      existingKeys.add(key);
+    });
+
+    // Caso todas as datas estivessem em exceção, ainda limpa recurringDays do registro pai
+    if (!parentIdReused) {
+      const cleanedParent: CalendarEvent = {
+        ...leg,
+        recurringDays: [],
+        recurringExceptions: [],
+        recurringEndDate: endDateStr,
+        recurringParentId: leg.recurringParentId || leg.id,
+      };
+      resultEvents.push(cleanedParent);
+      changedEvents.push(cleanedParent);
+    }
+  }
+
+  return { events: resultEvents, changedEvents };
+}
+
 export const storage = {
   purgeAllSampleData() {
     purgeAllSampleData();
@@ -154,7 +278,12 @@ export const storage = {
         localStorage.setItem(STORAGE_KEYS.CALENDAR, JSON.stringify(INITIAL_CALENDAR));
         return INITIAL_CALENDAR;
       }
-      return JSON.parse(data);
+      const parsed: CalendarEvent[] = JSON.parse(data);
+      const { events: normalized, changedEvents } = expandLegacyRecurringEvents(parsed);
+      if (changedEvents.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.CALENDAR, JSON.stringify(normalized));
+      }
+      return normalized;
     } catch {
       return INITIAL_CALENDAR;
     }

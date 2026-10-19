@@ -12,6 +12,7 @@ import {
   INITIAL_CLIENTS,
   INITIAL_WORKOUTS,
   INITIAL_CALENDAR,
+  expandLegacyRecurringEvents,
 } from '@/lib/storage';
 import { Header } from '@/components/Header';
 import { BottomNav } from '@/components/BottomNav';
@@ -96,7 +97,12 @@ export default function Home() {
             setWorkouts(cloudWorkouts);
           },
           onCalendarChange: (cloudEvents) => {
-            setCalendarEvents(cloudEvents);
+            const { events: normalized, changedEvents } = expandLegacyRecurringEvents(cloudEvents);
+            if (changedEvents.length > 0) {
+              storage.saveCalendarEvents(normalized);
+              changedEvents.forEach((evt) => cloudSync.syncCalendarEvent(evt));
+            }
+            setCalendarEvents(normalized);
           },
           onActiveSessionChange: (cloudSession) => {
             if (cloudSession) {
@@ -221,7 +227,11 @@ export default function Home() {
   const handleAddCalendarEvent = (newEvent: CalendarEvent) => {
     setCalendarEvents((prev) => {
       const existingIndex = prev.findIndex(
-        (e) => e.clientId === newEvent.clientId && e.date === newEvent.date
+        (e) =>
+          e.id === newEvent.id ||
+          (e.clientId === newEvent.clientId &&
+            e.date === newEvent.date &&
+            (!e.recurringDays || e.recurringDays.length === 0))
       );
       let updated: CalendarEvent[];
       if (existingIndex >= 0) {
@@ -237,6 +247,39 @@ export default function Home() {
         cloudSync.syncCalendarEvent(newEvent);
       }
       storage.saveCalendarEvents(updated);
+      return updated;
+    });
+  };
+
+  const handleAddCalendarEvents = (newEvents: CalendarEvent[]) => {
+    if (!newEvents || newEvents.length === 0) return;
+    setCalendarEvents((prev) => {
+      const updated = [...prev];
+      const toSync: CalendarEvent[] = [];
+
+      newEvents.forEach((newEvent) => {
+        const existingIndex = updated.findIndex(
+          (e) =>
+            e.id === newEvent.id ||
+            (e.clientId === newEvent.clientId &&
+              e.date === newEvent.date &&
+              (!e.recurringDays || e.recurringDays.length === 0))
+        );
+        if (existingIndex >= 0) {
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            ...newEvent,
+            id: updated[existingIndex].id,
+          };
+          toSync.push(updated[existingIndex]);
+        } else {
+          updated.unshift(newEvent);
+          toSync.push(newEvent);
+        }
+      });
+
+      storage.saveCalendarEvents(updated);
+      toSync.forEach((evt) => cloudSync.syncCalendarEvent(evt));
       return updated;
     });
   };
@@ -440,6 +483,7 @@ export default function Home() {
                   events={calendarEvents}
                   clients={clients}
                   onAddEvent={handleAddCalendarEvent}
+                  onAddEvents={handleAddCalendarEvents}
                   onUpdateEvent={handleUpdateCalendarEvent}
                   onDeleteEvent={handleDeleteCalendarEvent}
                   onStartWorkoutForClient={handleStartWorkoutForClient}
