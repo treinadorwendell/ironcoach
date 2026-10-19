@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { sounds } from '@/lib/sound';
+import { vibration } from '@/lib/vibration';
 import {
   Timer,
   Play,
@@ -48,6 +49,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
           if (!isMuted) {
             sounds.playRestCompleteBeep();
           }
+          vibration.timerFinished();
           if (onComplete) onComplete();
           return 0;
         }
@@ -109,7 +111,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
 
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setIsMuted(!isMuted)}
+              onClick={() => {
+                vibration.lightTap();
+                setIsMuted(!isMuted);
+              }}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               title={isMuted ? 'Ativar som do bip' : 'Silenciar som'}
             >
@@ -120,7 +125,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
               )}
             </button>
             <button
-              onClick={onClose}
+              onClick={() => {
+                vibration.lightTap();
+                onClose();
+              }}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               title="Fechar Cronômetro"
             >
@@ -154,6 +162,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
               onClick={() => {
                 setTimeLeft((t) => Math.max(0, t - 15));
                 sounds.playTickSound();
+                vibration.lightTap();
               }}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition"
               title="-15 segundos"
@@ -165,6 +174,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 setTimeLeft((t) => t + 30);
                 setTotalDuration((td) => td + 30);
                 sounds.playTickSound();
+                vibration.lightTap();
               }}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition"
               title="+30 segundos"
@@ -172,7 +182,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
               +30s
             </button>
             <button
-              onClick={() => setIsRunning(!isRunning)}
+              onClick={() => {
+                setIsRunning(!isRunning);
+                vibration.mediumPulse();
+              }}
               className={`p-2 rounded-xl text-xs font-bold active:scale-95 transition ${
                 isRunning
                   ? 'bg-slate-800 text-amber-300 hover:bg-slate-700'

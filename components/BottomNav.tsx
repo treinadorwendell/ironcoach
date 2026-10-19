@@ -51,7 +51,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] px-2 py-1.5 max-w-4xl mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] px-2 sm:px-6 lg:px-8 py-1.5 w-full">
       <div className="grid grid-cols-4 gap-1 sm:gap-2">
         {navItems.map((item) => {
           const Icon = item.icon;

@@ -2464,24 +2464,26 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   return (
     <div className="space-y-5 pb-24">
       {/* 1. SELEÇÃO DE ALUNO DESTACADA */}
-      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 px-1">
-        <User className="w-4 h-4 text-emerald-400" />
-        <span>1. Aluno Selecionado</span>
-      </label>
-      <select
-        value={clientId}
-        onChange={(e) => handleClientChange(e.target.value)}
-        className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700 hover:border-emerald-500/50 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition touch-manipulation cursor-pointer"
-      >
-        {clients.map((c) => {
-          const count = workouts.filter((w) => w.clientId === c.id).length;
-          return (
-            <option key={c.id} value={c.id}>
-              {c.name} — Plano {c.contractType} ({count} programa{count === 1 ? '' : 's'})
-            </option>
-          );
-        })}
-      </select>
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-2">
+        <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 px-1">
+          <User className="w-4 h-4 text-emerald-400" />
+          <span>1. Aluno Selecionado</span>
+        </label>
+        <select
+          value={clientId}
+          onChange={(e) => handleClientChange(e.target.value)}
+          className="w-full px-4 py-3 rounded-xl bg-slate-950 border-2 border-slate-700 hover:border-emerald-500/50 focus:border-emerald-500 text-sm font-bold text-white shadow-inner focus:outline-none transition touch-manipulation cursor-pointer"
+        >
+          {clients.map((c) => {
+            const count = workouts.filter((w) => w.clientId === c.id).length;
+            return (
+              <option key={c.id} value={c.id}>
+                {c.name} — Plano {c.contractType} ({count} programa{count === 1 ? '' : 's'})
+              </option>
+            );
+          })}
+        </select>
+      </div>
 
       {/* 2. PROGRAMAS DE TREINO VINCULADOS AO ALUNO */}
       <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
@@ -2604,7 +2606,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
         {/* Existing Programs Pills / Cards with Actions */}
         {clientPrograms.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {clientPrograms.map((prog) => {
               const isSelected = prog.id === selectedProgramId;
               const isExpanded = prog.id === expandedProgramId;

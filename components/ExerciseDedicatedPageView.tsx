@@ -29,6 +29,8 @@ import {
   Flame,
   Layers,
   MessageSquare,
+  PenLine,
+  X,
 } from 'lucide-react';
 import { ExerciseCommentsHistoryModal } from './ExerciseCommentsHistoryModal';
 
@@ -94,6 +96,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   formatElapsed,
 }) => {
   const [isCommentsModalOpen, setIsCommentsModalOpen] = React.useState(false);
+  const [isCurrentCommentModalOpen, setIsCurrentCommentModalOpen] = React.useState(false);
   const totalExercises = session.exercises.length;
   const isFirst = focusedExerciseIndex === 0;
   const isLast = focusedExerciseIndex === totalExercises - 1;
@@ -101,6 +104,15 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   const completedSetsCount = focusedExercise.sets.filter((s) => s.completed).length;
   const totalSetsCount = focusedExercise.sets.length;
   const isExerciseFullyCompleted = totalSetsCount > 0 && completedSetsCount === totalSetsCount;
+
+  // Verifica se todos os exercícios do treino têm todas as suas séries preenchidas/concluídas
+  const areAllExercisesCompleted = React.useMemo(() => {
+    if (!session || !session.exercises || session.exercises.length === 0) return false;
+    return session.exercises.every((ex, idx) => {
+      const sets = idx === focusedExerciseIndex ? focusedExercise.sets : ex.sets;
+      return sets.length > 0 && sets.every((s) => s.completed);
+    });
+  }, [session, focusedExercise.sets, focusedExerciseIndex]);
 
   // Retrieve past historical performance for this exercise
   const exerciseHistory = storage.getExerciseHistory(
@@ -372,39 +384,52 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           </button>
         </div>
 
-        {/* COMENTÁRIO INDIVIDUAL DO EXERCÍCIO & BOTÃO DE COMENTÁRIOS ANTERIORES */}
-        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-              <MessageSquare className="w-4 h-4 text-purple-400" />
-              <span>Comentário da Sessão Atual para este Exercício</span>
-            </span>
+        {/* AÇÕES: COMENTÁRIO DA SESSÃO ATUAL & COMENTÁRIOS ANTERIORES */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+          <button
+            type="button"
+            onClick={() => setIsCurrentCommentModalOpen(true)}
+            className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 hover:border-purple-500/50 border border-slate-700/80 text-xs font-bold text-white flex items-center justify-between sm:justify-start gap-2.5 transition active:scale-95 cursor-pointer shadow-sm group"
+            title="Abrir modal para adicionar ou editar comentário da sessão atual para este exercício"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30">
+                <PenLine className="w-3.5 h-3.5" />
+              </div>
+              <span className="truncate group-hover:text-purple-300 transition">
+                Comentário da Sessão Atual para este Exercício
+              </span>
+            </div>
 
-            {(() => {
-              const previousComments = storage.getExerciseComments(
-                focusedExercise.exerciseName,
-                session.clientId
-              );
-              return (
-                <button
-                  type="button"
-                  onClick={() => setIsCommentsModalOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer self-start sm:self-auto shadow-sm"
-                  title="Abrir página com os comentários anteriores deste exercício"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Comentários Anteriores ({previousComments.length})</span>
-                </button>
-              );
-            })()}
-          </div>
+            {focusedExercise.exerciseComment && focusedExercise.exerciseComment.trim() ? (
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                <Check className="w-3 h-3" />
+                <span>Salvo</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 font-normal shrink-0">
+                + Adicionar nota
+              </span>
+            )}
+          </button>
 
-          <textarea
-            value={focusedExercise.exerciseComment || ''}
-            onChange={(e) => onUpdateExerciseComment(focusedExerciseIndex, e.target.value)}
-            placeholder="Ex: Aluno realizou com excelente amplitude, ajustada a pegada..."
-            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-purple-500 transition resize-none h-20"
-          />
+          {(() => {
+            const previousComments = storage.getExerciseComments(
+              focusedExercise.exerciseName,
+              session.clientId
+            );
+            return (
+              <button
+                type="button"
+                onClick={() => setIsCommentsModalOpen(true)}
+                className="px-3 py-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center justify-center sm:justify-start gap-1.5 transition active:scale-95 cursor-pointer shrink-0 shadow-sm"
+                title="Abrir página com os comentários anteriores deste exercício"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                <span>Comentários Anteriores ({previousComments.length})</span>
+              </button>
+            );
+          })()}
         </div>
       </div>
 
@@ -729,28 +754,43 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
       <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="space-y-0.5">
           <span className="text-xs font-black text-white block">
-            {isExerciseFullyCompleted
+            {areAllExercisesCompleted
+              ? '✓ Todos os exercícios deste treino foram preenchidos!'
+              : isExerciseFullyCompleted
               ? '✓ Todas as séries deste exercício foram cumpridas!'
               : `${completedSetsCount} de ${totalSetsCount} séries concluídas neste exercício`}
           </span>
           <p className="text-[11px] text-slate-400">
-            {isLast
-              ? 'Este é o último exercício do treino. Ao concluir, você poderá finalizar a sessão.'
+            {areAllExercisesCompleted
+              ? 'Treino completo! Clique em "Concluir e Finalizar" para salvar e registrar o treino.'
+              : isLast
+              ? 'Último exercício. Conclua todas as séries de todos os exercícios para finalizar o treino.'
               : `Próximo: ${session.exercises[focusedExerciseIndex + 1]?.exerciseName}`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             type="button"
             onClick={onBackToList}
-            style={{ marginRight: '62px' }}
-            className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition cursor-pointer"
+            className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition cursor-pointer text-center"
           >
             Lista de Exercícios
           </button>
 
-          {!isLast ? (
+          {areAllExercisesCompleted ? (
+            <button
+              type="button"
+              onClick={() => {
+                onFinishAndAdvance(focusedExerciseIndex);
+                onFinishWorkout();
+              }}
+              className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation animate-in fade-in zoom-in-95 duration-200"
+            >
+              <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+              <span>Concluir e Finalizar</span>
+            </button>
+          ) : (
             <button
               type="button"
               onClick={() => onFinishAndAdvance(focusedExerciseIndex)}
@@ -759,18 +799,6 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               <Check className="w-4 h-4 stroke-[3]" />
               <span>Concluir e Avançar</span>
               <ChevronRight className="w-4 h-4 stroke-[3]" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                onFinishAndAdvance(focusedExerciseIndex);
-                onFinishWorkout();
-              }}
-              className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
-            >
-              <CheckCircle2 className="w-4 h-4 stroke-[3]" />
-              <span>Concluir Exercício e Finalizar Treino</span>
             </button>
           )}
         </div>
@@ -782,6 +810,80 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
         exerciseName={focusedExercise.exerciseName}
         clientId={session.clientId}
       />
+
+      {/* MODAL: COMENTÁRIO DA SESSÃO ATUAL */}
+      {isCurrentCommentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col space-y-0 animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
+                  <PenLine className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    Comentário da Sessão Atual
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {focusedExercise.exerciseName} • Aluno: {session.clientName}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCurrentCommentModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Fechar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 space-y-3">
+              <label className="text-xs text-slate-300 font-semibold block">
+                Observações e feedback deste exercício na sessão atual:
+              </label>
+              <textarea
+                autoFocus
+                value={focusedExercise.exerciseComment || ''}
+                onChange={(e) => onUpdateExerciseComment(focusedExerciseIndex, e.target.value)}
+                placeholder="Ex: Aluno realizou com excelente amplitude, ajustada a pegada na 2ª série, sentiu boa ativação..."
+                className="w-full h-36 px-4 py-3 rounded-2xl bg-slate-950 border border-slate-700/80 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition resize-none leading-relaxed"
+              />
+              <p className="text-[11px] text-slate-400">
+                O comentário é salvo automaticamente no treino e ficará disponível no histórico de consultas do aluno.
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between gap-2">
+              {focusedExercise.exerciseComment && focusedExercise.exerciseComment.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => onUpdateExerciseComment(focusedExerciseIndex, '')}
+                  className="px-3.5 py-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
+                >
+                  Limpar Comentário
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsCurrentCommentModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>Salvar e Fechar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

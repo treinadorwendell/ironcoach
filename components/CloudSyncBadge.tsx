@@ -100,8 +100,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
         {user ? (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            style={{ width: '94.47px', height: '25px' }}
-            className="flex items-center justify-center p-0 rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition active:scale-95 shadow-sm cursor-pointer"
+            className="flex items-center justify-center px-2.5 py-1 min-h-[32px] rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition active:scale-95 shadow-sm cursor-pointer"
             title={`${user.displayName || user.email || 'Conta conectada'} • Sincronização em nuvem ativa`}
             aria-label="Sincronização em nuvem"
           >

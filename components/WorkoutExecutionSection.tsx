@@ -16,6 +16,7 @@ import {
 } from '@/types';
 import { storage } from '@/lib/storage';
 import { sounds } from '@/lib/sound';
+import { vibration } from '@/lib/vibration';
 import { cloudSync } from '@/lib/firebase';
 import { useActiveWorkoutPersistence } from '@/hooks/useActiveWorkoutPersistence';
 import { SeriesHistoryModal } from './ExerciseHistoryChart';
@@ -667,6 +668,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
     if (willBeCompleted) {
       sounds.playSetCompletedSound();
+      vibration.setCompleted();
 
       // Automatically trigger integrated countdown timer
       const restTime = currentEx.restSeconds || 60;
@@ -685,6 +687,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           session.clientId
         );
       }
+    } else {
+      sounds.playTickSound();
+      vibration.setUnmarked();
     }
   };
 
@@ -820,8 +825,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
     if (willBeCompleted) {
       sounds.playSetCompletedSound();
+      vibration.setCompleted();
     } else {
       sounds.playTickSound();
+      vibration.setUnmarked();
     }
 
     const updatedSubSets = currentSet.subSets.map((s, idx) =>
@@ -953,6 +960,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   const handleStartWorkout = () => {
     if (!session) return;
     sounds.playTickSound();
+    vibration.mediumPulse();
     const updated: ActiveWorkoutSession = {
       ...session,
       isStarted: true,
@@ -1143,7 +1151,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           const [y, m, d] = workoutSummary.dateIso.split('-').map(Number);
           const dayOfWeek = new Date(y, m - 1, d).getDay();
           const recEvt = currentEvents.find(
-            (e) => e.clientId === workoutSummary.clientId && e.recurringDays?.includes(dayOfWeek)
+            (e) =>
+              e.clientId === workoutSummary.clientId &&
+              e.recurringDays?.includes(dayOfWeek) &&
+              workoutSummary.dateIso >= e.date &&
+              (!e.recurringEndDate || workoutSummary.dateIso <= e.recurringEndDate)
           );
 
           const startH = workoutSummary.timeFormatted || '07:00';
@@ -1494,8 +1506,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </div>
               </div>
             ) : (
-              /* CARDS VERTICAIS DOS PROGRAMAS DE TREINO */
-              <div className="space-y-3.5">
+              /* CARDS VERTICAIS DOS PROGRAMAS DE TREINO (RESPONSIVO FLUIDO) */
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {studentWorkouts.map((prog) => {
                   const splits =
                     prog.splits && prog.splits.length > 0
@@ -1698,7 +1710,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     ];
 
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {splitsToDisplay.map((split) => {
                     const splitDays = (split.weekDays || [])
                       .map((d) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d])
@@ -1819,6 +1831,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 onAdjustSubSetReps={handleAdjustSubSetReps}
                 onSetSubSetWeightDirect={handleSetSubSetWeightDirect}
                 onTriggerRestTimer={(secs, name, setNum) => {
+                  vibration.lightTap();
                   setTimerSeconds(secs);
                   setTimerExerciseName(name);
                   setTimerSetNumber(setNum);
@@ -1832,6 +1845,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 isSessionPaused={isSessionPaused}
                 onStartWorkout={handleStartWorkout}
                 onTogglePause={() => {
+                  vibration.mediumPulse();
                   const updated = { ...session, isPaused: !session.isPaused };
                   setSession(updated);
                   storage.saveActiveSession(updated);
@@ -1897,6 +1911,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       <button
                         type="button"
                         onClick={() => {
+                          vibration.mediumPulse();
                           const updated = { ...session, isPaused: !session.isPaused };
                           setSession(updated);
                           storage.saveActiveSession(updated);
@@ -2571,14 +2586,20 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleFinishWorkout}
-                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0"
-                  >
-                    <CheckCircle2 className="w-5 h-5 fill-slate-950 text-emerald-400" />
-                    <span>Finalizar Treino</span>
-                  </button>
+                  {allCompleted ? (
+                    <button
+                      type="button"
+                      onClick={handleFinishWorkout}
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0 animate-in fade-in duration-150"
+                    >
+                      <CheckCircle2 className="w-5 h-5 fill-slate-950 text-emerald-400" />
+                      <span>Concluir e Finalizar</span>
+                    </button>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 bg-slate-950/80 px-4 py-2.5 rounded-xl border border-slate-800">
+                      Preencha todos os exercícios para finalizar
+                    </span>
+                  )}
                 </div>
               </div>
             );

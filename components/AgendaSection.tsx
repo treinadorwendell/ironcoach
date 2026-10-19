@@ -115,11 +115,33 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [endTime, setEndTime] = useState('08:00');
   const [eventDate, setEventDate] = useState<string>(getTodayDateStr);
   const [recurringDays, setRecurringDays] = useState<number[]>([]); // Inicializado vazio para evitar duplicações automáticas
+  const [recurringEndDate, setRecurringEndDate] = useState(''); // Data limite obrigatória até qual a recorrência permanece ativa
   const [eventNotes, setEventNotes] = useState('');
   const [eventStatus, setEventStatus] = useState<CalendarEventStatus>('confirmado');
   const [rescheduledDate, setRescheduledDate] = useState('');
   const [rescheduledTime, setRescheduledTime] = useState('');
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
+  // Estado do Diálogo de Escopo para Eventos Recorrentes
+  interface RecurringScopePromptState {
+    event: CalendarEvent;
+    targetDate: string;
+    newStatus?: CalendarEventStatus;
+    isFromFormModal?: boolean;
+    formData?: {
+      clientId: string;
+      clientName: string;
+      title: string;
+      startTime: string;
+      endTime: string;
+      notes: string;
+      status: CalendarEventStatus;
+      recurringEndDate?: string;
+      rescheduledDate?: string;
+      rescheduledTime?: string;
+    };
+  }
+  const [recurringScopePrompt, setRecurringScopePrompt] = useState<RecurringScopePromptState | null>(null);
 
   // Validação de chave única (clientId + date): impede a criação de múltiplos agendamentos no mesmo dia para o mesmo aluno
   const duplicateConflict = useMemo(() => {
@@ -129,8 +151,24 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     );
   }, [selectedClientId, eventDate, events, editingEvent, isModalOpen]);
 
-  // Quick 1-tap Status Change Handler
-  const handleQuickStatusChange = (event: CalendarEvent, newStatus: CalendarEventStatus) => {
+  // Quick 1-tap Status Change Handler com suporte a escopo de recorrência
+  const handleQuickStatusChange = (
+    event: CalendarEvent,
+    newStatus: CalendarEventStatus,
+    targetDate?: string
+  ) => {
+    const effectiveDate = targetDate || selectedDate || event.date;
+
+    // Se o evento é recorrente (tem dias da semana configurados), pergunta o escopo
+    if (event.recurringDays && event.recurringDays.length > 0) {
+      setRecurringScopePrompt({
+        event,
+        targetDate: effectiveDate,
+        newStatus,
+      });
+      return;
+    }
+
     const updated: CalendarEvent = {
       ...event,
       status: newStatus,
@@ -142,6 +180,83 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     onUpdateEvent(updated);
   };
 
+  const handleApplyScopeThisEventOnly = () => {
+    if (!recurringScopePrompt) return;
+    const { event, targetDate, newStatus, isFromFormModal, formData } = recurringScopePrompt;
+
+    const finalStatus = isFromFormModal && formData ? formData.status : (newStatus || 'confirmado');
+    const finalTitle = isFromFormModal && formData ? formData.title : event.title;
+    const finalStartTime = isFromFormModal && formData ? formData.startTime : event.startTime;
+    const finalEndTime = isFromFormModal && formData ? formData.endTime : event.endTime;
+    const finalNotes = isFromFormModal && formData ? formData.notes : (event.notes || '');
+    const finalRescheduledDate = isFromFormModal && formData ? formData.rescheduledDate : (finalStatus === 'reagendado' ? event.rescheduledDate : undefined);
+    const finalRescheduledTime = isFromFormModal && formData ? formData.rescheduledTime : (finalStatus === 'reagendado' ? event.rescheduledTime : undefined);
+
+    // 1. Criar o agendamento individual pontual exclusivo para aquela data
+    const individualEvent: CalendarEvent = {
+      id: `evt-${Date.now()}`,
+      clientId: event.clientId,
+      clientName: event.clientName,
+      title: finalTitle,
+      date: targetDate,
+      startTime: finalStartTime,
+      endTime: finalEndTime,
+      status: finalStatus,
+      notes: finalNotes,
+      recurringParentId: event.id,
+      ...(finalRescheduledDate ? { rescheduledDate: finalRescheduledDate } : {}),
+      ...(finalRescheduledTime ? { rescheduledTime: finalRescheduledTime } : {}),
+    };
+
+    // 2. Adicionar targetDate nas exceções da recorrência do evento pai
+    const updatedExceptions = Array.from(new Set([...(event.recurringExceptions || []), targetDate]));
+    const updatedParent: CalendarEvent = {
+      ...event,
+      recurringExceptions: updatedExceptions,
+    };
+
+    // 3. Atualizar o evento pai e adicionar o evento individual
+    onUpdateEvent(updatedParent);
+    onAddEvent(individualEvent);
+
+    setRecurringScopePrompt(null);
+  };
+
+  const handleApplyScopeAllEvents = () => {
+    if (!recurringScopePrompt) return;
+    const { event, newStatus, isFromFormModal, formData } = recurringScopePrompt;
+
+    if (isFromFormModal && formData) {
+      const updated: CalendarEvent = {
+        ...event,
+        clientId: formData.clientId,
+        clientName: formData.clientName,
+        title: formData.title,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        recurringDays,
+        recurringEndDate: formData.recurringEndDate,
+        notes: formData.notes,
+        status: formData.status,
+        rescheduledDate: formData.rescheduledDate,
+        rescheduledTime: formData.rescheduledTime,
+      };
+      onUpdateEvent(updated);
+    } else if (newStatus) {
+      const updated: CalendarEvent = {
+        ...event,
+        status: newStatus,
+      };
+      if (newStatus !== 'reagendado') {
+        delete updated.rescheduledDate;
+        delete updated.rescheduledTime;
+      }
+      onUpdateEvent(updated);
+    }
+
+    setRecurringScopePrompt(null);
+  };
+
   const openNewModal = (defaultDate?: string, defaultHour?: string) => {
     setEditingEvent(null);
     setSelectedClientId(clients[0]?.id || '');
@@ -150,6 +265,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setEndTime('08:00');
     setEventDate(defaultDate || selectedDate);
     setRecurringDays([]);
+    setRecurringEndDate('');
     setEventNotes('');
     setEventStatus('confirmado');
     setRescheduledDate('');
@@ -158,14 +274,15 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setIsModalOpen(true);
   };
 
-  const openEditModal = (event: CalendarEvent) => {
+  const openEditModal = (event: CalendarEvent, targetDate?: string) => {
     setEditingEvent(event);
     setSelectedClientId(event.clientId);
     setEventTitle(event.title);
     setStartTime(event.startTime);
     setEndTime(event.endTime);
-    setEventDate(event.date);
+    setEventDate(targetDate || (event.recurringDays && event.recurringDays.length > 0 ? selectedDate : event.date));
     setRecurringDays(event.recurringDays || []);
+    setRecurringEndDate(event.recurringEndDate || '');
     setEventNotes(event.notes || '');
     setEventStatus(event.status || 'confirmado');
     setRescheduledDate(event.rescheduledDate || '');
@@ -175,15 +292,33 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   };
 
   const toggleRecurringDay = (dayIndex: number) => {
+    let nextDays: number[];
     if (recurringDays.includes(dayIndex)) {
-      setRecurringDays(recurringDays.filter((d) => d !== dayIndex));
+      nextDays = recurringDays.filter((d) => d !== dayIndex);
     } else {
-      setRecurringDays([...recurringDays, dayIndex].sort());
+      nextDays = [...recurringDays, dayIndex].sort();
     }
+    setRecurringDays(nextDays);
+    if (nextDays.length === 0) {
+      setRecurringEndDate('');
+    }
+    if (duplicateError) setDuplicateError(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Verificação de data limite obrigatória para agendamentos recorrentes
+    if (recurringDays.length > 0) {
+      if (!recurringEndDate || !recurringEndDate.trim()) {
+        setDuplicateError('Por favor, informe no campo de calendário até qual data a recorrência ficará ativa.');
+        return;
+      }
+      if (recurringEndDate < eventDate) {
+        setDuplicateError('A data limite da recorrência não pode ser anterior à data de início do agendamento.');
+        return;
+      }
+    }
 
     // Verificação de chave única (clientId + date)
     if (duplicateConflict) {
@@ -197,6 +332,32 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     const clientName = client ? client.name : 'Aluno';
 
     if (editingEvent) {
+      const isRecurring = editingEvent.recurringDays && editingEvent.recurringDays.length > 0;
+
+      // Se for recorrente e estiver sendo editado, pergunta se o escopo é só para este dia ou todos
+      if (isRecurring) {
+        setRecurringScopePrompt({
+          event: editingEvent,
+          targetDate: eventDate || selectedDate,
+          isFromFormModal: true,
+          formData: {
+            clientId: selectedClientId,
+            clientName,
+            title: eventTitle.trim() || `Treino com ${clientName}`,
+            startTime,
+            endTime,
+            notes: eventNotes.trim(),
+            status: eventStatus,
+            recurringEndDate: recurringDays.length > 0 ? recurringEndDate : undefined,
+            rescheduledDate: eventStatus === 'reagendado' && rescheduledDate ? rescheduledDate.trim() : undefined,
+            rescheduledTime: eventStatus === 'reagendado' && rescheduledTime ? rescheduledTime.trim() : undefined,
+          },
+        });
+        setDuplicateError(null);
+        setIsModalOpen(false);
+        return;
+      }
+
       const updated: CalendarEvent = {
         ...editingEvent,
         clientId: selectedClientId,
@@ -206,6 +367,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         startTime,
         endTime,
         recurringDays,
+        recurringEndDate: recurringDays.length > 0 ? recurringEndDate : undefined,
         notes: eventNotes.trim(),
         status: eventStatus,
       };
@@ -235,6 +397,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         startTime,
         endTime,
         recurringDays,
+        recurringEndDate: recurringDays.length > 0 ? recurringEndDate : undefined,
         notes: eventNotes.trim(),
         status: eventStatus,
       };
@@ -339,6 +502,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
     const recurringEvents = filteredEvents.filter((e) => {
       if (e.date === selectedDate) return false;
+      if (e.recurringExceptions && e.recurringExceptions.includes(selectedDate)) return false;
+      if (selectedDate < e.date) return false;
+      if (e.recurringEndDate && selectedDate > e.recurringEndDate) return false;
       const isRecurring =
         e.recurringDays &&
         e.recurringDays.length > 0 &&
@@ -541,7 +707,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         </div>
 
         {/* Date Navigator & Quick Jump */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
           <div className="flex items-center gap-2">
             <button
               onClick={handleToday}
@@ -828,7 +994,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                       {evt.recurringDays && evt.recurringDays.length > 0 && (
                                         <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                                           <Repeat className="w-2.5 h-2.5" />
-                                          Recorrente
+                                          Recorrente{evt.recurringEndDate ? ` (até ${evt.recurringEndDate.split('-').reverse().join('/')})` : ''}
                                         </span>
                                       )}
                                     </div>
@@ -873,7 +1039,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                       </button>
                                     )}
                                     <button
-                                      onClick={() => openEditModal(evt)}
+                                      onClick={() => openEditModal(evt, selectedDate)}
                                       className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95"
                                       title="Editar Compromisso"
                                     >
@@ -897,7 +1063,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                                   <button
                                     type="button"
-                                    onClick={() => handleQuickStatusChange(evt, 'realizado')}
+                                    onClick={() => handleQuickStatusChange(evt, 'realizado', selectedDate)}
                                     className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                                       isRealizado
                                         ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
@@ -911,7 +1077,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                                   <button
                                     type="button"
-                                    onClick={() => handleQuickStatusChange(evt, 'reagendado')}
+                                    onClick={() => handleQuickStatusChange(evt, 'reagendado', selectedDate)}
                                     className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                                       isReagendado
                                         ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
@@ -925,7 +1091,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                                   <button
                                     type="button"
-                                    onClick={() => handleQuickStatusChange(evt, 'falta')}
+                                    onClick={() => handleQuickStatusChange(evt, 'falta', selectedDate)}
                                     className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                                       isFalta
                                         ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
@@ -940,7 +1106,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                   {evt.status !== 'confirmado' && (
                                     <button
                                       type="button"
-                                      onClick={() => handleQuickStatusChange(evt, 'confirmado')}
+                                      onClick={() => handleQuickStatusChange(evt, 'confirmado', selectedDate)}
                                       className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900/90 hover:bg-purple-950/50 border border-slate-800 transition active:scale-95 ml-auto"
                                       title="Redefinir para Agendado"
                                     >
@@ -971,6 +1137,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             const clientsWithDirect = new Set(dayEvts.map((e) => e.clientId));
             const recurringEvts = filteredEvents.filter((e) => {
               if (e.date === day.dateStr) return false;
+              if (e.recurringExceptions && e.recurringExceptions.includes(day.dateStr)) return false;
+              if (day.dateStr < e.date) return false;
+              if (e.recurringEndDate && day.dateStr > e.recurringEndDate) return false;
               const isRecurring =
                 e.recurringDays &&
                 e.recurringDays.length > 0 &&
@@ -1017,7 +1186,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     return (
                       <div
                         key={evt.id}
-                        onClick={() => openEditModal(evt)}
+                        onClick={() => openEditModal(evt, day.dateStr)}
                         className={`p-2 rounded-lg border text-[11px] cursor-pointer transition space-y-1 ${weekCardClass}`}
                       >
                         <div className="flex items-center justify-between gap-1">
@@ -1086,7 +1255,24 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
           <div className="grid grid-cols-7 gap-1.5">
             {monthData.cells.map((cell) => {
-              const dayEvts = events.filter((e) => e.date === cell.dateKey);
+              const directEvts = events.filter((e) => e.date === cell.dateKey);
+              const clientsWithDirect = new Set(directEvts.map((e) => e.clientId));
+              const [cy, cm, cd] = cell.dateKey.split('-').map(Number);
+              const cellDayIdx = new Date(cy, cm - 1, cd).getDay();
+
+              const recurringEvts = events.filter((e) => {
+                if (e.date === cell.dateKey) return false;
+                if (e.recurringExceptions && e.recurringExceptions.includes(cell.dateKey)) return false;
+                if (cell.dateKey < e.date) return false;
+                if (e.recurringEndDate && cell.dateKey > e.recurringEndDate) return false;
+                const isRecurring =
+                  e.recurringDays &&
+                  e.recurringDays.length > 0 &&
+                  e.recurringDays.includes(cellDayIdx);
+                return isRecurring && !clientsWithDirect.has(e.clientId);
+              });
+
+              const dayEvts = [...directEvts, ...recurringEvts];
               const count = dayEvts.length;
               const isSelected = selectedDate === cell.dateKey;
               const hasRealizado = dayEvts.some((e) => e.status === 'realizado');
@@ -1256,6 +1442,12 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                             Agendado
                           </span>
                         )}
+                        {evt.recurringDays && evt.recurringDays.length > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            <Repeat className="w-2.5 h-2.5" />
+                            Recorrente{evt.recurringEndDate ? ` (até ${evt.recurringEndDate.split('-').reverse().join('/')})` : ''}
+                          </span>
+                        )}
                       </div>
 
                       <p className="text-xs text-slate-300">{evt.title}</p>
@@ -1288,7 +1480,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                         </button>
                       )}
                       <button
-                        onClick={() => openEditModal(evt)}
+                        onClick={() => openEditModal(evt, evt.date)}
                         className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
                         title="Editar"
                       >
@@ -1311,7 +1503,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleQuickStatusChange(evt, 'realizado')}
+                      onClick={() => handleQuickStatusChange(evt, 'realizado', evt.date)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                         isRealizado
                           ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
@@ -1323,7 +1515,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleQuickStatusChange(evt, 'reagendado')}
+                      onClick={() => handleQuickStatusChange(evt, 'reagendado', evt.date)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                         isReagendado
                           ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
@@ -1335,7 +1527,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleQuickStatusChange(evt, 'falta')}
+                      onClick={() => handleQuickStatusChange(evt, 'falta', evt.date)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                         isFalta
                           ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
@@ -1348,7 +1540,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     {evt.status !== 'confirmado' && (
                       <button
                         type="button"
-                        onClick={() => handleQuickStatusChange(evt, 'confirmado')}
+                        onClick={() => handleQuickStatusChange(evt, 'confirmado', evt.date)}
                         className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900 border border-slate-800 transition active:scale-95 ml-auto"
                       >
                         <span>↺ Agendado</span>
@@ -1524,6 +1716,41 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   })}
                 </div>
               </div>
+
+              {/* Data Limite da Recorrência (Obrigatória quando houver dias selecionados) */}
+              {recurringDays.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/40 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="recurringEndDateInput"
+                      className="text-xs font-bold text-purple-200 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <CalendarIcon className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Até qual data a recorrência fica ativa? *</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+                      Obrigatório
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="recurringEndDateInput"
+                      type="date"
+                      required
+                      min={eventDate || getTodayDateStr()}
+                      value={recurringEndDate}
+                      onChange={(e) => {
+                        setRecurringEndDate(e.target.value);
+                        if (duplicateError) setDuplicateError(null);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-purple-500/50 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/60 focus:border-purple-400 transition"
+                    />
+                  </div>
+                  <p className="text-[11px] text-purple-300/80 leading-relaxed">
+                    Selecione no calendário a data limite até a qual os treinos serão repetidos semanalmente ({recurringDays.map((d) => DAYS_NAMES[d]).join(', ')}). Após essa data, o agendamento não será mais repetido automaticamente.
+                  </p>
+                </div>
+              )}
 
               {/* Status da Aula (Realizado, Reagendado, Falta, Agendado) */}
               <div>
@@ -1710,6 +1937,107 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 active:scale-95 transition"
               >
                 Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE ESCOPO DE RECORRÊNCIA */}
+      {recurringScopePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col space-y-0 animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
+                  <Repeat className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    Agendamento Recorrente
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {recurringScopePrompt.event.clientName} • {recurringScopePrompt.event.startTime} - {recurringScopePrompt.event.endTime}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setRecurringScopePrompt(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-3.5">
+              <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                Este treino é recorrente nos dias da semana. Como deseja aplicar a alteração
+                {recurringScopePrompt.newStatus ? (
+                  <> para o status <strong className="text-purple-300 uppercase">{recurringScopePrompt.newStatus}</strong></>
+                ) : ''}
+                ?
+              </p>
+
+              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Data selecionada desta aula:
+                </span>
+                <span className="text-white font-bold flex items-center gap-1.5">
+                  <CalendarIcon className="w-3.5 h-3.5 text-purple-400" />
+                  {recurringScopePrompt.targetDate.split('-').reverse().join('/')}
+                </span>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {/* Opção 1: Apenas este evento */}
+                <button
+                  type="button"
+                  onClick={handleApplyScopeThisEventOnly}
+                  className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-between gap-3 text-left cursor-pointer group"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="block font-black tracking-tight text-white">
+                      Apenas este dia ({recurringScopePrompt.targetDate.split('-').reverse().join('/')})
+                    </span>
+                    <span className="block text-[11px] text-purple-200 font-normal">
+                      Salva o status apenas para esta data no histórico e relatórios. Os demais dias da semana continuam inalterados.
+                    </span>
+                  </div>
+                  <Check className="w-4 h-4 shrink-0 stroke-[2.5] text-purple-200 group-hover:text-white" />
+                </button>
+
+                {/* Opção 2: Todos os eventos */}
+                <button
+                  type="button"
+                  onClick={handleApplyScopeAllEvents}
+                  className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-750 hover:border-slate-700 active:scale-[0.98] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-slate-700/80 transition flex items-center justify-between gap-3 text-left cursor-pointer"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="block font-black tracking-tight text-white">
+                      Todos os eventos da recorrência
+                    </span>
+                    <span className="block text-[11px] text-slate-400 font-normal">
+                      Altera a configuração geral deste treino em todos os dias da semana.
+                    </span>
+                  </div>
+                  <Repeat className="w-4 h-4 shrink-0 text-slate-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-3.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setRecurringScopePrompt(null)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-semibold transition cursor-pointer"
+              >
+                Cancelar
               </button>
             </div>
           </div>

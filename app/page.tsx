@@ -219,40 +219,45 @@ export default function Home() {
 
   // CALENDAR HANDLERS
   const handleAddCalendarEvent = (newEvent: CalendarEvent) => {
-    // Mecanismo de verificação de chave única (clientId + date) para evitar duplicidades
-    const existingIndex = calendarEvents.findIndex(
-      (e) => e.clientId === newEvent.clientId && e.date === newEvent.date
-    );
-    let updated: CalendarEvent[];
-    if (existingIndex >= 0) {
-      updated = [...calendarEvents];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        ...newEvent,
-        id: updated[existingIndex].id,
-      };
-      cloudSync.syncCalendarEvent(updated[existingIndex]);
-    } else {
-      updated = [newEvent, ...calendarEvents];
-      cloudSync.syncCalendarEvent(newEvent);
-    }
-    setCalendarEvents(updated);
-    storage.saveCalendarEvents(updated);
+    setCalendarEvents((prev) => {
+      const existingIndex = prev.findIndex(
+        (e) => e.clientId === newEvent.clientId && e.date === newEvent.date
+      );
+      let updated: CalendarEvent[];
+      if (existingIndex >= 0) {
+        updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          ...newEvent,
+          id: updated[existingIndex].id,
+        };
+        cloudSync.syncCalendarEvent(updated[existingIndex]);
+      } else {
+        updated = [newEvent, ...prev];
+        cloudSync.syncCalendarEvent(newEvent);
+      }
+      storage.saveCalendarEvents(updated);
+      return updated;
+    });
   };
 
   const handleUpdateCalendarEvent = (updatedEvent: CalendarEvent) => {
-    const updated = calendarEvents.map((e) =>
-      e.id === updatedEvent.id ? updatedEvent : e
-    );
-    setCalendarEvents(updated);
-    storage.saveCalendarEvents(updated);
+    setCalendarEvents((prev) => {
+      const updated = prev.map((e) =>
+        e.id === updatedEvent.id ? updatedEvent : e
+      );
+      storage.saveCalendarEvents(updated);
+      return updated;
+    });
     cloudSync.syncCalendarEvent(updatedEvent);
   };
 
   const handleDeleteCalendarEvent = (eventId: string) => {
-    const updated = calendarEvents.filter((e) => e.id !== eventId);
-    setCalendarEvents(updated);
-    storage.saveCalendarEvents(updated);
+    setCalendarEvents((prev) => {
+      const updated = prev.filter((e) => e.id !== eventId);
+      storage.saveCalendarEvents(updated);
+      return updated;
+    });
     cloudSync.removeCalendarEvent(eventId);
   };
 
@@ -368,7 +373,7 @@ export default function Home() {
         className={`w-full flex-1 flex flex-col transition-all relative ${
           isTabletFramed
             ? 'max-w-[768px] min-h-[960px] bg-slate-950 rounded-[32px] border-[8px] border-slate-800 shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden ring-1 ring-slate-700/50'
-            : 'max-w-4xl mx-auto'
+            : 'w-full max-w-none'
         }`}
       >
         {/* Tablet Camera / Speaker Notch Simulation (when framed) */}
@@ -400,7 +405,7 @@ export default function Home() {
         />
 
         {/* Main Section Content */}
-        <main className="flex-1 p-3 sm:p-5 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto w-full min-w-0">
           <AnimatePresence mode="wait" initial={false}>
             {currentSection === 'cliente' && (
               <motion.div

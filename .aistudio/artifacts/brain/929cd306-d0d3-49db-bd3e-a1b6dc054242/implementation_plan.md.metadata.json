@@ -1,6 +1,6 @@
 {
-  "summary": "Plano detalhado para inicialização limpa da conta do treinador (onboarding zero dados de exemplo), abertura padrão na aba Agenda após login/cadastro e telas com estados vazios e botões de ação rápida.",
-  "updatedAt": "2026-10-15T23:21:48.784735721Z",
+  "summary": "Plano de implementação para adicionar campo obrigatório de data limite (calendário) ao ativar recorrência de agendamentos na Agenda, com validação e encerramento automático da exibição após a data definida.",
+  "updatedAt": "2026-10-19T20:30:48.894237091Z",
   "requestFeedback": true,
   "userFacing": true
 }

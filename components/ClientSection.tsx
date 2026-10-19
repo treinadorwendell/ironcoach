@@ -273,12 +273,6 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     return matchesSearch && matchesContract;
   });
 
-  const totalMonthlyRevenue = clients.reduce((acc, c) => {
-    if (c.contractType === 'Mensal') return acc + c.contractValue;
-    if (c.contractType === 'Semanal') return acc + c.contractValue * 4;
-    return acc + c.contractValue;
-  }, 0);
-
   // Se a página de histórico estiver aberta, renderiza a página de consulta dedicada
   if (isHistoryPageOpen) {
     return (
@@ -294,33 +288,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   return (
     <div className="space-y-4 pb-24">
       {/* Top Banner & KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div
-          style={{ width: '346.86px', height: '119.5px' }}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md flex flex-col justify-between"
-        >
-          <span
-            style={{ width: '80.47px', height: '30px' }}
-            className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center"
-          >
+      <div className="flex items-center gap-3 w-full">
+        <div className="w-full sm:w-auto sm:min-w-[260px] max-w-sm p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md flex flex-col justify-between min-h-[100px]">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center">
             Total de Alunos
           </span>
-          <div style={{ height: '49px' }} className="flex items-baseline gap-2 mt-1">
+          <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-black text-white">{clients.length}</span>
             <span className="text-xs text-emerald-400 font-medium">Ativos</span>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Faturamento Estimado
-          </span>
-          <div className="flex items-baseline gap-1 mt-1">
-            <span className="text-xs font-bold text-emerald-400">R$</span>
-            <span className="text-2xl font-black text-white">
-              {totalMonthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-            </span>
-            <span className="text-[10px] text-slate-400">/mês</span>
           </div>
         </div>
       </div>
@@ -342,7 +317,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         {/* Cadastro Destacado */}
         <button
           onClick={openNewClientModal}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm shadow-lg shadow-emerald-950/50 transition touch-manipulation"
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm shadow-lg shadow-emerald-950/50 transition touch-manipulation cursor-pointer"
         >
           <UserPlus className="w-5 h-5 text-emerald-100" />
           <span>Cadastrar Novo Aluno</span>
@@ -366,10 +341,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         ))}
       </div>
 
-      {/* Client List Cards */}
-      <div className="space-y-3">
+      {/* Client List Cards (Responsive Grid: 1 col mobile, 2 col tablet, 3 col desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
         {filteredClients.length === 0 ? (
-          <div className="text-center py-12 px-4 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4 shadow-xl">
+          <div className="col-span-full text-center py-12 px-4 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4 shadow-xl">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
               <UserPlus className="w-8 h-8" />
             </div>
@@ -409,10 +384,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 shadow-md transition-all space-y-3"
               >
                 {/* Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-md ${
+                      className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-black text-base sm:text-lg text-white shadow-md shrink-0 ${
                         client.gender === 'Feminino'
                           ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
                           : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
@@ -420,13 +395,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     >
                       {client.name.charAt(0)}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-white tracking-tight">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate max-w-[150px] sm:max-w-[220px]">
                           {client.name}
                         </h3>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                             client.gender === 'Feminino'
                               ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20'
                               : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
@@ -435,33 +410,37 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                           {client.gender}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        <span className="flex items-center gap-1">
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400 flex-wrap">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Calendar className="w-3.5 h-3.5 text-slate-500" />
                           {client.birthDate} {age ? `(${age} anos)` : ''}
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3.5 h-3.5 text-slate-500" />
-                          {client.email}
+                        <span className="hidden sm:inline text-slate-600">•</span>
+                        <span className="flex items-center gap-1 truncate max-w-[140px] sm:max-w-[180px]" title={client.email}>
+                          <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span className="truncate">{client.email}</span>
                         </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions: Edit & Delete */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 shrink-0 self-start">
                     <button
+                      type="button"
                       onClick={() => openEditModal(client)}
-                      className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 transition"
+                      className="w-9 h-9 sm:w-9 sm:h-9 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation"
                       title="Editar Aluno"
+                      aria-label={`Editar ${client.name}`}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => setClientToDelete(client)}
-                      className="p-2 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95 transition"
+                      className="w-9 h-9 sm:w-9 sm:h-9 rounded-xl bg-slate-800/90 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/40 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation"
                       title="Excluir Aluno"
+                      aria-label={`Excluir ${client.name}`}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

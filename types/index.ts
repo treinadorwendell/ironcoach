@@ -222,6 +222,9 @@ export interface CalendarEvent {
   startTime: string; // "07:00"
   endTime: string; // "08:00"
   recurringDays?: number[]; // [1, 3, 5] for Mon, Wed, Fri
+  recurringEndDate?: string; // YYYY-MM-DD até qual data a recorrência fica ativa
+  recurringExceptions?: string[]; // Array of YYYY-MM-DD dates where this recurring event was overridden
+  recurringParentId?: string; // ID of the parent recurring event if this event is an isolated override
   notes?: string;
   status: CalendarEventStatus;
   rescheduledDate?: string;
