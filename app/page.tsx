@@ -41,6 +41,7 @@ export default function Home() {
   const [activeWorkoutForExecution, setActiveWorkoutForExecution] =
     useState<WorkoutProgram | null>(null);
   const [hasActiveRunningSession, setHasActiveRunningSession] = useState(false);
+  const [executionNavTrigger, setExecutionNavTrigger] = useState(0);
 
   // Auth Screen & User state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -105,7 +106,7 @@ export default function Home() {
             setCalendarEvents(normalized);
           },
           onActiveSessionChange: (cloudSession) => {
-            if (cloudSession) {
+            if (cloudSession && cloudSession.isStarted) {
               setWorkouts((currentWorkouts) => {
                 const matchingWorkout = currentWorkouts.find((w) => w.id === cloudSession.programId);
                 if (matchingWorkout) {
@@ -210,7 +211,10 @@ export default function Home() {
     setWorkouts(updated);
     storage.saveWorkouts(updated);
     cloudSync.syncWorkout(newWorkout);
-    setActiveWorkoutForExecution(newWorkout);
+    const savedSession = storage.getActiveSession();
+    if (savedSession && savedSession.isStarted && savedSession.programId === newWorkout.id) {
+      setActiveWorkoutForExecution(newWorkout);
+    }
   };
 
   const handleDeleteWorkout = (workoutId: string) => {
@@ -522,7 +526,7 @@ export default function Home() {
                 className="w-full"
               >
                 <WorkoutExecutionSection
-                  key={activeWorkoutForExecution?.id || 'no-workout'}
+                  key={`${activeWorkoutForExecution?.id || 'no-workout'}-${executionNavTrigger}`}
                   clients={clients}
                   workouts={workouts}
                   activeWorkout={activeWorkoutForExecution}
@@ -535,7 +539,7 @@ export default function Home() {
                   }}
                   onConfirmWorkoutCompletedInAgenda={handleConfirmWorkoutCompletedInAgenda}
                   onFinishWorkout={() => {
-                    // Return to client list or stay
+                    setActiveWorkoutForExecution(null);
                   }}
                 />
               </motion.div>
@@ -554,7 +558,24 @@ export default function Home() {
         {/* Fixed Touch-Friendly Bottom Navigation Bar */}
         <BottomNav
           currentSection={currentSection}
-          onSelectSection={(sec) => setCurrentSection(sec)}
+          onSelectSection={(sec) => {
+            if (sec === 'execucao') {
+              const savedSession = storage.getActiveSession();
+              if (savedSession && savedSession.isStarted) {
+                const matchingWorkout = workouts.find((w) => w.id === savedSession.programId);
+                if (matchingWorkout) {
+                  setActiveWorkoutForExecution(matchingWorkout);
+                }
+              } else {
+                // Sem treino iniciado: limpa qualquer sessão não iniciada e vai direto para escolher aluno
+                storage.saveActiveSession(null);
+                cloudSync.syncActiveSession(null);
+                setActiveWorkoutForExecution(null);
+              }
+              setExecutionNavTrigger((prev) => prev + 1);
+            }
+            setCurrentSection(sec);
+          }}
           hasActiveSession={hasActiveRunningSession}
         />
       </div>

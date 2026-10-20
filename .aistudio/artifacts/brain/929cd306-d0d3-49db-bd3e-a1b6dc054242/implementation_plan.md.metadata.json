@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação do Relatório de Feedback e Evolução Pós-Treino (comparativo de carga em %, repetições, volume, relação PSE x Carga, definição da Próxima Meta e visualização pré-treino).",
-  "updatedAt": "2026-10-20T00:08:26.682070078Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Plano de implementação para redirecionar o clique na aba Execução do Treino diretamente para a tela de escolha de aluno, exceto quando já houver um treino iniciado (em andamento ou pausado), caso em que redireciona diretamente para a tela de execução do treino ativo.",
+  "updatedAt":  "2026-10-20T13:06:05.151534399Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

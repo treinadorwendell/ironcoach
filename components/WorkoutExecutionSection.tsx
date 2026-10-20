@@ -221,6 +221,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Selected student state for explicit selection
   const [selectedClientId, setSelectedClientId] = useState<string>(() => {
+    const saved = storage.getActiveSession();
+    if (saved && saved.isStarted) return saved.clientId;
     return session?.clientId || activeWorkout?.clientId || '';
   });
 
@@ -230,12 +232,18 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // 2. 'selecao-treino': Choose which workout/split to execute from the chosen program
   // 3. 'execucao': Hidden execution page rendered ready with timer waiting to start
   const [currentStep, setCurrentStep] = useState<ExecutionStep>(() => {
-    if (session && session.isStarted) return 'execucao';
+    const saved = storage.getActiveSession();
+    if ((session && session.isStarted) || (saved && saved.isStarted)) return 'execucao';
     if (activeWorkout) return 'execucao';
     return 'selecao-aluno';
   });
 
   const [selectedProgram, setSelectedProgram] = useState<WorkoutProgram | null>(() => {
+    const saved = storage.getActiveSession();
+    if (saved && saved.isStarted) {
+      const matched = workouts.find((w) => w.id === saved.programId);
+      if (matched) return matched;
+    }
     if (activeWorkout) return activeWorkout;
     const initialClientWorkouts = workouts.filter(
       (w) => w.clientId === (session?.clientId || clients[0]?.id || '')
