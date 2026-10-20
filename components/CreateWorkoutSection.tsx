@@ -55,6 +55,7 @@ import {
   History,
   ListChecks,
   Activity,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 export interface WorkoutChangeLogItem {
@@ -293,6 +294,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   );
   const [isExerciseDbModalOpen, setIsExerciseDbModalOpen] = useState(false);
   const [targetExerciseIndexForDb, setTargetExerciseIndexForDb] = useState<number | null>(null);
+  const [isSelectingSubstituteForDb, setIsSelectingSubstituteForDb] = useState(false);
   const [dbSearchQuery, setDbSearchQuery] = useState('');
   const [dbSelectedMuscleFilter, setDbSelectedMuscleFilter] = useState<'Todos' | MuscleGroup>('Todos');
   const [activeDbTab, setActiveDbTab] = useState<'catalog' | 'create_new'>('catalog');
@@ -656,9 +658,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   // EXERCISE DATABASE HANDLERS
   const openExerciseDbModal = (
     targetIndex: number | null = null,
-    defaultMuscle?: MuscleGroup
+    defaultMuscle?: MuscleGroup,
+    isSubstitute: boolean = false
   ) => {
     setTargetExerciseIndexForDb(targetIndex);
+    setIsSelectingSubstituteForDb(isSubstitute);
     if (defaultMuscle) {
       setDbSelectedMuscleFilter(defaultMuscle);
       setNewExMuscleGroup(defaultMuscle);
@@ -680,7 +684,29 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         prev.splits.find((s) => s.id === selectedSplitId) || prev.splits[0];
       if (!currentSplit) return prev;
 
-      if (targetExerciseIndexForDb !== null) {
+      if (targetExerciseIndexForDb !== null && isSelectingSubstituteForDb) {
+        const oldEx = currentSplit.exercises[targetExerciseIndexForDb];
+        const updatedExercises = currentSplit.exercises.map((ex, i) =>
+          i === targetExerciseIndexForDb
+            ? {
+                ...ex,
+                substituteExerciseName: dbExercise.name,
+                substituteMuscleGroup: dbExercise.muscleGroup,
+              }
+            : ex
+        );
+        const updatedSplits = prev.splits.map((s) =>
+          s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
+        );
+        logWorkoutChange(
+          'exercise',
+          'edit',
+          'Exercício Substituto Definido',
+          `"${dbExercise.name}" definido como substituto para "${oldEx?.name || 'Exercício'}"`,
+          currentSplit.name
+        );
+        return { ...prev, splits: updatedSplits };
+      } else if (targetExerciseIndexForDb !== null) {
         const oldEx = currentSplit.exercises[targetExerciseIndexForDb];
         const updatedExercises = currentSplit.exercises.map((ex, i) =>
           i === targetExerciseIndexForDb
@@ -720,6 +746,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       }
     });
 
+    setIsSelectingSubstituteForDb(false);
     setIsExerciseDbModalOpen(false);
   };
 
@@ -745,14 +772,32 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   };
 
   // Filtered exercises for the database modal
+  const targetSubstituteMuscle =
+    isSelectingSubstituteForDb &&
+    targetExerciseIndexForDb !== null &&
+    activeSplit?.exercises[targetExerciseIndexForDb]
+      ? activeSplit.exercises[targetExerciseIndexForDb].muscleGroup
+      : null;
+
+  const targetMainExerciseName =
+    isSelectingSubstituteForDb &&
+    targetExerciseIndexForDb !== null &&
+    activeSplit?.exercises[targetExerciseIndexForDb]
+      ? activeSplit.exercises[targetExerciseIndexForDb].name.trim().toLowerCase()
+      : null;
+
   const filteredDbExercises = exerciseDatabase.filter((ex) => {
-    const matchesMuscle =
-      dbSelectedMuscleFilter === 'Todos' || ex.muscleGroup === dbSelectedMuscleFilter;
+    const matchesMuscle = targetSubstituteMuscle
+      ? ex.muscleGroup === targetSubstituteMuscle
+      : dbSelectedMuscleFilter === 'Todos' || ex.muscleGroup === dbSelectedMuscleFilter;
+    const isNotSameMain = targetMainExerciseName
+      ? ex.name.trim().toLowerCase() !== targetMainExerciseName
+      : true;
     const matchesSearch =
       !dbSearchQuery.trim() ||
       ex.name.toLowerCase().includes(dbSearchQuery.toLowerCase().trim()) ||
       ex.muscleGroup.toLowerCase().includes(dbSearchQuery.toLowerCase().trim());
-    return matchesMuscle && matchesSearch;
+    return matchesMuscle && isNotSameMain && matchesSearch;
   });
 
   // EXERCISE CRUD INSIDE ACTIVE SPLIT
@@ -1792,6 +1837,12 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                       </span>
                     </span>
                   )}
+                  {ex.substituteExerciseName && (
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-bold text-[10px] border border-amber-500/30 flex items-center gap-1">
+                      <ArrowLeftRight className="w-3 h-3 text-amber-400" />
+                      <span>Substituto: {ex.substituteExerciseName}</span>
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
@@ -2021,6 +2072,14 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   updateExercise(exIndex, {
                     muscleGroup: mg,
                     name: firstDbForMuscle ? firstDbForMuscle.name : ex.name,
+                    substituteExerciseName:
+                      ex.substituteMuscleGroup && ex.substituteMuscleGroup !== mg
+                        ? undefined
+                        : ex.substituteExerciseName,
+                    substituteMuscleGroup:
+                      ex.substituteMuscleGroup && ex.substituteMuscleGroup !== mg
+                        ? undefined
+                        : ex.substituteMuscleGroup,
                   });
                 }}
                 className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-400 focus:outline-none focus:border-cyan-500"
@@ -2064,11 +2123,34 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
               <button
                 type="button"
-                onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition active:scale-95"
+                onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, false)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition active:scale-95 cursor-pointer"
               >
                 <BookOpen className="w-3.5 h-3.5 text-purple-400" />
                 <span>Trocar pelo Banco</span>
+              </button>
+
+              {/* Botão Exercício Substituto (Desktop/Tablet: ícone + descrição | Mobile: somente o símbolo) */}
+              <button
+                type="button"
+                onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, true)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border ${
+                  ex.substituteExerciseName
+                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                    : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
+                }`}
+                title={
+                  ex.substituteExerciseName
+                    ? `Exercício substituto: ${ex.substituteExerciseName} (Clique para alterar)`
+                    : 'Exercício substituto (mesmo grupo muscular)'
+                }
+              >
+                <ArrowLeftRight
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    ex.substituteExerciseName ? 'text-amber-400' : 'text-cyan-400'
+                  }`}
+                />
+                <span className="hidden sm:inline">Exercício substituto</span>
               </button>
 
               {/* Ações de Combinação Rápida */}
@@ -2093,6 +2175,46 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 </button>
               ) : null}
             </div>
+
+            {/* Indicador do Exercício Substituto Selecionado */}
+            {ex.substituteExerciseName && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ArrowLeftRight className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-slate-300 truncate">
+                    Exercício substituto:{' '}
+                    <strong className="text-amber-300 font-bold">
+                      {ex.substituteExerciseName}
+                    </strong>{' '}
+                    <span className="text-slate-400 text-[10px]">
+                      ({ex.substituteMuscleGroup || ex.muscleGroup})
+                    </span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, true)}
+                    className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] font-bold border border-slate-700 transition cursor-pointer"
+                  >
+                    Trocar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateExercise(exIndex, {
+                        substituteExerciseName: undefined,
+                        substituteMuscleGroup: undefined,
+                      })
+                    }
+                    className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    title="Remover exercício substituto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* SEÇÃO DE SÉRIES INDIVIDUAIS: EDITAR E ADICIONAR UMA DE CADA VEZ COM MÉTODO POR SÉRIE */}
             <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
@@ -3686,17 +3808,27 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
             <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/30 flex items-center justify-center shadow-lg">
-                  <BookOpen className="w-5 h-5" />
+                  {isSelectingSubstituteForDb ? (
+                    <ArrowLeftRight className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <BookOpen className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                    <span>Banco de Dados de Exercícios</span>
+                    <span>
+                      {isSelectingSubstituteForDb
+                        ? 'Selecionar Exercício Substituto'
+                        : 'Banco de Dados de Exercícios'}
+                    </span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono font-bold">
-                      {exerciseDatabase.length} cadastrados
+                      {filteredDbExercises.length} opções
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400">
-                    {targetExerciseIndexForDb !== null
+                    {isSelectingSubstituteForDb && targetSubstituteMuscle
+                      ? `Escolha um exercício substituto do mesmo grupo muscular (${targetSubstituteMuscle})`
+                      : targetExerciseIndexForDb !== null
                       ? 'Selecione um exercício do banco para substituir no treino'
                       : 'Escolha do banco ou cadastre um novo exercício'}
                   </p>
@@ -3705,7 +3837,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsExerciseDbModalOpen(false)}
+                onClick={() => {
+                  setIsSelectingSubstituteForDb(false);
+                  setIsExerciseDbModalOpen(false);
+                }}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
               >
                 <X className="w-5 h-5" />
@@ -3765,39 +3900,56 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   )}
                 </div>
 
-                {/* Muscle Group Horizontal Filter Pills */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setDbSelectedMuscleFilter('Todos')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 ${
-                      dbSelectedMuscleFilter === 'Todos'
-                        ? 'bg-purple-600 text-white shadow-md'
-                        : 'bg-slate-950 text-slate-400 hover:bg-slate-800 border border-slate-800'
-                    }`}
-                  >
-                    Todos ({exerciseDatabase.length})
-                  </button>
+                {/* Muscle Group Horizontal Filter Pills (locked to same muscle group when picking substitute) */}
+                {isSelectingSubstituteForDb && targetSubstituteMuscle ? (
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Dumbbell className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-slate-300 font-semibold">
+                        Grupo muscular filtrado:{' '}
+                        <strong className="text-amber-300 font-black">
+                          {targetSubstituteMuscle}
+                        </strong>
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {filteredDbExercises.length} exercício(s) disponível(is)
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setDbSelectedMuscleFilter('Todos')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 ${
+                        dbSelectedMuscleFilter === 'Todos'
+                          ? 'bg-purple-600 text-white shadow-md'
+                          : 'bg-slate-950 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                      }`}
+                    >
+                      Todos ({exerciseDatabase.length})
+                    </button>
 
-                  {MUSCLE_GROUPS.map((mg) => {
-                    const count = exerciseDatabase.filter((e) => e.muscleGroup === mg).length;
-                    const isSelected = dbSelectedMuscleFilter === mg;
-                    return (
-                      <button
-                        key={mg}
-                        type="button"
-                        onClick={() => setDbSelectedMuscleFilter(mg)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 ${
-                          isSelected
-                            ? 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400'
-                            : 'bg-slate-950 text-slate-400 hover:bg-slate-800 border border-slate-800'
-                        }`}
-                      >
-                        {mg} ({count})
-                      </button>
-                    );
-                  })}
-                </div>
+                    {MUSCLE_GROUPS.map((mg) => {
+                      const count = exerciseDatabase.filter((e) => e.muscleGroup === mg).length;
+                      const isSelected = dbSelectedMuscleFilter === mg;
+                      return (
+                        <button
+                          key={mg}
+                          type="button"
+                          onClick={() => setDbSelectedMuscleFilter(mg)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 ${
+                            isSelected
+                              ? 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400'
+                              : 'bg-slate-950 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                          }`}
+                        >
+                          {mg} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Exercises List */}
                 <div className="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[46vh]">
@@ -3854,10 +4006,24 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                           <button
                             type="button"
                             onClick={() => handleSelectExerciseFromDb(dbEx)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow active:scale-95 transition"
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-white text-xs font-extrabold shadow active:scale-95 transition cursor-pointer ${
+                              isSelectingSubstituteForDb
+                                ? 'bg-amber-600 hover:bg-amber-500'
+                                : 'bg-emerald-600 hover:bg-emerald-500'
+                            }`}
                           >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>{targetExerciseIndexForDb !== null ? 'Substituir' : 'Adicionar'}</span>
+                            {isSelectingSubstituteForDb ? (
+                              <ArrowLeftRight className="w-3.5 h-3.5" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5" />
+                            )}
+                            <span>
+                              {isSelectingSubstituteForDb
+                                ? 'Escolher Substituto'
+                                : targetExerciseIndexForDb !== null
+                                ? 'Substituir'
+                                : 'Adicionar'}
+                            </span>
                           </button>
 
                           {/* Delete from DB button */}
@@ -3913,9 +4079,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                       Grupamento Muscular *
                     </label>
                     <select
-                      value={newExMuscleGroup}
+                      value={targetSubstituteMuscle || newExMuscleGroup}
+                      disabled={!!targetSubstituteMuscle}
                       onChange={(e) => setNewExMuscleGroup(e.target.value as MuscleGroup)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500 disabled:opacity-60"
                     >
                       {MUSCLE_GROUPS.map((mg) => (
                         <option key={mg} value={mg}>
@@ -3935,7 +4102,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                       </span>
                       <span className="text-xs font-black text-white">{newExName}</span>
                       <span className="text-[11px] text-emerald-400 block mt-0.5">
-                        Músculo: {newExMuscleGroup}
+                        Músculo: {targetSubstituteMuscle || newExMuscleGroup}
                       </span>
                     </div>
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
@@ -3957,7 +4124,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center justify-center gap-1.5"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Salvar no Banco & Adicionar</span>
+                    <span>
+                      {isSelectingSubstituteForDb
+                        ? 'Salvar no Banco & Definir Substituto'
+                        : 'Salvar no Banco & Adicionar'}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -3965,10 +4136,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
             {/* Modal Footer */}
             <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs text-slate-400">
-              <span>{exerciseDatabase.length} exercícios disponíveis no catálogo</span>
+              <span>{filteredDbExercises.length} exercícios disponíveis</span>
               <button
                 type="button"
-                onClick={() => setIsExerciseDbModalOpen(false)}
+                onClick={() => {
+                  setIsSelectingSubstituteForDb(false);
+                  setIsExerciseDbModalOpen(false);
+                }}
                 className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs"
               >
                 Concluir

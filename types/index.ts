@@ -125,6 +125,8 @@ export interface ExerciseItem {
   combinationGroupId?: string; // ID único do grupo de combinação (ex: combo-123)
   combinationLabel?: string; // Ex: "Bi-set", "Tri-set", "Super-série", "Combinado"
   combinationOrder?: number; // Ordem na sequência da combinação (1, 2, 3...)
+  substituteExerciseName?: string; // Exercício substituto do mesmo grupo muscular
+  substituteMuscleGroup?: MuscleGroup;
 }
 
 export interface WorkoutSplit {
@@ -184,6 +186,10 @@ export interface ExecutionExerciseState {
   combinationLabel?: string;
   combinationOrder?: number;
   exerciseComment?: string;
+  substituteExerciseName?: string;
+  substituteMuscleGroup?: MuscleGroup;
+  isUsingSubstitute?: boolean;
+  originalExerciseName?: string;
 }
 
 export interface ActiveWorkoutSession {
@@ -264,6 +270,53 @@ export interface CompletedExerciseRecord {
   sets: CompletedSetRecord[];
 }
 
+export interface ExerciseImprovementItem {
+  exerciseName: string;
+  muscleGroup?: MuscleGroup;
+  hasPreviousHistory: boolean;
+  previousDate?: string;
+  previousMaxWeightKg: number;
+  currentMaxWeightKg: number;
+  weightDiffKg: number;
+  weightDiffPercent: number;
+  previousTotalReps: number;
+  currentTotalReps: number;
+  repsDiff: number;
+  repsDiffPercent: number;
+  previousVolumeKg: number;
+  currentVolumeKg: number;
+  volumeDiffKg: number;
+  volumeDiffPercent: number;
+  previousAvgPse: number | null;
+  currentAvgPse: number | null;
+  pseDiff: number | null;
+  pseLoadRelationship: string;
+  pseLoadStatus: 'improved' | 'progressed' | 'maintained' | 'demanding';
+  hasAnyImprovement: boolean;
+  improvementsSummary: string[];
+}
+
+export interface WorkoutFeedbackReport {
+  id: string;
+  generatedAt: string;
+  comparedWorkoutId?: string;
+  comparedWorkoutDate?: string;
+  previousTotalVolumeKg: number;
+  currentTotalVolumeKg: number;
+  totalVolumeDiffKg: number;
+  totalVolumeDiffPercent: number;
+  previousTotalReps: number;
+  currentTotalReps: number;
+  totalRepsDiff: number;
+  previousAvgPse: number | null;
+  currentAvgPse: number | null;
+  avgWeightDiffPercent: number;
+  exercisesImprovedCount: number;
+  totalComparedExercises: number;
+  exerciseComparisons: ExerciseImprovementItem[];
+  nextWorkoutGoal?: string;
+}
+
 export interface CompletedWorkoutRecord {
   id: string;
   clientId: string;
@@ -280,6 +333,8 @@ export interface CompletedWorkoutRecord {
   totalVolumeKg: number;
   exercises: CompletedExerciseRecord[];
   trainerNotes?: string;
+  feedbackReport?: WorkoutFeedbackReport;
+  nextWorkoutGoal?: string;
 }
 
 export interface ExerciseFinishedSnapshotSet {

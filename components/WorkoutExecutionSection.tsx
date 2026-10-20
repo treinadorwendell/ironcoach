@@ -13,6 +13,7 @@ import {
   ExecutionSubSet,
   CompletedWorkoutRecord,
   CompletedExerciseRecord,
+  WorkoutFeedbackReport,
 } from '@/types';
 import { storage } from '@/lib/storage';
 import { sounds } from '@/lib/sound';
@@ -59,6 +60,11 @@ import {
   Calendar as CalendarIcon,
   PenLine,
   UserPlus,
+  ArrowLeftRight,
+  AlertTriangle,
+  BarChart3,
+  Percent,
+  Flag,
 } from 'lucide-react';
 import { PsePickerModal, getPseInfo } from './PsePickerModal';
 import { ExerciseDedicatedPageView } from './ExerciseDedicatedPageView';
@@ -174,6 +180,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           combinationGroupId: ex.combinationGroupId,
           combinationLabel: ex.combinationLabel,
           combinationOrder: ex.combinationOrder,
+          substituteExerciseName: ex.substituteExerciseName,
+          substituteMuscleGroup: ex.substituteMuscleGroup || ex.muscleGroup,
+          isUsingSubstitute: false,
+          originalExerciseName: ex.name,
         };
       });
 
@@ -329,8 +339,21 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     dateFormatted: string;
     dateIso: string;
     timeFormatted?: string;
+    completedRecord?: CompletedWorkoutRecord;
+    canGenerateReport: boolean;
+    feedbackReport: WorkoutFeedbackReport | null;
+    previousRecordDate?: string;
   } | null>(null);
   const [registerInAgendaConfirmed, setRegisterInAgendaConfirmed] = useState<boolean>(true);
+  const [isReportViewOpen, setIsReportViewOpen] = useState<boolean>(false);
+  const [nextWorkoutGoalText, setNextWorkoutGoalText] = useState<string>('');
+  const [preWorkoutHistoryModal, setPreWorkoutHistoryModal] = useState<{
+    isOpen: boolean;
+    clientId: string;
+    splitName?: string;
+    programName?: string;
+    selectedRecordId?: string;
+  } | null>(null);
 
   // Estado para a Página/Modal de Seleção de PSE (0 a 10)
   const [pseModalConfig, setPseModalConfig] = useState<{
@@ -392,6 +415,88 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       setNumber,
       totalSets,
     });
+  };
+
+  // Estado para o Modal de Confirmação de Troca pelo Exercício Substituto
+  const [swapConfirmModal, setSwapConfirmModal] = useState<{
+    isOpen: boolean;
+    exerciseIndex: number;
+    currentExerciseName: string;
+    substituteExerciseName: string;
+  } | null>(null);
+
+  const handleRequestSwapSubstitute = (exIndex: number) => {
+    if (!session) return;
+    const ex = session.exercises[exIndex];
+    if (!ex || !ex.substituteExerciseName) return;
+    setSwapConfirmModal({
+      isOpen: true,
+      exerciseIndex: exIndex,
+      currentExerciseName: ex.exerciseName,
+      substituteExerciseName: ex.substituteExerciseName,
+    });
+  };
+
+  const handleConfirmSwapSubstitute = () => {
+    if (!swapConfirmModal || !session) return;
+    const { exerciseIndex } = swapConfirmModal;
+    const currentEx = session.exercises[exerciseIndex];
+    if (!currentEx || !currentEx.substituteExerciseName) {
+      setSwapConfirmModal(null);
+      return;
+    }
+
+    const newExerciseName = currentEx.substituteExerciseName;
+    const newSubstituteName = currentEx.exerciseName;
+    const newIsUsingSubstitute = !currentEx.isUsingSubstitute;
+
+    // Apaga os registros contidos da execução atual e carrega o histórico exclusivo do novo exercício
+    const lastRecordedWeight = storage.getLastPerformedWeight(newExerciseName, session.clientId);
+
+    const resetSets: ExecutionSet[] = currentEx.sets.map((s, idx) => {
+      const setHistoryWeight = storage.getLastPerformedWeight(newExerciseName, session.clientId, idx);
+      const setWeight = setHistoryWeight ?? lastRecordedWeight ?? null;
+
+      const resetSubSets: ExecutionSubSet[] = (s.subSets || []).map((sub) => ({
+        ...sub,
+        completedReps: sub.targetReps,
+        weightKg: setWeight,
+        completed: false,
+      }));
+
+      return {
+        ...s,
+        completedReps: s.targetReps,
+        weightKg: setWeight,
+        pse: null,
+        completed: false,
+        completedAt: undefined,
+        subSets: resetSubSets,
+      };
+    });
+
+    const updatedExercises = [...session.exercises];
+    updatedExercises[exerciseIndex] = {
+      ...currentEx,
+      exerciseName: newExerciseName,
+      substituteExerciseName: newSubstituteName,
+      originalExerciseName: currentEx.originalExerciseName || currentEx.exerciseName,
+      isUsingSubstitute: newIsUsingSubstitute,
+      exerciseComment: '',
+      sets: resetSets,
+    };
+
+    const updatedSession = {
+      ...session,
+      exercises: updatedExercises,
+    };
+
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+    cloudSync.syncActiveSession(updatedSession);
+    sounds.playTickSound();
+    vibration.mediumPulse();
+    setSwapConfirmModal(null);
   };
 
   const handleToggleExerciseExpand = (exId: string) => {
@@ -1064,6 +1169,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       trainerNotes: session.trainerNotes || '',
     };
 
+    const feedbackAnalysis = storage.generateWorkoutFeedbackReport(newRecord);
+
     storage.saveCompletedWorkout(newRecord);
     cloudSync.syncCompletedWorkout(newRecord);
 
@@ -1081,8 +1188,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       dateFormatted,
       dateIso,
       timeFormatted,
+      completedRecord: newRecord,
+      canGenerateReport: feedbackAnalysis.canGenerate,
+      feedbackReport: feedbackAnalysis.report,
+      previousRecordDate: feedbackAnalysis.previousRecord?.date,
     });
     setRegisterInAgendaConfirmed(true);
+    setIsReportViewOpen(false);
+    setNextWorkoutGoalText('');
 
     setIsFinishedModalOpen(true);
 
@@ -1098,11 +1211,60 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     clearActiveSession();
   };
 
+  const handleGenerateFeedbackReport = () => {
+    if (!workoutSummary || !workoutSummary.canGenerateReport || !workoutSummary.feedbackReport) {
+      return;
+    }
+    sounds.playTickSound();
+    vibration.lightTap();
+    setIsReportViewOpen(true);
+
+    if (workoutSummary.completedRecord) {
+      const updatedReport: WorkoutFeedbackReport = {
+        ...workoutSummary.feedbackReport,
+        nextWorkoutGoal: nextWorkoutGoalText.trim(),
+      };
+      const updatedRecord: CompletedWorkoutRecord = {
+        ...workoutSummary.completedRecord,
+        feedbackReport: updatedReport,
+        nextWorkoutGoal: nextWorkoutGoalText.trim() || workoutSummary.completedRecord.nextWorkoutGoal,
+      };
+      storage.updateCompletedWorkout(updatedRecord);
+      cloudSync.syncCompletedWorkout(updatedRecord);
+      setWorkoutSummary({
+        ...workoutSummary,
+        completedRecord: updatedRecord,
+        feedbackReport: updatedReport,
+      });
+    }
+  };
+
   // Confirmação final do treino realizado e atualização do status na agenda
   const handleConfirmFinishWorkout = () => {
     if (!workoutSummary) {
       setIsFinishedModalOpen(false);
       return;
+    }
+
+    // Salva o relatório (se gerado) e a descrição da próxima meta do treino no histórico
+    if (workoutSummary.completedRecord) {
+      const cleanGoal = nextWorkoutGoalText.trim();
+      const updatedReport =
+        isReportViewOpen && workoutSummary.feedbackReport
+          ? {
+              ...workoutSummary.feedbackReport,
+              nextWorkoutGoal: cleanGoal,
+            }
+          : workoutSummary.completedRecord.feedbackReport;
+
+      const updatedRecord: CompletedWorkoutRecord = {
+        ...workoutSummary.completedRecord,
+        nextWorkoutGoal: cleanGoal || workoutSummary.completedRecord.nextWorkoutGoal,
+        feedbackReport: updatedReport,
+      };
+
+      storage.updateCompletedWorkout(updatedRecord);
+      cloudSync.syncCompletedWorkout(updatedRecord);
     }
 
     if (registerInAgendaConfirmed) {
@@ -1784,6 +1946,93 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             <ChevronRight className="w-4 h-4" />
                           </button>
                         </div>
+
+                        {/* Resumo Rápido da Próxima Meta / Último Relatório antes de abrir o Split */}
+                        {(() => {
+                          const preAnalysis = storage.getPreWorkoutHistoryAnalysis(
+                            selectedClientId,
+                            split.name,
+                            selectedProgram.name
+                          );
+                          const latest = preAnalysis.latestRecord;
+                          if (!latest) return null;
+
+                          const lastGoal =
+                            latest.nextWorkoutGoal ||
+                            latest.feedbackReport?.nextWorkoutGoal ||
+                            '';
+                          const report = latest.feedbackReport;
+
+                          if (!lastGoal && !report) return null;
+
+                          return (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreWorkoutHistoryModal({
+                                  isOpen: true,
+                                  clientId: selectedClientId,
+                                  splitName: split.name,
+                                  programName: selectedProgram.name,
+                                  selectedRecordId: latest.id,
+                                });
+                              }}
+                              className="mt-2 p-3 rounded-xl bg-gradient-to-r from-cyan-950/50 via-slate-950 to-slate-950 border border-cyan-500/40 hover:border-cyan-400 transition space-y-1.5"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+                                  <Flag className="w-3 h-3" />
+                                  <span>Análise Pré-Treino ({latest.date})</span>
+                                </span>
+                                <span className="text-[10px] font-bold text-cyan-300 underline">
+                                  Ver Relatório
+                                </span>
+                              </div>
+                              {lastGoal && (
+                                <p className="text-xs text-slate-200 line-clamp-2">
+                                  <strong className="text-amber-400">Próxima Meta:</strong>{' '}
+                                  {lastGoal}
+                                </p>
+                              )}
+                              {report && (
+                                <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-300">
+                                  <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+                                    Carga:{' '}
+                                    <strong
+                                      className={
+                                        report.avgWeightDiffPercent >= 0
+                                          ? 'text-emerald-400'
+                                          : 'text-amber-400'
+                                      }
+                                    >
+                                      {report.avgWeightDiffPercent >= 0 ? '+' : ''}
+                                      {report.avgWeightDiffPercent}%
+                                    </strong>
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+                                    Volume:{' '}
+                                    <strong
+                                      className={
+                                        report.totalVolumeDiffPercent >= 0
+                                          ? 'text-emerald-400'
+                                          : 'text-amber-400'
+                                      }
+                                    >
+                                      {report.totalVolumeDiffPercent >= 0 ? '+' : ''}
+                                      {report.totalVolumeDiffPercent}%
+                                    </strong>
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+                                    Melhorias:{' '}
+                                    <strong className="text-cyan-300">
+                                      {report.exercisesImprovedCount} exerc.
+                                    </strong>
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -1841,6 +2090,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 onFinishWorkout={handleFinishWorkout}
                 onCopyFirstSetWeightToAll={handleCopyFirstSetWeightToAll}
                 onUpdateExerciseComment={handleUpdateExerciseComment}
+                onRequestSwapSubstitute={handleRequestSwapSubstitute}
                 isSessionStarted={isSessionStarted}
                 isSessionPaused={isSessionPaused}
                 onStartWorkout={handleStartWorkout}
@@ -1943,7 +2193,158 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             );
           })()}
 
+          {/* PAINEL DE ANÁLISE PRÉ-TREINO: PRÓXIMA META E RELATÓRIO DE EVOLUÇÃO ANTERIOR (ANTES DE INICIAR) */}
+          {(() => {
+            const splitPart = session.programName.includes('•')
+              ? session.programName.split('•')[1].trim()
+              : session.programName;
+            const progPart = session.programName.includes('•')
+              ? session.programName.split('•')[0].trim()
+              : session.programName;
 
+            const preAnalysis = storage.getPreWorkoutHistoryAnalysis(
+              session.clientId,
+              splitPart,
+              progPart
+            );
+            const latestRecord = preAnalysis.latestRecord;
+            if (!latestRecord) return null;
+
+            const savedGoal =
+              latestRecord.nextWorkoutGoal ||
+              latestRecord.feedbackReport?.nextWorkoutGoal ||
+              '';
+            const savedReport = latestRecord.feedbackReport;
+
+            return (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-950 border border-cyan-500/40 shadow-lg space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                      <BarChart3 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-xs sm:text-sm font-black text-white">
+                          Análise Pré-Treino &amp; Próxima Meta
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-[10px] font-bold text-cyan-300">
+                          Último registro: {latestRecord.date}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        {!session.isStarted
+                          ? 'Revise a meta e as melhorias do treino anterior antes de iniciar o cronômetro.'
+                          : 'Meta e parâmetros comparativos do último treino registrado.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreWorkoutHistoryModal({
+                        isOpen: true,
+                        clientId: session.clientId,
+                        splitName: splitPart,
+                        programName: progPart,
+                        selectedRecordId: latestRecord.id,
+                      })
+                    }
+                    className="px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer shrink-0"
+                  >
+                    <History className="w-3.5 h-3.5" />
+                    <span>
+                      Ver Histórico de Relatórios ({preAnalysis.allPreviousRecords.length})
+                    </span>
+                  </button>
+                </div>
+
+                {savedGoal && (
+                  <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 flex items-start gap-2.5">
+                    <Target className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                        Próxima Meta Definida para Hoje:
+                      </span>
+                      <p className="text-xs sm:text-sm text-white font-semibold leading-relaxed">
+                        {savedGoal}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {savedReport && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Evolução de Carga
+                      </span>
+                      <span
+                        className={`text-sm font-black mt-0.5 block ${
+                          savedReport.avgWeightDiffPercent > 0
+                            ? 'text-emerald-400'
+                            : savedReport.avgWeightDiffPercent < 0
+                            ? 'text-amber-400'
+                            : 'text-slate-200'
+                        }`}
+                      >
+                        {savedReport.avgWeightDiffPercent > 0 ? '+' : ''}
+                        {savedReport.avgWeightDiffPercent}%
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Evolução de Volume
+                      </span>
+                      <span
+                        className={`text-sm font-black mt-0.5 block ${
+                          savedReport.totalVolumeDiffKg > 0
+                            ? 'text-emerald-400'
+                            : savedReport.totalVolumeDiffKg < 0
+                            ? 'text-amber-400'
+                            : 'text-slate-200'
+                        }`}
+                      >
+                        {savedReport.totalVolumeDiffPercent > 0 ? '+' : ''}
+                        {savedReport.totalVolumeDiffPercent}% ({savedReport.totalVolumeDiffKg >= 0 ? '+' : ''}
+                        {savedReport.totalVolumeDiffKg} kg)
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Saldo de Repetições
+                      </span>
+                      <span
+                        className={`text-sm font-black mt-0.5 block ${
+                          savedReport.totalRepsDiff > 0
+                            ? 'text-emerald-400'
+                            : savedReport.totalRepsDiff < 0
+                            ? 'text-amber-400'
+                            : 'text-slate-200'
+                        }`}
+                      >
+                        {savedReport.totalRepsDiff > 0 ? '+' : ''}
+                        {savedReport.totalRepsDiff} reps
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                        Exercícios com Melhoria
+                      </span>
+                      <span className="text-sm font-black text-cyan-400 mt-0.5 block">
+                        {savedReport.exercisesImprovedCount} de{' '}
+                        {savedReport.exerciseComparisons.length}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* HEADER DA LISTA DE EXERCÍCIOS: INDICAÇÃO E BOTÕES EXPANDIR/RECOLHER */}
           <div className="flex items-center justify-between gap-2 px-1">
@@ -2026,6 +2427,28 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             <h4 className="font-extrabold text-sm sm:text-base text-white truncate group-hover:text-cyan-300 transition">
                               {ex.exerciseName}
                             </h4>
+                            {ex.substituteExerciseName && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRequestSwapSubstitute(exIndex);
+                                }}
+                                className={`p-1.5 rounded-lg border transition active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                                  ex.isUsingSubstitute
+                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
+                                    : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
+                                }`}
+                                title={`Trocar por exercício substituto: ${ex.substituteExerciseName}`}
+                              >
+                                <ArrowLeftRight className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {ex.isUsingSubstitute && (
+                              <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
+                                Substituto
+                              </span>
+                            )}
                             <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold text-[10px] border border-slate-700">
                               {ex.muscleGroup}
                             </span>
@@ -2079,7 +2502,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   ) : (
                     /* EXPANDIDO: VISUALIZAÇÃO COMPLETA DO EXERCÍCIO E SUAS SÉRIES */
                     <div className="p-4 space-y-3.5">
-                      {/* Card Header: Exercise Name, Muscle Group, Method, Observations & Collapse button */}
+                      {/* Card Header: Exercise Name, Muscle Group, Method, Rest Time & Collapse button */}
                       <div className="space-y-2 border-b border-slate-800/80 pb-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-1">
@@ -2090,6 +2513,25 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5">
                                 <span>{ex.exerciseName}</span>
                               </h3>
+                              {ex.substituteExerciseName && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestSwapSubstitute(exIndex)}
+                                  className={`p-1.5 rounded-xl border transition active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                                    ex.isUsingSubstitute
+                                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
+                                      : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
+                                  }`}
+                                  title={`Trocar por exercício substituto: ${ex.substituteExerciseName}`}
+                                >
+                                  <ArrowLeftRight className="w-4 h-4" />
+                                </button>
+                              )}
+                              {ex.isUsingSubstitute && (
+                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
+                                  Substituto ativo
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -2145,15 +2587,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             </button>
                           </div>
                         </div>
-
-                        {ex.observations && (
-                          <p className="text-xs text-slate-400 italic bg-slate-950/50 p-2 rounded-xl border border-slate-800/60">
-                            &ldquo;{ex.observations}&rdquo;
-                          </p>
-                        )}
                       </div>
 
-                      {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES */}
+                      {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES (LOGO ABAIXO DO CABEÇALHO) */}
                       <div className="space-y-2.5">
                         <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider items-center">
                           <span className="col-span-2 text-center">Série</span>
@@ -2480,6 +2916,18 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         })}
                       </div>
 
+                      {/* OBSERVAÇÕES BIOMECÂNICAS / EXECUÇÃO (EXIBIDO SOMENTE SE CADASTRADO AO CRIAR O TREINO) */}
+                      {ex.observations && ex.observations.trim() && (
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1">
+                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                            Observações Biomecânicas / Execução
+                          </span>
+                          <p className="text-xs text-slate-300 italic">
+                            &ldquo;{ex.observations.trim()}&rdquo;
+                          </p>
+                        </div>
+                      )}
+
                       {/* Footer do Exercício Expandido com botão de recolher */}
                       <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
                         <span className="text-[11px] text-slate-400">
@@ -2610,23 +3058,33 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       )}
     </AnimatePresence>
 
-      {/* WORKOUT FINISHED CELEBRATION MODAL */}
+      {/* WORKOUT FINISHED CELEBRATION & FEEDBACK REPORT MODAL */}
       {isFinishedModalOpen && workoutSummary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
-          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-emerald-500/50 p-6 shadow-2xl text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border-2 border-emerald-400 animate-bounce">
-              <Trophy className="w-8 h-8" />
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+          <div
+            className={`w-full ${
+              isReportViewOpen ? 'max-w-2xl' : 'max-w-md'
+            } my-auto max-h-[92vh] overflow-y-auto rounded-3xl bg-slate-900 border border-emerald-500/50 p-5 sm:p-6 shadow-2xl space-y-4 transition-all duration-200`}
+          >
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border-2 border-emerald-400">
+                <Trophy className="w-7 h-7" />
+              </div>
 
-            <div className="space-y-1">
-              <h3 className="text-xl font-black text-white">Treino Concluído!</h3>
-              <p className="text-xs text-slate-300">
-                Excelente trabalho com o aluno <strong className="text-emerald-400">{session?.clientName || selectedClient?.name}</strong>!
-              </p>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-white">Treino Concluído!</h3>
+                <p className="text-xs text-slate-300">
+                  Excelente trabalho com o aluno{' '}
+                  <strong className="text-emerald-400">
+                    {workoutSummary.clientName || selectedClient?.name}
+                  </strong>
+                  !
+                </p>
+              </div>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 gap-2 text-center pt-2">
+            <div className="grid grid-cols-2 gap-2 text-center">
               <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase font-semibold">
                   Tempo Total
@@ -2650,7 +3108,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   Tonelagem Total Levantada
                 </span>
                 <span className="text-2xl font-black text-white block mt-0.5">
-                  {workoutSummary.totalVolumeKg.toLocaleString('pt-BR')} <span className="text-sm font-bold text-emerald-400">kg</span>
+                  {workoutSummary.totalVolumeKg.toLocaleString('pt-BR')}{' '}
+                  <span className="text-sm font-bold text-emerald-400">kg</span>
                 </span>
               </div>
 
@@ -2665,6 +3124,312 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* BOTÃO PARA GERAR RELATÓRIO DE MELHORIAS (EXIBIDO SOMENTE SE HOUVER HISTÓRICO ANTERIOR) */}
+            {workoutSummary.canGenerateReport && workoutSummary.feedbackReport ? (
+              !isReportViewOpen ? (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-slate-950 to-slate-950 border border-cyan-500/50 space-y-3 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0">
+                      <BarChart3 className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs sm:text-sm font-black text-white">
+                        Feedback &amp; Relatório de Evolução Disponível
+                      </h4>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        Comparativo pronto em relação ao treino anterior (
+                        <strong className="text-cyan-300">
+                          {workoutSummary.previousRecordDate || 'Histórico'}
+                        </strong>
+                        ): verifique ganhos de carga (%), repetições, volume e relação PSE × Carga.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateFeedbackReport}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-950/50 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <BarChart3 className="w-4 h-4 stroke-[2.5]" />
+                    <span>Gerar Relatório de Evolução</span>
+                  </button>
+                </div>
+              ) : (
+                /* RELATÓRIO DE EVOLUÇÃO E MELHORIA EXPANDIDO */
+                <div className="p-4 rounded-2xl bg-slate-950 border border-cyan-500/50 text-left space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white">
+                          Relatório Comparativo de Evolução
+                        </h4>
+                        <span className="text-[10px] text-slate-400 block">
+                          Comparado com o treino de{' '}
+                          <strong className="text-cyan-300">
+                            {workoutSummary.feedbackReport.comparedWorkoutDate || 'sessão anterior'}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-black text-emerald-300">
+                      {workoutSummary.feedbackReport.exercisesImprovedCount} de{' '}
+                      {workoutSummary.feedbackReport.exerciseComparisons.length} exercícios evoluíram
+                    </span>
+                  </div>
+
+                  {/* Indicadores Globais de Melhoria */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                        <Percent className="w-3 h-3 text-cyan-400" />
+                        Evolução Carga
+                      </span>
+                      <span
+                        className={`text-base font-black block mt-0.5 ${
+                          workoutSummary.feedbackReport.avgWeightDiffPercent > 0
+                            ? 'text-emerald-400'
+                            : workoutSummary.feedbackReport.avgWeightDiffPercent < 0
+                            ? 'text-amber-400'
+                            : 'text-white'
+                        }`}
+                      >
+                        {workoutSummary.feedbackReport.avgWeightDiffPercent > 0 ? '+' : ''}
+                        {workoutSummary.feedbackReport.avgWeightDiffPercent}%
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                        <Weight className="w-3 h-3 text-emerald-400" />
+                        Volume Total
+                      </span>
+                      <span
+                        className={`text-sm font-black block mt-0.5 ${
+                          workoutSummary.feedbackReport.totalVolumeDiffKg > 0
+                            ? 'text-emerald-400'
+                            : workoutSummary.feedbackReport.totalVolumeDiffKg < 0
+                            ? 'text-amber-400'
+                            : 'text-white'
+                        }`}
+                      >
+                        {workoutSummary.feedbackReport.totalVolumeDiffPercent > 0 ? '+' : ''}
+                        {workoutSummary.feedbackReport.totalVolumeDiffPercent}% (
+                        {workoutSummary.feedbackReport.totalVolumeDiffKg >= 0 ? '+' : ''}
+                        {workoutSummary.feedbackReport.totalVolumeDiffKg} kg)
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                        <Activity className="w-3 h-3 text-teal-400" />
+                        Repetições
+                      </span>
+                      <span
+                        className={`text-sm font-black block mt-0.5 ${
+                          workoutSummary.feedbackReport.totalRepsDiff > 0
+                            ? 'text-emerald-400'
+                            : workoutSummary.feedbackReport.totalRepsDiff < 0
+                            ? 'text-amber-400'
+                            : 'text-white'
+                        }`}
+                      >
+                        {workoutSummary.feedbackReport.totalRepsDiff > 0 ? '+' : ''}
+                        {workoutSummary.feedbackReport.totalRepsDiff} reps (
+                        {workoutSummary.feedbackReport.currentTotalReps} total)
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                        <Gauge className="w-3 h-3 text-amber-400" />
+                        PSE Média
+                      </span>
+                      <span className="text-sm font-black text-white block mt-0.5">
+                        {workoutSummary.feedbackReport.previousAvgPse ?? '—'} ➔{' '}
+                        <strong className="text-cyan-400">
+                          {workoutSummary.feedbackReport.currentAvgPse ?? '—'}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Detalhamento por Exercício: Carga (%), Reps, Volume e Relação PSE x Carga */}
+                  <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                      Análise Individual por Exercício (Carga %, Reps, Volume e PSE × Carga):
+                    </span>
+
+                    {workoutSummary.feedbackReport.exerciseComparisons.map((item, idx) => (
+                      <div
+                        key={`${item.exerciseName}-${idx}`}
+                        className={`p-3 rounded-xl border space-y-2 ${
+                          item.hasAnyImprovement
+                            ? 'bg-emerald-950/20 border-emerald-500/40'
+                            : 'bg-slate-900/90 border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h5 className="text-xs sm:text-sm font-black text-white">
+                              {item.exerciseName}
+                            </h5>
+                            {item.previousDate && (
+                              <span className="text-[10px] text-slate-400">
+                                Último registro: {item.previousDate}
+                              </span>
+                            )}
+                          </div>
+
+                          {item.hasAnyImprovement ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300 shrink-0">
+                              ★ Melhoria Detectada
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-400 shrink-0">
+                              {item.hasPreviousHistory ? 'Estável' : '1º Registro'}
+                            </span>
+                          )}
+                        </div>
+
+                        {item.hasPreviousHistory && (
+                          <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                              <span className="text-[9px] uppercase text-slate-400 font-bold block">
+                                Carga (%)
+                              </span>
+                              <span className="text-slate-300 font-medium block">
+                                {item.previousMaxWeightKg}kg ➔{' '}
+                                <strong className="text-white">{item.currentMaxWeightKg}kg</strong>
+                              </span>
+                              <span
+                                className={`font-black text-xs block ${
+                                  item.weightDiffPercent > 0
+                                    ? 'text-emerald-400'
+                                    : item.weightDiffPercent < 0
+                                    ? 'text-amber-400'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {item.weightDiffPercent > 0 ? '+' : ''}
+                                {item.weightDiffPercent}% ({item.weightDiffKg >= 0 ? '+' : ''}
+                                {item.weightDiffKg}kg)
+                              </span>
+                            </div>
+
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                              <span className="text-[9px] uppercase text-slate-400 font-bold block">
+                                Repetições
+                              </span>
+                              <span className="text-slate-300 font-medium block">
+                                {item.previousTotalReps} ➔{' '}
+                                <strong className="text-white">{item.currentTotalReps}</strong>
+                              </span>
+                              <span
+                                className={`font-black text-xs block ${
+                                  item.repsDiff > 0
+                                    ? 'text-emerald-400'
+                                    : item.repsDiff < 0
+                                    ? 'text-amber-400'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {item.repsDiff > 0 ? '+' : ''}
+                                {item.repsDiff} reps
+                              </span>
+                            </div>
+
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                              <span className="text-[9px] uppercase text-slate-400 font-bold block">
+                                Volume
+                              </span>
+                              <span className="text-slate-300 font-medium block">
+                                {item.previousVolumeKg}kg ➔{' '}
+                                <strong className="text-white">{item.currentVolumeKg}kg</strong>
+                              </span>
+                              <span
+                                className={`font-black text-xs block ${
+                                  item.volumeDiffPercent > 0
+                                    ? 'text-emerald-400'
+                                    : item.volumeDiffPercent < 0
+                                    ? 'text-amber-400'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {item.volumeDiffPercent > 0 ? '+' : ''}
+                                {item.volumeDiffPercent}%
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Relação PSE x Carga */}
+                        <div
+                          className={`px-2.5 py-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-2 ${
+                            item.pseLoadStatus === 'improved'
+                              ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-200'
+                              : item.pseLoadStatus === 'progressed'
+                              ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
+                              : item.pseLoadStatus === 'demanding'
+                              ? 'bg-amber-950/30 border-amber-500/30 text-amber-200'
+                              : 'bg-slate-950 border-slate-800 text-slate-300'
+                          }`}
+                        >
+                          <span className="font-semibold">
+                            <strong className="uppercase text-[10px] tracking-wider mr-1">
+                              PSE × Carga:
+                            </strong>
+                            {item.pseLoadRelationship}
+                          </span>
+                          {(item.previousAvgPse !== null || item.currentAvgPse !== null) && (
+                            <span className="font-mono font-bold text-[10px] shrink-0 px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700">
+                              PSE: {item.previousAvgPse ?? '—'} → {item.currentAvgPse ?? '—'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-left flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold text-slate-200 block">
+                    1º Histórico Registrado para Comparação Futura
+                  </span>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    O botão de <strong className="text-slate-300">Relatório Comparativo</strong> é habilitado automaticamente a partir do segundo treino registrado deste aluno.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* CAMPO DE DESCRIÇÃO PARA A PRÓXIMA META DO TREINO (SALVO NO HISTÓRICO PARA ANÁLISE PRÉ-TREINO) */}
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 text-left space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-amber-400" />
+                  <span>Próxima Meta do Treino</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  Salvo para análise antes do próximo treino
+                </span>
+              </div>
+              <textarea
+                value={nextWorkoutGoalText}
+                onChange={(e) => setNextWorkoutGoalText(e.target.value)}
+                placeholder="Descreva a próxima meta (ex: Aumentar 5% da carga no Supino Reto mantendo PSE ≤ 8; buscar 12 repetições completas no Agachamento)..."
+                rows={2}
+                className="w-full p-2.5 text-xs sm:text-sm text-white bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-amber-500 placeholder:text-slate-500 resize-y"
+              />
             </div>
 
             {/* Confirmação de Treino Realizado na Agenda */}
@@ -2685,7 +3450,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       Confirmação na Agenda
                     </p>
                     <p className="text-[11px] text-slate-400 truncate">
-                      Mudar status para <span className="text-emerald-400 font-bold">&quot;Realizado&quot;</span>
+                      Mudar status para{' '}
+                      <span className="text-emerald-400 font-bold">&quot;Realizado&quot;</span>
                     </p>
                   </div>
                 </div>
@@ -2713,7 +3479,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 font-semibold animate-in fade-in duration-150">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span className="truncate">
-                    Agenda: <strong className="text-white">{workoutSummary.clientName}</strong> em <strong className="text-white">{workoutSummary.dateFormatted}</strong> ✓
+                    Agenda: <strong className="text-white">{workoutSummary.clientName}</strong> em{' '}
+                    <strong className="text-white">{workoutSummary.dateFormatted}</strong> ✓
                   </span>
                 </div>
               ) : (
@@ -2726,11 +3493,258 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             <button
               type="button"
               onClick={handleConfirmFinishWorkout}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Concluir e Salvar no Histórico</span>
+              <span>Salvar Feedback, Meta e Concluir</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ANÁLISE PRÉ-TREINO E HISTÓRICO DE RELATÓRIOS / METAS */}
+      {preWorkoutHistoryModal && preWorkoutHistoryModal.isOpen && (
+        <div
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setPreWorkoutHistoryModal(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto rounded-3xl bg-slate-900 border border-cyan-500/50 p-5 sm:p-6 shadow-2xl space-y-4"
+          >
+            {(() => {
+              const analysis = storage.getPreWorkoutHistoryAnalysis(
+                preWorkoutHistoryModal.clientId,
+                preWorkoutHistoryModal.splitName,
+                preWorkoutHistoryModal.programName
+              );
+              const records = analysis.allPreviousRecords;
+              const activeRecord =
+                records.find((r) => r.id === preWorkoutHistoryModal.selectedRecordId) ||
+                analysis.latestRecord;
+
+              const computedOrSavedReport =
+                activeRecord?.feedbackReport ||
+                (activeRecord ? storage.generateWorkoutFeedbackReport(activeRecord).report : null);
+
+              const goalText =
+                activeRecord?.nextWorkoutGoal ||
+                activeRecord?.feedbackReport?.nextWorkoutGoal ||
+                '';
+
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                        <BarChart3 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base sm:text-lg font-black text-white">
+                          Histórico de Relatórios &amp; Próxima Meta
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Análise pré-treino para tomada de decisão antes de iniciar a sessão
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setPreWorkoutHistoryModal(null)}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {records.length === 0 ? (
+                    <div className="p-6 text-center rounded-2xl bg-slate-950 border border-slate-800">
+                      <p className="text-xs text-slate-400">
+                        Nenhum treino anterior registrado para este aluno.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Seletor de Sessões Anteriores */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                          Selecionar Treino Realizado ({records.length}):
+                        </span>
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                          {records.slice(0, 10).map((rec) => {
+                            const isSelected = activeRecord?.id === rec.id;
+                            const hasGoal = !!(
+                              rec.nextWorkoutGoal || rec.feedbackReport?.nextWorkoutGoal
+                            );
+                            return (
+                              <button
+                                key={rec.id}
+                                type="button"
+                                onClick={() =>
+                                  setPreWorkoutHistoryModal({
+                                    ...preWorkoutHistoryModal,
+                                    selectedRecordId: rec.id,
+                                  })
+                                }
+                                className={`px-3 py-2 rounded-xl border text-xs font-bold shrink-0 transition cursor-pointer flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md'
+                                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                                }`}
+                              >
+                                <span>{rec.date}</span>
+                                <span className="text-[10px] opacity-80">• {rec.splitName}</span>
+                                {hasGoal && (
+                                  <Target
+                                    className={`w-3 h-3 ${
+                                      isSelected ? 'text-slate-950' : 'text-amber-400'
+                                    }`}
+                                  />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {activeRecord && (
+                        <div className="space-y-4">
+                          {/* Meta deixada naquele treino */}
+                          <div className="p-3.5 rounded-2xl bg-amber-950/25 border border-amber-500/40 space-y-1">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                              <Target className="w-3.5 h-3.5" />
+                              <span>Próxima Meta Registrada em {activeRecord.date}:</span>
+                            </span>
+                            <p className="text-xs sm:text-sm font-semibold text-white">
+                              {goalText || 'Nenhuma meta específica descrita nesta sessão.'}
+                            </p>
+                          </div>
+
+                          {activeRecord.trainerNotes && (
+                            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                                Observações do Treinador na Sessão:
+                              </span>
+                              <p className="text-xs text-slate-200 italic">
+                                &ldquo;{activeRecord.trainerNotes}&rdquo;
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Relatório de Evolução daquela Sessão */}
+                          {computedOrSavedReport ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                    Evolução Carga (%)
+                                  </span>
+                                  <span
+                                    className={`text-sm font-black block mt-0.5 ${
+                                      computedOrSavedReport.avgWeightDiffPercent > 0
+                                        ? 'text-emerald-400'
+                                        : computedOrSavedReport.avgWeightDiffPercent < 0
+                                        ? 'text-amber-400'
+                                        : 'text-white'
+                                    }`}
+                                  >
+                                    {computedOrSavedReport.avgWeightDiffPercent > 0 ? '+' : ''}
+                                    {computedOrSavedReport.avgWeightDiffPercent}%
+                                  </span>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                    Volume Total
+                                  </span>
+                                  <span className="text-sm font-black text-emerald-400 block mt-0.5">
+                                    {computedOrSavedReport.totalVolumeDiffPercent > 0 ? '+' : ''}
+                                    {computedOrSavedReport.totalVolumeDiffPercent}% (
+                                    {computedOrSavedReport.currentTotalVolumeKg} kg)
+                                  </span>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                    Repetições
+                                  </span>
+                                  <span className="text-sm font-black text-white block mt-0.5">
+                                    {computedOrSavedReport.totalRepsDiff > 0 ? '+' : ''}
+                                    {computedOrSavedReport.totalRepsDiff} reps
+                                  </span>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                                  <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                                    PSE Média
+                                  </span>
+                                  <span className="text-sm font-black text-cyan-400 block mt-0.5">
+                                    {computedOrSavedReport.previousAvgPse ?? '—'} →{' '}
+                                    {computedOrSavedReport.currentAvgPse ?? '—'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                {computedOrSavedReport.exerciseComparisons.map((item, i) => (
+                                  <div
+                                    key={`${item.exerciseName}-${i}`}
+                                    className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-xs font-black text-white">
+                                        {item.exerciseName}
+                                      </span>
+                                      <span
+                                        className={`text-[11px] font-black ${
+                                          item.weightDiffPercent > 0
+                                            ? 'text-emerald-400'
+                                            : 'text-slate-300'
+                                        }`}
+                                      >
+                                        Carga: {item.currentMaxWeightKg}kg (
+                                        {item.weightDiffPercent >= 0 ? '+' : ''}
+                                        {item.weightDiffPercent}%)
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                                      <span>
+                                        Reps: <strong className="text-slate-200">{item.currentTotalReps}</strong> (
+                                        {item.repsDiff >= 0 ? '+' : ''}
+                                        {item.repsDiff}) • Volume:{' '}
+                                        <strong className="text-slate-200">{item.currentVolumeKg}kg</strong> (
+                                        {item.volumeDiffPercent >= 0 ? '+' : ''}
+                                        {item.volumeDiffPercent}%)
+                                      </span>
+                                      <span className="text-cyan-300 font-semibold">
+                                        {item.pseLoadRelationship}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
+                              Este foi o 1º treino registrado do aluno (base inicial de carga e séries).
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setPreWorkoutHistoryModal(null)}
+                    className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                  >
+                    Fechar Análise Pré-Treino
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2763,6 +3777,76 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           onSelect={handleSelectPse}
         />
       )}
+
+      {/* 3 - MODAL DE CONFIRMAÇÃO DE TROCA PELO EXERCÍCIO SUBSTITUTO */}
+      <AnimatePresence>
+        {swapConfirmModal && swapConfirmModal.isOpen && (
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
+            onClick={() => setSwapConfirmModal(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden p-5 sm:p-6 space-y-5"
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-black text-white leading-snug">
+                    Trocar Exercício
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+                    Deseja realmente trocar o exercício atual pelo substituto? (todos os registros contidos serão apagados)
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-400 font-semibold">Atual:</span>
+                  <span className="font-bold text-slate-200 truncate">
+                    {swapConfirmModal.currentExerciseName}
+                  </span>
+                </div>
+                <div className="flex items-center justify-center">
+                  <div className="p-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-cyan-400 font-semibold">Substituto:</span>
+                  <span className="font-extrabold text-cyan-300 truncate">
+                    {swapConfirmModal.substituteExerciseName}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSwapConfirmModal(null)}
+                  className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition active:scale-95 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSwapSubstitute}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-cyan-950/50 transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Confirmar Troca</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Feedback ao clicar em Concluir e Recolher */}
       {exerciseFinishedToast && (

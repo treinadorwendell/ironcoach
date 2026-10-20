@@ -190,27 +190,43 @@ export function PsePickerModal({
 
   const currentLevel = getPseInfo(selected);
 
-  const handleConfirm = () => {
-    onSelect(selected);
+  const triggerHaptic = () => {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(25);
+      } catch {
+        // Ignorar caso o dispositivo bloqueie vibração
+      }
+    }
+  };
+
+  // Clique rápido: registra imediatamente (substituindo o PSE anterior se houver) e fecha o modal
+  const handleSelectNumber = (val: number) => {
+    triggerHaptic();
+    setSelected(val);
+    onSelect(val);
     onClose();
   };
 
-  const handleSelectNumber = (val: number) => {
-    setSelected(val);
-  };
-
   const handleClear = () => {
+    triggerHaptic();
     setSelected(null);
+    onSelect(null);
+    onClose();
   };
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, y: 40, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 40, scale: 0.96 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.18 }}
+          onClick={(e) => e.stopPropagation()}
           className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh]"
         >
           {/* Header */}
@@ -238,7 +254,7 @@ export function PsePickerModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition"
+              className="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -258,7 +274,7 @@ export function PsePickerModal({
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Nível Selecionado
+                  {currentLevel ? 'PSE Atual (Toque em outro para substituir)' : 'Nível Selecionado'}
                 </span>
                 <span className={`text-sm font-black ${currentLevel ? currentLevel.textClass : 'text-slate-400'}`}>
                   {currentLevel ? `${currentLevel.label} (${currentLevel.rirNote})` : 'Nenhum PSE definido'}
@@ -270,7 +286,7 @@ export function PsePickerModal({
               <button
                 type="button"
                 onClick={handleClear}
-                className="text-xs font-semibold text-slate-400 hover:text-rose-400 flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-rose-950/30 transition"
+                className="text-xs font-semibold text-slate-400 hover:text-rose-400 flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-rose-950/30 transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Limpar
@@ -278,11 +294,11 @@ export function PsePickerModal({
             )}
           </div>
 
-          {/* Barra de Seleção Rápida de Números (Touch Horizontal) */}
+          {/* Barra de Seleção Rápida de Números (Touch Horizontal - 1 Clique Registra e Fecha) */}
           <div className="px-4 py-3 bg-slate-900/90 border-b border-slate-800/60 shrink-0">
             <div className="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-between">
-              <span>Selecione de 0 a 10:</span>
-              <span className="text-[10px] text-slate-500">Toque no número correspondente</span>
+              <span>Clique Rápido (0 a 10):</span>
+              <span className="text-[10px] text-amber-400 font-semibold">Toque para registrar e fechar</span>
             </div>
             <div className="grid grid-cols-11 gap-1">
               {PSE_SCALE.map((level) => {
@@ -292,12 +308,12 @@ export function PsePickerModal({
                     key={level.value}
                     type="button"
                     onClick={() => handleSelectNumber(level.value)}
-                    className={`h-11 rounded-xl font-mono font-black text-sm transition-all duration-150 flex items-center justify-center border active:scale-95 touch-manipulation ${
+                    className={`h-11 rounded-xl font-mono font-black text-sm transition-all duration-150 flex items-center justify-center border active:scale-95 touch-manipulation cursor-pointer ${
                       isCurrent
                         ? `${level.bgClass} ${level.textClass} ${level.borderClass} ring-2 ${level.ringClass} scale-105 shadow-md`
                         : `${level.bgClass} text-slate-300 border-transparent hover:border-slate-700`
                     }`}
-                    title={`${level.value} - ${level.label}`}
+                    title={`${level.value} - ${level.label} (Clique para registrar)`}
                   >
                     {level.value}
                   </button>
@@ -306,20 +322,26 @@ export function PsePickerModal({
             </div>
           </div>
 
-          {/* Lista com Explicação Detalhada de Cada Cor e Nível */}
+          {/* Lista com Explicação Detalhada de Cada Cor e Nível (1 Clique Registra e Fecha) */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-amber-400" />
-              Guia de Intensidades e Cores
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                Guia de Intensidades e Cores
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 normal-case">
+                Toque na faixa para registrar
+              </span>
             </div>
 
             {PSE_SCALE.map((level) => {
               const isCurrent = selected === level.value;
               return (
-                <div
+                <button
                   key={level.value}
+                  type="button"
                   onClick={() => handleSelectNumber(level.value)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 active:scale-[0.99] touch-manipulation ${
+                  className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 active:scale-[0.99] touch-manipulation ${
                     isCurrent
                       ? `${level.bgClass} ${level.borderClass} ring-1 ${level.ringClass} shadow-md`
                       : 'bg-slate-950/40 hover:bg-slate-950/70 border-slate-800/80'
@@ -353,27 +375,19 @@ export function PsePickerModal({
                       <Check className="w-4 h-4 stroke-[3]" />
                     </div>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t border-slate-800/80 bg-slate-950/80 flex items-center gap-3 shrink-0">
+          <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/80 flex items-center justify-end shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition active:scale-95 touch-manipulation"
+              className="w-full py-2.5 rounded-2xl font-bold text-xs text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition active:scale-95 touch-manipulation cursor-pointer"
             >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="flex-1 py-3 rounded-2xl font-black text-sm text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 shadow-lg shadow-amber-500/20 transition active:scale-95 flex items-center justify-center gap-2 touch-manipulation"
-            >
-              <Check className="w-4 h-4 stroke-[3]" />
-              Confirmar PSE {selected != null ? `(${selected})` : ''}
+              Fechar
             </button>
           </div>
         </motion.div>

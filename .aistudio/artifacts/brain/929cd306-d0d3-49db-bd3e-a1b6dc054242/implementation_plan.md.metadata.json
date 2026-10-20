@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação para corrigir definitivamente a recorrência na Agenda: geração de agendamentos independentes para cada dia até a data limite e alteração direta de status exclusiva para o dia selecionado.",
-  "updatedAt": "2026-10-19T21:26:31.422355308Z",
+  "summary": "Plano de implementação do Relatório de Feedback e Evolução Pós-Treino (comparativo de carga em %, repetições, volume, relação PSE x Carga, definição da Próxima Meta e visualização pré-treino).",
+  "updatedAt": "2026-10-20T00:08:26.682070078Z",
   "requestFeedback": true,
   "userFacing": true
 }

@@ -27,10 +27,10 @@ import {
   Sparkles,
   Copy,
   Flame,
-  Layers,
   MessageSquare,
   PenLine,
   X,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { ExerciseCommentsHistoryModal } from './ExerciseCommentsHistoryModal';
 
@@ -66,6 +66,7 @@ interface ExerciseDedicatedPageViewProps {
   onTogglePause: () => void;
   elapsedSeconds: number;
   formatElapsed: (sec: number) => string;
+  onRequestSwapSubstitute?: (exIndex: number) => void;
 }
 
 export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps> = ({
@@ -94,6 +95,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   onTogglePause,
   elapsedSeconds,
   formatElapsed,
+  onRequestSwapSubstitute,
 }) => {
   const [isCommentsModalOpen, setIsCommentsModalOpen] = React.useState(false);
   const [isCurrentCommentModalOpen, setIsCurrentCommentModalOpen] = React.useState(false);
@@ -228,7 +230,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
         </div>
       </div>
 
-      {/* 2. HERO: TODAS AS INFORMAÇÕES DO EXERCÍCIO */}
+      {/* 2. HERO CABEÇALHO + SÉRIES DO EXERCÍCIO */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-4">
         {/* Header com Nome, Grupo Muscular, Método e Descanso */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
@@ -241,6 +243,17 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 {focusedExercise.exerciseName}
               </h2>
+
+              {focusedExercise.substituteExerciseName && onRequestSwapSubstitute && (
+                <button
+                  type="button"
+                  onClick={() => onRequestSwapSubstitute(focusedExerciseIndex)}
+                  className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center justify-center transition active:scale-90 cursor-pointer shadow-sm"
+                  title={`Trocar pelo exercício substituto: ${focusedExercise.substituteExerciseName}`}
+                >
+                  <ArrowLeftRight className="w-4 h-4 text-amber-400" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -330,21 +343,326 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           </div>
         )}
 
-        {/* OBSERVAÇÕES E INSTRUÇÕES TÉCNICAS DO TREINADOR */}
-        {focusedExercise.observations ? (
+        {/* SÉRIES DO EXERCÍCIO E SUAS INFORMAÇÕES CONTIDAS (POSICIONADAS LOGO ABAIXO DO CABEÇALHO) */}
+        <div className="space-y-3.5 pt-1">
+          {/* Quick Tool: Copiar carga da primeira série */}
+          {focusedExercise.sets.length > 1 && focusedExercise.sets[0].weightKg != null && (
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => onCopyFirstSetWeightToAll(focusedExerciseIndex)}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+                title="Copiar a carga da Série 1 para todas as demais séries"
+              >
+                <Copy className="w-3 h-3 text-emerald-400" />
+                <span>Copiar Carga da Série 1</span>
+              </button>
+            </div>
+          )}
+
+          {/* Tabela de Séries */}
+          <div className="space-y-2.5">
+            <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider items-center">
+              <span className="col-span-2 text-center">Série</span>
+              <span className="col-span-3 text-center">Reps (Alvo)</span>
+              <span className="col-span-3 text-center">Carga (KG)</span>
+              <span className="col-span-2 text-center text-amber-400">PSE</span>
+              <span className="col-span-2 text-center">Check</span>
+            </div>
+
+            {focusedExercise.sets.map((set, setIndex) => {
+              const hasSubsets = set.subSets && set.subSets.length > 0;
+              const pseInfo = getPseInfo(set.pse);
+
+              return (
+                <div key={set.setNumber} className="space-y-1.5">
+                  {/* Linha Principal da Série */}
+                  <div
+                    className={`grid grid-cols-12 gap-1.5 items-center p-2.5 sm:p-3 rounded-2xl transition-all duration-150 ${
+                      set.completed
+                        ? 'bg-emerald-950/30 border border-emerald-500/40 shadow-sm'
+                        : 'bg-slate-950/80 border border-slate-800/80 hover:border-slate-700'
+                    }`}
+                  >
+                    {/* Col 1: Número da Série */}
+                    <div className="col-span-2 flex flex-col items-center justify-center">
+                      <div className="w-full flex items-center justify-center">
+                        <span
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 ${
+                            set.completed
+                              ? 'bg-emerald-500 text-slate-950 shadow-md'
+                              : 'bg-slate-800 text-slate-200'
+                          }`}
+                          title={`Série ${set.setNumber}`}
+                        >
+                          {set.setNumber}
+                        </span>
+                      </div>
+
+                      {set.extraVariation ? (
+                        <span
+                          className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[70px]"
+                          title={set.extraVariation}
+                        >
+                          {set.extraVariation.split(' • ')[0]}
+                        </span>
+                      ) : set.method && set.method !== 'Normal' ? (
+                        <span
+                          className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[70px]"
+                          title={set.method}
+                        >
+                          {set.method}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Col 2: Reps Target & Stepper */}
+                    <div className="col-span-3 flex items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, -1)}
+                        className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer"
+                        title="-1 repetição"
+                      >
+                        -
+                      </button>
+                      <div className="text-center min-w-[36px]">
+                        <span className="text-sm sm:text-base font-black text-white font-mono block">
+                          {set.completedReps}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">
+                          {set.repZone}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, +1)}
+                        className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer"
+                        title="+1 repetição"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Col 3: Carga (KG) */}
+                    <div className="col-span-3 flex items-center justify-center">
+                      <div className="relative flex justify-center text-center">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9]*[.,]?[0-9]*"
+                          placeholder="—"
+                          value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
+                          onKeyDown={(e) => {
+                            if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
+                            if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
+                            if (/^[0-9]$/.test(e.key)) return;
+                            if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
+                            e.preventDefault();
+                          }}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                            if (raw === '') {
+                              onSetWeightDirect(focusedExerciseIndex, setIndex, null);
+                            } else {
+                              const parsed = parseFloat(raw);
+                              onSetWeightDirect(
+                                focusedExerciseIndex,
+                                setIndex,
+                                isNaN(parsed) ? null : Math.max(0, parsed)
+                              );
+                            }
+                          }}
+                          className="h-[40px] w-[56px] text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Col 4: PSE (0 a 10) */}
+                    <div className="col-span-2 flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenPseModal(
+                            focusedExerciseIndex,
+                            setIndex,
+                            set.pse,
+                            focusedExercise.exerciseName,
+                            set.setNumber
+                          )
+                        }
+                        className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer ${
+                          pseInfo
+                            ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass} ring-1 ${pseInfo.ringClass} shadow-md`
+                            : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 hover:border-amber-500/50 text-slate-400 hover:text-amber-400'
+                        }`}
+                        title={
+                          pseInfo
+                            ? `PSE ${set.pse}: ${pseInfo.label} (${pseInfo.rirNote}) - Clique para alterar`
+                            : 'Definir PSE (0 a 10)'
+                        }
+                      >
+                        {pseInfo ? (
+                          <>
+                            <span className="font-mono font-black text-sm leading-none">
+                              {set.pse}
+                            </span>
+                            <span className="text-[8px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
+                              PSE
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Gauge className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
+                            <span className="text-[8px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
+                              PSE
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Col 5: Check Série */}
+                    <div className="col-span-2 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => onToggleSetCheck(focusedExerciseIndex, setIndex)}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer ${
+                          set.completed
+                            ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-500/40'
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                        }`}
+                        title={set.completed ? 'Desmarcar série' : 'Concluir série e iniciar cronômetro de descanso'}
+                      >
+                        <Check
+                          className={`w-5 h-5 stroke-[3] transition-transform ${
+                            set.completed ? 'scale-110' : 'opacity-40'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* SUBSÉRIES (SE MÉTODO AVANÇADO COMO DROP-SET OU 3/7) */}
+                  {hasSubsets && (
+                    <div className="ml-3 sm:ml-5 pl-2.5 border-l-2 border-purple-500/50 space-y-1.5 my-1">
+                      {set.subSets!.map((sub, subIdx) => (
+                        <div
+                          key={sub.id || subIdx}
+                          className={`grid grid-cols-12 gap-1.5 items-center p-2 rounded-xl transition-all ${
+                            sub.completed
+                              ? 'bg-purple-950/40 border border-purple-500/50 shadow-sm'
+                              : 'bg-slate-950/70 border border-purple-500/30'
+                          }`}
+                        >
+                          <div className="col-span-2 flex flex-col items-center justify-center">
+                            <span className="text-[10px] font-black text-purple-300">
+                              ↳ Sub #{sub.subSetNumber}
+                            </span>
+                            {sub.note && (
+                              <span
+                                className="text-[8px] text-slate-400 block truncate max-w-[65px]"
+                                title={sub.note}
+                              >
+                                {sub.note}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="col-span-3 flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, -1)
+                              }
+                              className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
+                            >
+                              -
+                            </button>
+                            <div className="text-center min-w-[28px]">
+                              <span className="text-xs font-black text-white font-mono block">
+                                {sub.completedReps}
+                              </span>
+                              <span className="text-[8px] text-slate-400 block truncate max-w-[40px]">
+                                {sub.repZone}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, +1)
+                              }
+                              className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          <div className="col-span-3 flex items-center justify-center">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              pattern="[0-9]*[.,]?[0-9]*"
+                              placeholder="—"
+                              value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                                const parsed = raw === '' ? null : parseFloat(raw);
+                                onSetSubSetWeightDirect(
+                                  focusedExerciseIndex,
+                                  setIndex,
+                                  subIdx,
+                                  parsed == null || isNaN(parsed) ? null : Math.max(0, parsed)
+                                );
+                              }}
+                              className="h-[34px] w-[50px] text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
+                            />
+                          </div>
+
+                          <div className="col-span-2 flex items-center justify-center">
+                            <span className="text-slate-700 text-xs font-mono font-bold">—</span>
+                          </div>
+
+                          <div className="col-span-2 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onToggleSubSetCheck(focusedExerciseIndex, setIndex, subIdx)
+                              }
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer ${
+                                sub.completed
+                                  ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                              }`}
+                              title={sub.completed ? 'Desmarcar' : 'Concluir'}
+                            >
+                              <Check
+                                className={`w-5 h-5 stroke-[3] ${
+                                  sub.completed ? 'scale-110' : 'opacity-40'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* OBSERVAÇÕES BIOMECÂNICAS / EXECUÇÃO (EXIBIDO SOMENTE SE CADASTRADO AO CRIAR O TREINO) */}
+        {focusedExercise.observations && focusedExercise.observations.trim() && (
           <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1 text-left">
             <div className="flex items-center gap-2 text-amber-400 text-xs font-black">
               <Info className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Instruções & Observações Técnicas do Exercício</span>
+              <span>Observações Biomecânicas / Execução</span>
             </div>
             <p className="text-xs sm:text-sm text-slate-200 italic pl-1 leading-relaxed">
-              &ldquo;{focusedExercise.observations}&rdquo;
+              &ldquo;{focusedExercise.observations.trim()}&rdquo;
             </p>
-          </div>
-        ) : (
-          <div className="p-3 rounded-2xl bg-slate-950/40 border border-slate-800/60 text-xs text-slate-400 flex items-center gap-2">
-            <Info className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <span>Mantenha a postura alinhada, respiração coordenada e cadência controlada na fase excêntrica.</span>
           </div>
         )}
 
@@ -430,323 +748,6 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               </button>
             );
           })()}
-        </div>
-      </div>
-
-      {/* 4. TABELA INTERATIVA DE SÉRIES E EXECUÇÃO */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-3.5">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-black text-white uppercase tracking-wider">
-              Séries do Exercício ({totalSetsCount})
-            </h3>
-          </div>
-
-          {/* Quick Tool: Copiar carga da primeira série */}
-          {focusedExercise.sets.length > 1 && focusedExercise.sets[0].weightKg != null && (
-            <button
-              type="button"
-              onClick={() => onCopyFirstSetWeightToAll(focusedExerciseIndex)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
-              title="Copiar a carga da Série 1 para todas as demais séries"
-            >
-              <Copy className="w-3 h-3 text-emerald-400" />
-              <span>Copiar Carga da Série 1</span>
-            </button>
-          )}
-        </div>
-
-        {/* Tabela de Séries */}
-        <div className="space-y-2.5">
-          <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider items-center">
-            <span className="col-span-2 text-center">Série</span>
-            <span className="col-span-3 text-center">Reps (Alvo)</span>
-            <span className="col-span-3 text-center">Carga (KG)</span>
-            <span className="col-span-2 text-center text-amber-400">PSE</span>
-            <span className="col-span-2 text-center">Check</span>
-          </div>
-
-          {focusedExercise.sets.map((set, setIndex) => {
-            const hasSubsets = set.subSets && set.subSets.length > 0;
-            const pseInfo = getPseInfo(set.pse);
-
-            return (
-              <div key={set.setNumber} className="space-y-1.5">
-                {/* Linha Principal da Série */}
-                <div
-                  className={`grid grid-cols-12 gap-1.5 items-center p-2.5 sm:p-3 rounded-2xl transition-all duration-150 ${
-                    set.completed
-                      ? 'bg-emerald-950/30 border border-emerald-500/40 shadow-sm'
-                      : 'bg-slate-950/80 border border-slate-800/80 hover:border-slate-700'
-                  }`}
-                >
-                  {/* Col 1: Número da Série + Ícone de Evolução */}
-                  <div className="col-span-2 flex flex-col items-center justify-center">
-                    <div className="w-full flex items-center justify-center">
-                      <span
-                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 ${
-                          set.completed
-                            ? 'bg-emerald-500 text-slate-950 shadow-md'
-                            : 'bg-slate-800 text-slate-200'
-                        }`}
-                        title={`Série ${set.setNumber}`}
-                      >
-                        {set.setNumber}
-                      </span>
-                    </div>
-
-                    {set.extraVariation ? (
-                      <span
-                        className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[70px]"
-                        title={set.extraVariation}
-                      >
-                        {set.extraVariation.split(' • ')[0]}
-                      </span>
-                    ) : set.method && set.method !== 'Normal' ? (
-                      <span
-                        className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[70px]"
-                        title={set.method}
-                      >
-                        {set.method}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {/* Col 2: Reps Target & Stepper */}
-                  <div className="col-span-3 flex items-center justify-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, -1)}
-                      className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer"
-                      title="-1 repetição"
-                    >
-                      -
-                    </button>
-                    <div className="text-center min-w-[36px]">
-                      <span className="text-sm sm:text-base font-black text-white font-mono block">
-                        {set.completedReps}
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-semibold block">
-                        {set.repZone}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, +1)}
-                      className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer"
-                      title="+1 repetição"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* Col 3: Carga (KG) */}
-                  <div className="col-span-3 flex items-center justify-center">
-                    <div className="relative flex justify-center text-center">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        pattern="[0-9]*[.,]?[0-9]*"
-                        placeholder="—"
-                        value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
-                        onKeyDown={(e) => {
-                          if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
-                          if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
-                          if (/^[0-9]$/.test(e.key)) return;
-                          if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
-                          e.preventDefault();
-                        }}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                          if (raw === '') {
-                            onSetWeightDirect(focusedExerciseIndex, setIndex, null);
-                          } else {
-                            const parsed = parseFloat(raw);
-                            onSetWeightDirect(
-                              focusedExerciseIndex,
-                              setIndex,
-                              isNaN(parsed) ? null : Math.max(0, parsed)
-                            );
-                          }
-                        }}
-                        className="h-[40px] w-[56px] text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Col 4: PSE (0 a 10) */}
-                  <div className="col-span-2 flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onOpenPseModal(
-                          focusedExerciseIndex,
-                          setIndex,
-                          set.pse,
-                          focusedExercise.exerciseName,
-                          set.setNumber
-                        )
-                      }
-                      className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer ${
-                        pseInfo
-                          ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass} ring-1 ${pseInfo.ringClass} shadow-md`
-                          : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 hover:border-amber-500/50 text-slate-400 hover:text-amber-400'
-                      }`}
-                      title={
-                        pseInfo
-                          ? `PSE ${set.pse}: ${pseInfo.label} (${pseInfo.rirNote}) - Clique para alterar`
-                          : 'Definir PSE (0 a 10)'
-                      }
-                    >
-                      {pseInfo ? (
-                        <>
-                          <span className="font-mono font-black text-sm leading-none">
-                            {set.pse}
-                          </span>
-                          <span className="text-[8px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
-                            PSE
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Gauge className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
-                          <span className="text-[8px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
-                            PSE
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Col 5: Check Série */}
-                  <div className="col-span-2 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => onToggleSetCheck(focusedExerciseIndex, setIndex)}
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer ${
-                        set.completed
-                          ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-500/40'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
-                      }`}
-                      title={set.completed ? 'Desmarcar série' : 'Concluir série e iniciar cronômetro de descanso'}
-                    >
-                      <Check
-                        className={`w-5 h-5 stroke-[3] transition-transform ${
-                          set.completed ? 'scale-110' : 'opacity-40'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {/* SUBSÉRIES (SE MÉTODO AVANÇADO COMO DROP-SET OU 3/7) */}
-                {hasSubsets && (
-                  <div className="ml-3 sm:ml-5 pl-2.5 border-l-2 border-purple-500/50 space-y-1.5 my-1">
-                    {set.subSets!.map((sub, subIdx) => (
-                      <div
-                        key={sub.id || subIdx}
-                        className={`grid grid-cols-12 gap-1.5 items-center p-2 rounded-xl transition-all ${
-                          sub.completed
-                            ? 'bg-purple-950/40 border border-purple-500/50 shadow-sm'
-                            : 'bg-slate-950/70 border border-purple-500/30'
-                        }`}
-                      >
-                        <div className="col-span-2 flex flex-col items-center justify-center">
-                          <span className="text-[10px] font-black text-purple-300">
-                            ↳ Sub #{sub.subSetNumber}
-                          </span>
-                          {sub.note && (
-                            <span
-                              className="text-[8px] text-slate-400 block truncate max-w-[65px]"
-                              title={sub.note}
-                            >
-                              {sub.note}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="col-span-3 flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, -1)
-                            }
-                            className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
-                          >
-                            -
-                          </button>
-                          <div className="text-center min-w-[28px]">
-                            <span className="text-xs font-black text-white font-mono block">
-                              {sub.completedReps}
-                            </span>
-                            <span className="text-[8px] text-slate-400 block truncate max-w-[40px]">
-                              {sub.repZone}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, +1)
-                            }
-                            className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <div className="col-span-3 flex items-center justify-center">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            pattern="[0-9]*[.,]?[0-9]*"
-                            placeholder="—"
-                            value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
-                            onChange={(e) => {
-                              const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                              const parsed = raw === '' ? null : parseFloat(raw);
-                              onSetSubSetWeightDirect(
-                                focusedExerciseIndex,
-                                setIndex,
-                                subIdx,
-                                parsed == null || isNaN(parsed) ? null : Math.max(0, parsed)
-                              );
-                            }}
-                            className="h-[34px] w-[50px] text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
-                          />
-                        </div>
-
-                        <div className="col-span-2 flex items-center justify-center">
-                          <span className="text-slate-700 text-xs font-mono font-bold">—</span>
-                        </div>
-
-                        <div className="col-span-2 flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onToggleSubSetCheck(focusedExerciseIndex, setIndex, subIdx)
-                            }
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer ${
-                              sub.completed
-                                ? 'bg-purple-600 text-white ring-2 ring-purple-400'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
-                            }`}
-                            title={sub.completed ? 'Desmarcar' : 'Concluir'}
-                          >
-                            <Check
-                              className={`w-5 h-5 stroke-[3] ${
-                                sub.completed ? 'scale-110' : 'opacity-40'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       </div>
 

@@ -11,6 +11,8 @@ import {
   ExecutionSet,
   ExerciseFinishedSnapshot,
   ExerciseCommentRecord,
+  WorkoutFeedbackReport,
+  ExerciseImprovementItem,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -748,7 +750,11 @@ export const storage = {
 
   saveCompletedWorkout(record: CompletedWorkoutRecord): CompletedWorkoutRecord[] {
     const list = this.getCompletedWorkouts();
-    const updated = [record, ...list];
+    const existingIdx = list.findIndex((w) => w.id === record.id);
+    const updated =
+      existingIdx >= 0
+        ? list.map((w, idx) => (idx === existingIdx ? record : w))
+        : [record, ...list];
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(
@@ -760,6 +766,410 @@ export const storage = {
       }
     }
     return updated;
+  },
+
+  updateCompletedWorkout(record: CompletedWorkoutRecord): CompletedWorkoutRecord[] {
+    return this.saveCompletedWorkout(record);
+  },
+
+  generateWorkoutFeedbackReport(currentRecord: CompletedWorkoutRecord): {
+    canGenerate: boolean;
+    report: WorkoutFeedbackReport | null;
+    previousRecord?: CompletedWorkoutRecord;
+  } {
+    const allClientWorkouts = this.getCompletedWorkouts(currentRecord.clientId)
+      .filter((w) => w.id !== currentRecord.id)
+      .sort(
+        (a, b) =>
+          new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+
+    if (allClientWorkouts.length === 0) {
+      return { canGenerate: false, report: null };
+    }
+
+    const currentSplitClean = (currentRecord.splitName || '').trim().toLowerCase();
+    const currentExNames = new Set(
+      (currentRecord.exercises || []).map((e) => (e.name || '').trim().toLowerCase())
+    );
+
+    // Prioriza treino anterior da mesma divisão/split ou que compartilhe exercícios
+    const matchingSplitRecord =
+      allClientWorkouts.find(
+        (w) => (w.splitName || '').trim().toLowerCase() === currentSplitClean
+      ) ||
+      allClientWorkouts.find((w) =>
+        (w.exercises || []).some((e) =>
+          currentExNames.has((e.name || '').trim().toLowerCase())
+        )
+      ) ||
+      allClientWorkouts[0];
+
+    const extractExerciseStats = (ex: { sets?: any[] }) => {
+      const sets = Array.isArray(ex.sets) ? ex.sets : [];
+      const activeSets = sets.filter((s) => s.completed);
+      const targetSets = activeSets.length > 0 ? activeSets : sets;
+
+      let maxWeightKg = 0;
+      let totalReps = 0;
+      let volumeKg = 0;
+      const pseValues: number[] = [];
+
+      targetSets.forEach((s) => {
+        const w = typeof s.weightKg === 'number' && s.weightKg > 0 ? s.weightKg : 0;
+        const r = typeof s.completedReps === 'number' && s.completedReps > 0 ? s.completedReps : 0;
+        if (w > maxWeightKg) maxWeightKg = w;
+        totalReps += r;
+        volumeKg += w * r;
+        if (typeof s.pse === 'number') {
+          pseValues.push(s.pse);
+        }
+
+        if (Array.isArray(s.subSets)) {
+          s.subSets.forEach((sub: any) => {
+            if (sub.completed || activeSets.length === 0) {
+              const subW = typeof sub.weightKg === 'number' && sub.weightKg > 0 ? sub.weightKg : 0;
+              const subR =
+                typeof sub.completedReps === 'number' && sub.completedReps > 0
+                  ? sub.completedReps
+                  : 0;
+              if (subW > maxWeightKg) maxWeightKg = subW;
+              totalReps += subR;
+              volumeKg += subW * subR;
+            }
+          });
+        }
+      });
+
+      const avgPse =
+        pseValues.length > 0
+          ? Number(
+              (pseValues.reduce((acc, v) => acc + v, 0) / pseValues.length).toFixed(1)
+            )
+          : null;
+
+      return {
+        maxWeightKg: Number(maxWeightKg.toFixed(1)),
+        totalReps,
+        volumeKg: Number(volumeKg.toFixed(1)),
+        avgPse,
+      };
+    };
+
+    const exerciseComparisons: ExerciseImprovementItem[] = (
+      currentRecord.exercises || []
+    ).map((currEx) => {
+      const cleanName = (currEx.name || '').trim().toLowerCase();
+      const currStats = extractExerciseStats(currEx);
+
+      // Busca o treino anterior mais recente que contenha este exercício específico
+      let prevWorkoutForEx: CompletedWorkoutRecord | undefined;
+      let prevExRecord: any;
+
+      for (const prevW of allClientWorkouts) {
+        const found = (prevW.exercises || []).find(
+          (e) => (e.name || '').trim().toLowerCase() === cleanName
+        );
+        if (found) {
+          prevWorkoutForEx = prevW;
+          prevExRecord = found;
+          break;
+        }
+      }
+
+      if (!prevExRecord) {
+        return {
+          exerciseName: currEx.name,
+          muscleGroup: currEx.muscleGroup,
+          hasPreviousHistory: false,
+          previousMaxWeightKg: 0,
+          currentMaxWeightKg: currStats.maxWeightKg,
+          weightDiffKg: 0,
+          weightDiffPercent: 0,
+          previousTotalReps: 0,
+          currentTotalReps: currStats.totalReps,
+          repsDiff: 0,
+          repsDiffPercent: 0,
+          previousVolumeKg: 0,
+          currentVolumeKg: currStats.volumeKg,
+          volumeDiffKg: 0,
+          volumeDiffPercent: 0,
+          previousAvgPse: null,
+          currentAvgPse: currStats.avgPse,
+          pseDiff: null,
+          pseLoadRelationship: '1º registro deste exercício no histórico',
+          pseLoadStatus: 'maintained',
+          hasAnyImprovement: false,
+          improvementsSummary: ['Exercício registrado pela 1ª vez para base futura'],
+        };
+      }
+
+      const prevStats = extractExerciseStats(prevExRecord);
+      const weightDiffKg = Number((currStats.maxWeightKg - prevStats.maxWeightKg).toFixed(1));
+      const weightDiffPercent =
+        prevStats.maxWeightKg > 0
+          ? Number(
+              (((currStats.maxWeightKg - prevStats.maxWeightKg) / prevStats.maxWeightKg) * 100).toFixed(
+                1
+              )
+            )
+          : currStats.maxWeightKg > 0
+          ? 100
+          : 0;
+
+      const repsDiff = currStats.totalReps - prevStats.totalReps;
+      const repsDiffPercent =
+        prevStats.totalReps > 0
+          ? Number((((currStats.totalReps - prevStats.totalReps) / prevStats.totalReps) * 100).toFixed(1))
+          : currStats.totalReps > 0
+          ? 100
+          : 0;
+
+      const volumeDiffKg = Number((currStats.volumeKg - prevStats.volumeKg).toFixed(1));
+      const volumeDiffPercent =
+        prevStats.volumeKg > 0
+          ? Number((((currStats.volumeKg - prevStats.volumeKg) / prevStats.volumeKg) * 100).toFixed(1))
+          : currStats.volumeKg > 0
+          ? 100
+          : 0;
+
+      const pseDiff =
+        currStats.avgPse !== null && prevStats.avgPse !== null
+          ? Number((currStats.avgPse - prevStats.avgPse).toFixed(1))
+          : null;
+
+      const improvementsSummary: string[] = [];
+      if (weightDiffKg > 0) {
+        improvementsSummary.push(
+          `Carga +${weightDiffPercent}% (+${weightDiffKg} kg)`
+        );
+      }
+      if (repsDiff > 0) {
+        improvementsSummary.push(`+${repsDiff} repetições totais`);
+      }
+      if (volumeDiffKg > 0) {
+        improvementsSummary.push(
+          `Volume +${volumeDiffPercent}% (+${volumeDiffKg} kg)`
+        );
+      }
+
+      let pseLoadRelationship = 'Manutenção da relação PSE × Carga';
+      let pseLoadStatus: 'improved' | 'progressed' | 'maintained' | 'demanding' =
+        'maintained';
+
+      if (currStats.avgPse !== null && prevStats.avgPse !== null) {
+        if (weightDiffKg > 0 && currStats.avgPse < prevStats.avgPse) {
+          pseLoadRelationship = `Eficiência Superior: Carga +${weightDiffPercent}% com menor esforço (PSE ${prevStats.avgPse} → ${currStats.avgPse})`;
+          pseLoadStatus = 'improved';
+          improvementsSummary.push('Menor PSE com carga maior');
+        } else if (weightDiffKg > 0 && currStats.avgPse === prevStats.avgPse) {
+          pseLoadRelationship = `Ganho Real de Força: Carga +${weightDiffPercent}% mantendo PSE ${currStats.avgPse}`;
+          pseLoadStatus = 'improved';
+          improvementsSummary.push('Mesma PSE com carga maior');
+        } else if (weightDiffKg > 0 && currStats.avgPse > prevStats.avgPse) {
+          pseLoadRelationship = `Progressão de Carga (+${weightDiffPercent}%) com PSE proporcional (${prevStats.avgPse} → ${currStats.avgPse})`;
+          pseLoadStatus = 'progressed';
+        } else if (weightDiffKg === 0 && currStats.avgPse < prevStats.avgPse) {
+          pseLoadRelationship = `Adaptação de Esforço: Mesma carga (${currStats.maxWeightKg} kg) com menor PSE (${prevStats.avgPse} → ${currStats.avgPse})`;
+          pseLoadStatus = 'improved';
+          improvementsSummary.push(`Redução de esforço (PSE ${prevStats.avgPse} → ${currStats.avgPse})`);
+        } else if (weightDiffKg === 0 && repsDiff > 0 && currStats.avgPse <= prevStats.avgPse) {
+          pseLoadRelationship = `Resistência Muscular: +${repsDiff} reps sem aumento de PSE (${currStats.avgPse})`;
+          pseLoadStatus = 'improved';
+        } else if (currStats.avgPse > prevStats.avgPse && weightDiffKg <= 0) {
+          pseLoadRelationship = `Maior percepção de esforço (PSE ${prevStats.avgPse} → ${currStats.avgPse}) para a carga atual`;
+          pseLoadStatus = 'demanding';
+        } else {
+          pseLoadRelationship = `Estabilidade: Carga ${currStats.maxWeightKg} kg • PSE ${currStats.avgPse}`;
+          pseLoadStatus = 'maintained';
+        }
+      } else if (weightDiffKg > 0) {
+        pseLoadRelationship = `Evolução de Carga (+${weightDiffPercent}%)${
+          currStats.avgPse !== null ? ` • PSE atual ${currStats.avgPse}` : ''
+        }`;
+        pseLoadStatus = 'progressed';
+      } else if (repsDiff > 0 || volumeDiffKg > 0) {
+        pseLoadRelationship = `Evolução de Volume/Repetições mantendo carga base (${currStats.maxWeightKg} kg)`;
+        pseLoadStatus = 'progressed';
+      }
+
+      const hasAnyImprovement =
+        weightDiffKg > 0 ||
+        repsDiff > 0 ||
+        volumeDiffKg > 0 ||
+        pseLoadStatus === 'improved';
+
+      return {
+        exerciseName: currEx.name,
+        muscleGroup: currEx.muscleGroup,
+        hasPreviousHistory: true,
+        previousDate: prevWorkoutForEx?.date,
+        previousMaxWeightKg: prevStats.maxWeightKg,
+        currentMaxWeightKg: currStats.maxWeightKg,
+        weightDiffKg,
+        weightDiffPercent,
+        previousTotalReps: prevStats.totalReps,
+        currentTotalReps: currStats.totalReps,
+        repsDiff,
+        repsDiffPercent,
+        previousVolumeKg: prevStats.volumeKg,
+        currentVolumeKg: currStats.volumeKg,
+        volumeDiffKg,
+        volumeDiffPercent,
+        previousAvgPse: prevStats.avgPse,
+        currentAvgPse: currStats.avgPse,
+        pseDiff,
+        pseLoadRelationship,
+        pseLoadStatus,
+        hasAnyImprovement,
+        improvementsSummary,
+      };
+    });
+
+    // Métricas globais da sessão comparada ao último treino de referência
+    const prevGlobalExercises = matchingSplitRecord.exercises || [];
+    const prevGlobalStats = prevGlobalExercises.map((e) => extractExerciseStats(e));
+    const currGlobalStats = (currentRecord.exercises || []).map((e) =>
+      extractExerciseStats(e)
+    );
+
+    const previousTotalVolumeKg =
+      matchingSplitRecord.totalVolumeKg ||
+      Number(prevGlobalStats.reduce((sum, s) => sum + s.volumeKg, 0).toFixed(1));
+    const currentTotalVolumeKg =
+      currentRecord.totalVolumeKg ||
+      Number(currGlobalStats.reduce((sum, s) => sum + s.volumeKg, 0).toFixed(1));
+
+    const totalVolumeDiffKg = Number(
+      (currentTotalVolumeKg - previousTotalVolumeKg).toFixed(1)
+    );
+    const totalVolumeDiffPercent =
+      previousTotalVolumeKg > 0
+        ? Number(
+            (
+              ((currentTotalVolumeKg - previousTotalVolumeKg) / previousTotalVolumeKg) *
+              100
+            ).toFixed(1)
+          )
+        : currentTotalVolumeKg > 0
+        ? 100
+        : 0;
+
+    const previousTotalReps = prevGlobalStats.reduce((sum, s) => sum + s.totalReps, 0);
+    const currentTotalReps = currGlobalStats.reduce((sum, s) => sum + s.totalReps, 0);
+    const totalRepsDiff = currentTotalReps - previousTotalReps;
+
+    const prevValidPses = prevGlobalStats
+      .map((s) => s.avgPse)
+      .filter((v): v is number => v !== null);
+    const currValidPses = currGlobalStats
+      .map((s) => s.avgPse)
+      .filter((v): v is number => v !== null);
+
+    const previousAvgPse =
+      prevValidPses.length > 0
+        ? Number(
+            (prevValidPses.reduce((a, b) => a + b, 0) / prevValidPses.length).toFixed(1)
+          )
+        : null;
+    const currentAvgPse =
+      currValidPses.length > 0
+        ? Number(
+            (currValidPses.reduce((a, b) => a + b, 0) / currValidPses.length).toFixed(1)
+          )
+        : null;
+
+    const comparedItems = exerciseComparisons.filter((c) => c.hasPreviousHistory);
+    const avgWeightDiffPercent =
+      comparedItems.length > 0
+        ? Number(
+            (
+              comparedItems.reduce((sum, item) => sum + item.weightDiffPercent, 0) /
+              comparedItems.length
+            ).toFixed(1)
+          )
+        : 0;
+
+    const exercisesImprovedCount = exerciseComparisons.filter(
+      (c) => c.hasAnyImprovement
+    ).length;
+
+    const report: WorkoutFeedbackReport = {
+      id: `rep-${Date.now()}`,
+      generatedAt: new Date().toISOString(),
+      comparedWorkoutId: matchingSplitRecord.id,
+      comparedWorkoutDate: matchingSplitRecord.date,
+      previousTotalVolumeKg,
+      currentTotalVolumeKg,
+      totalVolumeDiffKg,
+      totalVolumeDiffPercent,
+      previousTotalReps,
+      currentTotalReps,
+      totalRepsDiff,
+      previousAvgPse,
+      currentAvgPse,
+      avgWeightDiffPercent,
+      exercisesImprovedCount,
+      totalComparedExercises: comparedItems.length,
+      exerciseComparisons,
+      nextWorkoutGoal: currentRecord.nextWorkoutGoal || '',
+    };
+
+    return {
+      canGenerate: true,
+      report,
+      previousRecord: matchingSplitRecord,
+    };
+  },
+
+  getPreWorkoutHistoryAnalysis(
+    clientId: string,
+    splitName?: string,
+    programName?: string
+  ): {
+    latestRecord: CompletedWorkoutRecord | null;
+    recordsWithFeedbackOrGoal: CompletedWorkoutRecord[];
+    allPreviousRecords: CompletedWorkoutRecord[];
+  } {
+    const allClientRecords = this.getCompletedWorkouts(clientId).sort(
+      (a, b) =>
+        new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+    );
+
+    if (allClientRecords.length === 0) {
+      return {
+        latestRecord: null,
+        recordsWithFeedbackOrGoal: [],
+        allPreviousRecords: [],
+      };
+    }
+
+    const cleanSplit = (splitName || '').trim().toLowerCase();
+    const cleanProg = (programName || '').trim().toLowerCase();
+
+    const matchingSplitRecords = cleanSplit
+      ? allClientRecords.filter((r) => {
+          const rSplit = (r.splitName || '').trim().toLowerCase();
+          return rSplit === cleanSplit || (cleanProg && cleanSplit.includes(rSplit));
+        })
+      : [];
+
+    const prioritizedList =
+      matchingSplitRecords.length > 0 ? matchingSplitRecords : allClientRecords;
+
+    const latestRecord = prioritizedList[0] || allClientRecords[0] || null;
+    const recordsWithFeedbackOrGoal = allClientRecords.filter(
+      (r) =>
+        r.feedbackReport ||
+        (r.nextWorkoutGoal && r.nextWorkoutGoal.trim().length > 0) ||
+        (r.trainerNotes && r.trainerNotes.trim().length > 0)
+    );
+
+    return {
+      latestRecord,
+      recordsWithFeedbackOrGoal,
+      allPreviousRecords: allClientRecords,
+    };
   },
 
   deleteCompletedWorkout(workoutId: string): CompletedWorkoutRecord[] {
