@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { sounds } from '@/lib/sound';
 import { vibration } from '@/lib/vibration';
+import { notificationService } from '@/lib/notification';
 import {
   Timer,
   Play,
@@ -10,6 +11,12 @@ import {
   Volume2,
   VolumeX,
   X,
+  Bell,
+  BellRing,
+  BellOff,
+  Check,
+  ShieldCheck,
+  Smartphone,
 } from 'lucide-react';
 
 interface RestCountdownTimerProps {
@@ -33,34 +40,123 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   const [totalDuration, setTotalDuration] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => {
+    return notificationService.getPermission();
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Interval countdown
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const endTimeRef = useRef<number | null>(null);
+  const timeLeftRef = useRef<number>(initialSeconds);
+  const completedTriggeredRef = useRef<boolean>(false);
+
+  const showFeedbackToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  // Schedule background notification whenever target time is set/updated
+  const scheduleNotification = useCallback(
+    (targetTimeMs: number) => {
+      if (!exerciseName) return;
+      notificationService.scheduleRestNotification({
+        exerciseName,
+        setNumber,
+        targetTimeMs,
+        totalDurationSeconds: totalDuration,
+      });
+    },
+    [exerciseName, setNumber, totalDuration]
+  );
+
+  // Request notification permission from the user
+  const handleRequestPermission = async () => {
+    vibration.lightTap();
+    const result = await notificationService.requestPermission();
+    setPermission(result);
+
+    if (result === 'granted') {
+      showFeedbackToast('🔔 Notificações ativadas! Você será alertado mesmo com o app em 2º plano.');
+      if (endTimeRef.current && isRunning) {
+        scheduleNotification(endTimeRef.current);
+      }
+    } else if (result === 'denied') {
+      showFeedbackToast('⚠️ Notificações foram negadas nas permissões do navegador.');
+    }
+  };
+
+  // Test sending a quick notification
+  const handleTestNotification = async () => {
+    vibration.mediumPulse();
+    if (permission !== 'granted') {
+      await handleRequestPermission();
+      return;
+    }
+    notificationService.triggerRestNotificationNow(exerciseName, setNumber);
+    showFeedbackToast('Alerta de teste enviado com sucesso!');
+  };
+
+  // Real-clock timestamp countdown (continues even when mobile/tablet app is minimized or screen locked)
   useEffect(() => {
     if (!isOpen || !isRunning) {
       if (timerRef.current) clearInterval(timerRef.current);
+      notificationService.cancelRestNotification();
       return;
     }
 
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          if (!isMuted) {
-            sounds.playRestCompleteBeep();
-          }
-          vibration.timerFinished();
-          if (onComplete) onComplete();
-          return 0;
+    if (!endTimeRef.current) {
+      endTimeRef.current = Date.now() + timeLeftRef.current * 1000;
+      scheduleNotification(endTimeRef.current);
+    }
+
+    const syncCountdown = () => {
+      if (!endTimeRef.current) return;
+      const remainingMs = endTimeRef.current - Date.now();
+      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      timeLeftRef.current = remainingSecs;
+      setTimeLeft(remainingSecs);
+
+      if (remainingSecs <= 0 && !completedTriggeredRef.current) {
+        completedTriggeredRef.current = true;
+        if (timerRef.current) clearInterval(timerRef.current);
+
+        // Dispara a Notificação push/sistema (seja em 1º ou 2º plano)
+        notificationService.triggerRestNotificationNow(exerciseName, setNumber);
+
+        if (!isMuted) {
+          sounds.playRestCompleteBeep();
         }
-        return prev - 1;
-      });
-    }, 1000);
+        vibration.timerFinished();
+        if (onComplete) onComplete();
+      }
+    };
+
+    // 1. Local main thread ticker
+    timerRef.current = setInterval(syncCountdown, 250);
+
+    // 2. Background worker ticker (does not throttle when tab/app is minimized)
+    notificationService.startBackgroundTicker(syncCountdown);
+
+    // 3. Visibility and focus listeners to guarantee zero time drift on return
+    const handleVisibilityOrFocus = () => {
+      syncCountdown();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    window.addEventListener('pageshow', handleVisibilityOrFocus);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      notificationService.stopBackgroundTicker();
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', syncCountdown);
+      window.removeEventListener('pageshow', syncCountdown);
     };
-  }, [isOpen, isRunning, isMuted, onComplete]);
+  }, [isOpen, isRunning, isMuted, exerciseName, setNumber, onComplete, scheduleNotification]);
 
   if (!isOpen) return null;
 
@@ -83,10 +179,11 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             : 'bg-slate-900/95 border-slate-700 shadow-[0_-8px_30px_rgba(0,0,0,0.8)]'
         }`}
       >
+        {/* Header: Exercício, Série e Ações de Notificação / Som / Fechar */}
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div
-              className={`p-1.5 rounded-xl ${
+              className={`p-1.5 rounded-xl shrink-0 ${
                 isFinished
                   ? 'bg-emerald-500 text-slate-950 font-bold'
                   : 'bg-cyan-500/20 text-cyan-400'
@@ -94,8 +191,8 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             >
               <Timer className="w-4 h-4 animate-spin-slow" />
             </div>
-            <div>
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+            <div className="min-w-0">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
                 <span>Descanso: Série #{setNumber}</span>
                 {isFinished && (
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black uppercase">
@@ -103,14 +200,50 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                   </span>
                 )}
               </h4>
-              <p className="text-[11px] text-slate-400 truncate max-w-[200px]">
+              <p className="text-[11px] text-slate-400 truncate max-w-[190px]">
                 {exerciseName}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Botão de Notificação Push/2º Plano */}
+            {permission === 'granted' ? (
+              <button
+                type="button"
+                onClick={handleTestNotification}
+                className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition active:scale-90"
+                title="Notificações ativas em segundo plano. Clique para testar alerta."
+              >
+                <BellRing className="w-4 h-4" />
+              </button>
+            ) : permission === 'denied' ? (
+              <button
+                type="button"
+                onClick={() =>
+                  showFeedbackToast(
+                    'Notificações bloqueadas nas permissões do navegador. Habilite nas configurações.'
+                  )
+                }
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-400 transition"
+                title="Notificações bloqueadas no navegador"
+              >
+                <BellOff className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRequestPermission}
+                className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/10 animate-pulse transition active:scale-90"
+                title="Clique para ativar notificações em segundo plano"
+              >
+                <Bell className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Mudo / Som */}
             <button
+              type="button"
               onClick={() => {
                 vibration.lightTap();
                 setIsMuted(!isMuted);
@@ -124,9 +257,13 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 <Volume2 className="w-4 h-4 text-emerald-400" />
               )}
             </button>
+
+            {/* Fechar */}
             <button
+              type="button"
               onClick={() => {
                 vibration.lightTap();
+                notificationService.cancelRestNotification();
                 onClose();
               }}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
@@ -137,7 +274,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
           </div>
         </div>
 
-        {/* Big Countdown Timer Display & Progress */}
+        {/* Big Countdown Timer Display & Controls */}
         <div className="py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-baseline gap-2">
             <span
@@ -156,37 +293,60 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             </span>
           </div>
 
-          {/* Stepper buttons for quick +30s / -15s */}
+          {/* Stepper buttons for quick +30s / -15s / Pause */}
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => {
-                setTimeLeft((t) => Math.max(0, t - 15));
+                const nextSecs = Math.max(0, timeLeft - 15);
+                const nextEndTime = Date.now() + nextSecs * 1000;
+                endTimeRef.current = nextEndTime;
+                timeLeftRef.current = nextSecs;
+                setTimeLeft(nextSecs);
+                scheduleNotification(nextEndTime);
                 sounds.playTickSound();
                 vibration.lightTap();
               }}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition cursor-pointer"
               title="-15 segundos"
             >
               -15s
             </button>
             <button
+              type="button"
               onClick={() => {
-                setTimeLeft((t) => t + 30);
+                const nextSecs = timeLeft + 30;
+                const nextEndTime = Date.now() + nextSecs * 1000;
+                endTimeRef.current = nextEndTime;
+                timeLeftRef.current = nextSecs;
+                completedTriggeredRef.current = false;
+                setTimeLeft(nextSecs);
                 setTotalDuration((td) => td + 30);
+                scheduleNotification(nextEndTime);
                 sounds.playTickSound();
                 vibration.lightTap();
               }}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition cursor-pointer"
               title="+30 segundos"
             >
               +30s
             </button>
             <button
+              type="button"
               onClick={() => {
-                setIsRunning(!isRunning);
+                if (isRunning) {
+                  endTimeRef.current = null;
+                  notificationService.cancelRestNotification();
+                  setIsRunning(false);
+                } else {
+                  const nextEndTime = Date.now() + timeLeftRef.current * 1000;
+                  endTimeRef.current = nextEndTime;
+                  scheduleNotification(nextEndTime);
+                  setIsRunning(true);
+                }
                 vibration.mediumPulse();
               }}
-              className={`p-2 rounded-xl text-xs font-bold active:scale-95 transition ${
+              className={`p-2 rounded-xl text-xs font-bold active:scale-95 transition cursor-pointer ${
                 isRunning
                   ? 'bg-slate-800 text-amber-300 hover:bg-slate-700'
                   : 'bg-emerald-600 text-white hover:bg-emerald-500'
@@ -209,6 +369,42 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             style={{ width: `${progressPercent}%` }}
           />
         </div>
+
+        {/* Toast de feedback */}
+        {toastMessage && (
+          <div className="mt-2 p-1.5 px-2.5 rounded-xl bg-cyan-950 border border-cyan-500/40 text-[11px] text-cyan-200 font-semibold animate-in fade-in duration-150 flex items-center gap-1.5">
+            <Smartphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span className="truncate">{toastMessage}</span>
+          </div>
+        )}
+
+        {/* Banner de permissão quando pendente */}
+        {permission === 'default' && (
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-300 font-medium">
+              <Bell className="w-3.5 h-3.5 shrink-0 animate-bounce text-amber-400" />
+              <span>Avisar quando app estiver minimizado:</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleRequestPermission}
+              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shrink-0"
+            >
+              Ativar Notificações
+            </button>
+          </div>
+        )}
+
+        {/* Status quando ativado */}
+        {permission === 'granted' && (
+          <div className="mt-2 pt-1.5 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-emerald-400 font-medium">
+            <span className="flex items-center gap-1">
+              <Check className="w-3 h-3 stroke-[3]" />
+              Notificações ativas em segundo plano (tablet/mobile)
+            </span>
+            <span className="text-slate-500 font-mono">Real-time sync</span>
+          </div>
+        )}
       </div>
     </div>
   );

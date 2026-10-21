@@ -1,82 +1,56 @@
-# Navegação Inteligente na Aba Execução do Treino
+# Cronômetro Contínuo em Segundo Plano e Trava de Edição Pré-Início do Treino
 
-Garante que toda vez que o treinador clicar na aba **Execução do Treino**, o aplicativo abra diretamente na etapa de **Escolher Aluno**, exceto quando já houver um **treino iniciado** (com cronômetro ativo ou pausado), situação em que leva o treinador diretamente para a tela do treino em andamento.
+Ajuste do cronômetro do treino para continuar a contagem real mesmo com o aplicativo minimizado ou fechado no mobile/tablet, aliado ao modo de visualização pré-início (bloqueando alterações nos registros até clicar em **"Iniciar Treino"**) e contagem ininterrupta até **"Concluir e Finalizar"**.
 
-## User Review & Critical Decisions
+---
 
-> [!IMPORTANT]
-> **Regra de Redirecionamento ao Clicar na Aba Execução do Treino**:
-> - **Sem treino iniciado (`!session?.isStarted`)**: Mesmo que um aluno ou ficha tenha sido visualizado anteriormente sem dar o "Play" (Iniciar Treino), clicar na aba **Execução do Treino** limpará a pré-seleção ociosa e abrirá diretamente a tela **Escolher Aluno** (`selecao-aluno`).
-> - **Com treino já iniciado (`session?.isStarted === true`)**: O aplicativo preserva a sessão ativa e abre diretamente na tela de **Execução do Treino** (`execucao`) daquele treino iniciado.
-> - **Clique repetido na própria aba Execução do Treino**: Mesmo já estando dentro da seção de Execução (por exemplo, visualizando os programas ou divisões de um aluno sem ter iniciado o treino), clicar novamente no botão da aba **Execução do Treino** na barra inferior voltará imediatamente para a tela **Escolher Aluno** (a menos que haja um treino iniciado).
+## 1. Visão Geral e Fluxo de Experiência (UX)
 
-## 1. Overview & Core Concept
+1. **Navegação e Visualização Livre Antes de Iniciar (`!session.isStarted`)**:
+   - Ao acessar **Execução do Treino → Selecionar Aluno → Selecionar Treino**, o treinador pode:
+     - Visualizar a lista completa de exercícios do treino.
+     - **Expandir e recolher** qualquer card de exercício (`Expandir Todos`, `Recolher Todos` ou clique individual).
+     - Abrir a **página individualizada do exercício** (*Executar / Visualizar*) para consultar séries prescritas, zonas de repetições, métodos, observações biomecânicas, tempo de descanso e histórico de evolução.
+   - **Bloqueio de Alterações até Clicar em "Iniciar Treino"**:
+     - Enquanto o botão **"Iniciar Treino"** não for acionado, todas as ações de alteração (marcar série/subsérie como concluída, alterar carga `kg`, ajustar repetições, selecionar PSE, trocar pelo exercício substituto, copiar carga, registrar comentários/observações ou concluir exercício) ficam bloqueadas.
+     - Caso o usuário toque em qualquer campo de edição antes de iniciar, um aviso visual orienta a clicar em **"Iniciar Treino"** no topo da tela.
 
-- **What It Does**: Padroniza o ponto de entrada da aba **Execução do Treino** para sempre iniciar na seleção de alunos, evitando que o treinador caia acidentalmente na ficha de outro aluno que estava apenas sendo visualizada ou recém-salva no construtor, enquanto protege e retoma automaticamente qualquer treino que já tenha sido efetivamente iniciado.
-- **Target Audience / Persona**: Personal trainers que alternam rapidamente entre a Agenda, Cadastro de Clientes, Construtor de Treinos e Execução no chão de academia.
-- **Key Value**: Previne erros operacionais de registrar séries na ficha do aluno errado e torna a navegação previsível com um único toque na barra inferior.
+2. **Contagem Contínua até Concluir e Finalizar**:
+   - Ao clicar em **"Iniciar Treino"**, o timestamp exato de início (`startTime`) é gravado e todas as edições de séries, cargas, repetições e PSE são liberadas imediatamente.
+   - O botão de pausa manual do cronômetro do treino é removido: **o cronômetro corre de forma contínua e só para no momento em que o treino for concluído e finalizado** (*"Concluir e Finalizar"*).
 
-## 2. User Experience & Visual Design
+3. **Persistência do Cronômetro com App Minimizado ou Fechado (Mobile e Tablet)**:
+   - O cálculo do tempo decorrido deixa de depender apenas de incrementos de `+1s` em memória (`setInterval`) e passa a ser calculado pela diferença real de horário (`Date.now() - Date.parse(session.startTime)`).
+   - Ao minimizar o navegador/PWA, bloquear a tela do celular/tablet ou fechar e reabrir o aplicativo, o cronômetro recalcula instantaneamente o tempo real decorrido (via eventos `visibilitychange`, `focus`, `pageshow` e hidratação do `localStorage`/Firestore), sem perder nenhum segundo.
+   - O cronômetro de descanso entre séries (`RestCountdownTimer`) também passa a utilizar timestamp de término real (`endTimeMs`) para não atrasar quando a tela é minimizada.
 
-- **Fluxo 1 — Clicar na Aba "Execução do Treino" (Sem treino iniciado)**:
-  1. O treinador está em qualquer aba (Agenda, Cliente, Criar Treino) ou em uma sub-etapa não iniciada da Execução (lista de programas ou escolha de divisão).
-  2. Ao tocar em **Execução do Treino** na barra de navegação inferior:
-     - O sistema verifica se existe uma sessão ativa com `isStarted === true`.
-     - Como não há treino iniciado, qualquer rascunho de sessão não iniciado (`isStarted === false`) é descartado e a visualização abre diretamente em **Etapa 1: Escolher Aluno** (`selecao-aluno`).
-- **Fluxo 2 — Clicar na Aba "Execução do Treino" (Com treino já iniciado)**:
-  1. O treinador iniciou um treino (`isStarted === true`, badge **"AO VIVO"** visível na aba inferior) e navegou temporariamente para outra aba (ex: Agenda ou Cliente) para consultar uma informação.
-  2. Ao tocar em **Execução do Treino** na barra inferior:
-     - O sistema detecta que há um treino em andamento (`session.isStarted === true`).
-     - A visualização abre diretamente na tela de **Execução do Treino** (`execucao`) com o aluno, exercícios, séries marcadas e cronômetro exatamente onde parou.
-- **Visual Identity & Theme**: Mantém integralmente a identidade visual escura (`bg-slate-950`, destaques em `emerald-500` e badge `AO VIVO` na barra inferior quando há treino iniciado).
+---
 
-## 3. Key Product Decisions & Trade-Offs
+## 2. Arquitetura Técnica
 
-- **Decision 1: Desvincular o salvamento no Construtor (`handleSaveWorkout`) da seleção automática de execução**
-  - *Chosen Approach*: Ao salvar um treino na aba **Criar Treino**, não pré-carregar silenciosamente `activeWorkoutForExecution` se não houver treino iniciado. Além disso, sincronizações da nuvem (`onActiveSessionChange`) só definirão o treino ativo para execução se `cloudSession.isStarted === true`.
-  - *Why*: Anteriormente, salvar um treino ou receber uma sessão não iniciada da nuvem preenchia `activeWorkoutForExecution`, fazendo com que o clique na aba Execução pulasse a escolha de aluno e abrisse direto na ficha salva.
-- **Decision 2: Gatilho de navegação dedicado ao clicar na aba `execucao`**
-  - *Chosen Approach*: Criar um contador/sinalizador de navegação (`executionNavTrigger`) em `Home` (`app/page.tsx`) acionado toda vez que o usuário clica no ícone **Execução do Treino** no `BottomNav`.
-  - *Why*: Permite que o componente `WorkoutExecutionSection` reaja tanto ao vir de outra aba quanto ao clicar novamente no botão da aba Execução já estando nela, decidindo de forma determinística entre `execucao` (se `isStarted === true`) ou `selecao-aluno` (se não houver treino iniciado).
-
-## 4. Technical Architecture & Data Strategy *(Technical Reference)*
-
-- **Architecture & Component Diagram**:
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        BottomNav (Barra Inferior)                    │
-│         Clique no botão "Execução do Treino" (id: 'execucao')        │
-└───────────────────────────────────┬──────────────────────────────────┘
-                                    │
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                         Home (app/page.tsx)                          │
-│  Verifica storage.getActiveSession():                                │
-│  ├─ Se savedSession?.isStarted === true:                             │
-│  │    Mantém activeWorkoutForExecution sincronizado com a sessão     │
-│  └─ Se NÃO houver sessão iniciada:                                   │
-│       Limpa sessão ociosa (storage.saveActiveSession(null))          │
-│       Define activeWorkoutForExecution = null                        │
-│       Incrementa executionNavTrigger                                 │
-└───────────────────────────────────┬──────────────────────────────────┘
-                                    │
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                     WorkoutExecutionSection                          │
-│  Reage a executionNavTrigger / montagem:                             │
-│  ├─ Se session?.isStarted === true:                                  │
-│  │    currentStep = 'execucao' (Vai direto para o treino iniciado)   │
-│  └─ Caso contrário:                                                  │
-│       currentStep = 'selecao-aluno' (Vai direto para escolher aluno) │
-│       focusedExerciseId = null                                       │
-└──────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        ActiveWorkoutSession                             │
+│  • isStarted: boolean (false ao abrir o treino -> true ao Iniciar)      │
+│  • startTime: ISO Timestamp real do momento em que clicou em "Iniciar"  │
+│  • elapsedSeconds: Math.floor((Date.now() - Date.parse(startTime))/1000)│
+└───────────────────┬─────────────────────────────────────┬───────────────┘
+                    │                                     │
+                    ▼                                     ▼
+┌───────────────────────────────────────┐ ┌───────────────────────────────┐
+│   Modo Visualização (!isStarted)      │ │   Modo Em Execução (isStarted)│
+│ • Navegar exercícios (Lista/Dedicada) │ │ • Edição liberada (Carga,     │
+│ • Expandir / Recolher cards           │ │   Reps, PSE, Check, Substituto│
+│ • Consultar histórico e observações   │ │ • Cronômetro contínuo via     │
+│ • Controles de alteração bloqueados   │ │   Timestamp real (Background) │
+│   com aviso "Inicie o treino"         │ │ • Para apenas ao Finalizar    │
+└───────────────────────────────────────┘ └───────────────────────────────┘
 ```
 
-- **Interactive Component & State Mapping**:
-  - `Home.handleSelectSection(section)`:
-    - Quando `section === 'execucao'`, verifica `storage.getActiveSession()`.
-    - Se `savedSession && savedSession.isStarted`, localiza o programa correspondente em `workouts`, define `activeWorkoutForExecution` e mantém a sessão ativa.
-    - Se não houver sessão com `isStarted: true`, limpa qualquer sessão não iniciada (`storage.saveActiveSession(null)`), define `activeWorkoutForExecution(null)` e incrementa `executionNavTrigger`.
-  - `WorkoutExecutionSection`:
-    - Recebe `navigationTrigger?: number` e observa mudanças.
-    - Na inicialização e sempre que `navigationTrigger` mudar: verifica se a sessão atual ou persistida possui `isStarted === true`. Em caso positivo, posiciona `currentStep = 'execucao'`; caso contrário, limpa qualquer foco de exercício e posiciona `currentStep = 'selecao-aluno'`.
+### Componentes Atualizados
+- **Persistência da Sessão Ativa**:
+  - Ao restaurar uma sessão já iniciada (`session.isStarted === true`), atualiza imediatamente `elapsedSeconds` com base na diferença entre o horário atual e `session.startTime`.
+- **Tela Principal de Execução e Página Individual do Exercício**:
+  - Sincronização do cronômetro a cada segundo e em eventos de retorno do app (`visibilitychange` e `focus`) usando `startTime`.
+  - Remoção do botão de pausa do cronômetro geral do treino para garantir que o tempo só pare ao clicar em **"Concluir e Finalizar"**.
+  - Bloqueio de todos os handlers e controles de alteração enquanto `!session.isStarted`, mantendo totalmente livres a navegação entre exercícios, expansão/recolhimento de cards e consulta de informações.

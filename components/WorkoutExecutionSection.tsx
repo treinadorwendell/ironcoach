@@ -19,6 +19,7 @@ import { storage } from '@/lib/storage';
 import { sounds } from '@/lib/sound';
 import { vibration } from '@/lib/vibration';
 import { cloudSync } from '@/lib/firebase';
+import { notificationService } from '@/lib/notification';
 import { useActiveWorkoutPersistence } from '@/hooks/useActiveWorkoutPersistence';
 import { SeriesHistoryModal } from './ExerciseHistoryChart';
 import { RestCountdownTimer } from './RestCountdownTimer';
@@ -28,6 +29,9 @@ import {
   TrendingUp,
   Clock,
   Play,
+  Bell,
+  BellRing,
+  BellOff,
   Pause,
   CheckCircle2,
   Trophy,
@@ -221,8 +225,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Selected student state for explicit selection
   const [selectedClientId, setSelectedClientId] = useState<string>(() => {
-    const saved = storage.getActiveSession();
-    if (saved && saved.isStarted) return saved.clientId;
     return session?.clientId || activeWorkout?.clientId || '';
   });
 
@@ -232,18 +234,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // 2. 'selecao-treino': Choose which workout/split to execute from the chosen program
   // 3. 'execucao': Hidden execution page rendered ready with timer waiting to start
   const [currentStep, setCurrentStep] = useState<ExecutionStep>(() => {
-    const saved = storage.getActiveSession();
-    if ((session && session.isStarted) || (saved && saved.isStarted)) return 'execucao';
+    if (session && session.isStarted) return 'execucao';
     if (activeWorkout) return 'execucao';
     return 'selecao-aluno';
   });
 
   const [selectedProgram, setSelectedProgram] = useState<WorkoutProgram | null>(() => {
-    const saved = storage.getActiveSession();
-    if (saved && saved.isStarted) {
-      const matched = workouts.find((w) => w.id === saved.programId);
-      if (matched) return matched;
-    }
     if (activeWorkout) return activeWorkout;
     const initialClientWorkouts = workouts.filter(
       (w) => w.clientId === (session?.clientId || clients[0]?.id || '')
@@ -332,6 +328,20 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   const [timerSeconds, setTimerSeconds] = useState(60);
   const [timerExerciseName, setTimerExerciseName] = useState('');
   const [timerSetNumber, setTimerSetNumber] = useState(1);
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | 'unsupported'
+  >(() => {
+    return notificationService.getPermission();
+  });
+
+  const handleRequestWorkoutNotificationPermission = async () => {
+    vibration.lightTap();
+    const perm = await notificationService.requestPermission();
+    setNotificationPermission(perm);
+    if (perm === 'granted') {
+      notificationService.triggerRestNotificationNow('IronCoach Alertas', 1);
+    }
+  };
 
   // Workout Completion Modal State
   const [isFinishedModalOpen, setIsFinishedModalOpen] = useState(false);
@@ -373,6 +383,21 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     setNumber: number;
   } | null>(null);
 
+  const requireWorkoutStarted = useCallback((): boolean => {
+    if (!session || !session.isStarted) {
+      sounds.playTickSound();
+      vibration.lightTap();
+      setExerciseFinishedToast(
+        'Modo Visualização: Clique em "Iniciar Treino" para liberar alterações e iniciar o cronômetro.'
+      );
+      setTimeout(() => {
+        setExerciseFinishedToast(null);
+      }, 3500);
+      return false;
+    }
+    return true;
+  }, [session]);
+
   const handleOpenPseModal = (
     exerciseIndex: number,
     setIndex: number,
@@ -380,6 +405,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     exerciseName: string,
     setNumber: number
   ) => {
+    if (!requireWorkoutStarted()) return;
     setPseModalConfig({
       isOpen: true,
       exerciseIndex,
@@ -392,6 +418,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   const handleSelectPse = (pseValue: number | null) => {
     if (!pseModalConfig || !session) return;
+    if (!requireWorkoutStarted()) return;
     const { exerciseIndex, setIndex } = pseModalConfig;
     const updatedExercises = [...session.exercises];
     const targetEx = { ...updatedExercises[exerciseIndex] };
@@ -435,6 +462,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   const handleRequestSwapSubstitute = (exIndex: number) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const ex = session.exercises[exIndex];
     if (!ex || !ex.substituteExerciseName) return;
     setSwapConfirmModal({
@@ -447,6 +475,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   const handleConfirmSwapSubstitute = () => {
     if (!swapConfirmModal || !session) return;
+    if (!requireWorkoutStarted()) return;
     const { exerciseIndex } = swapConfirmModal;
     const currentEx = session.exercises[exerciseIndex];
     if (!currentEx || !currentEx.substituteExerciseName) {
@@ -517,6 +546,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // 1.3: Concluir e Recolher - Salva snapshot das séries do exercício e recolhe
   const handleFinishAndCollapseExercise = (exIndex: number) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const ex = session.exercises[exIndex];
     if (!ex) return;
 
@@ -572,6 +602,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   const handleUpdateExerciseComment = (exIndex: number, comment: string) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const updatedExercises = [...session.exercises];
     updatedExercises[exIndex] = {
       ...updatedExercises[exIndex],
@@ -587,6 +618,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Conclui o exercício atual, salva o snapshot e avança para o próximo exercício na página dedicada
   const handleFinishAndAdvanceExercise = (exIndex: number) => {
+    if (!requireWorkoutStarted()) return;
     setTimerOpen(false);
     handleFinishAndCollapseExercise(exIndex);
     if (session && exIndex < session.exercises.length - 1) {
@@ -727,31 +759,65 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   };
 
   const isSessionStarted = !!session?.isStarted;
-  const isSessionPaused = !!session?.isPaused;
+  const isSessionPaused = false; // O cronômetro corre continuamente até concluir e finalizar o treino
   const hasActiveSession = !!session;
 
-  // Session elapsed timer ticker - only starts when isStarted is true and not paused
+  // Session elapsed timer ticker - usa timestamp real (startTime) para continuar contando mesmo com app minimizado ou fechado no mobile/tablet
   useEffect(() => {
-    if (!hasActiveSession || !isSessionStarted || isSessionPaused) return;
+    if (!hasActiveSession || !isSessionStarted) return;
 
-    const interval = setInterval(() => {
+    const syncElapsedFromClock = () => {
       setSession((prev) => {
-        if (!prev || !prev.isStarted || prev.isPaused) return prev;
-        const updated = {
+        if (!prev || !prev.isStarted) return prev;
+        const startMs = prev.startTime ? Date.parse(prev.startTime) : NaN;
+        let nextElapsed = prev.elapsedSeconds + 1;
+
+        if (!isNaN(startMs)) {
+          const diffSeconds = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+          nextElapsed = Math.max(prev.elapsedSeconds || 0, diffSeconds);
+        }
+
+        if (nextElapsed === prev.elapsedSeconds && !prev.isPaused) {
+          return prev;
+        }
+
+        const updated: ActiveWorkoutSession = {
           ...prev,
-          elapsedSeconds: prev.elapsedSeconds + 1,
+          isPaused: false,
+          elapsedSeconds: nextElapsed,
         };
         storage.saveActiveSession(updated);
         return updated;
       });
-    }, 1000);
+    };
 
-    return () => clearInterval(interval);
-  }, [hasActiveSession, isSessionStarted, isSessionPaused, setSession]);
+    // Sincroniza imediatamente ao montar ou retomar
+    syncElapsedFromClock();
+
+    const interval = setInterval(syncElapsedFromClock, 1000);
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        syncElapsedFromClock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', syncElapsedFromClock);
+    window.addEventListener('pageshow', syncElapsedFromClock);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', syncElapsedFromClock);
+      window.removeEventListener('pageshow', syncElapsedFromClock);
+    };
+  }, [hasActiveSession, isSessionStarted, setSession]);
 
   // Toggle set check status
   const handleToggleSetCheck = (exIndex: number, setIndex: number) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
 
     const currentEx = session.exercises[exIndex];
     const currentSet = currentEx.sets[setIndex];
@@ -814,6 +880,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     applyToSubsequent = false
   ) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     sounds.playTickSound();
 
     const currentEx = session.exercises[exIndex];
@@ -852,6 +919,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // Direct weight input change (allows null for empty / sem numeração)
   const setWeightDirect = (exIndex: number, setIndex: number, value: number | null) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const currentEx = session.exercises[exIndex];
     const updatedSets = [...currentEx.sets];
     updatedSets[setIndex] = {
@@ -877,6 +945,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // Helper to copy weight of set 1 to all subsequent sets of the exercise
   const handleCopyFirstSetWeightToAll = (exIndex: number) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const ex = session.exercises[exIndex];
     if (!ex || ex.sets.length <= 1) return;
     const firstWeight = ex.sets[0].weightKg;
@@ -896,6 +965,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // Reps adjustment (+ and - touch)
   const adjustReps = (exIndex: number, setIndex: number, delta: number) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     sounds.playTickSound();
 
     const currentEx = session.exercises[exIndex];
@@ -929,6 +999,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     subIndex: number
   ) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const currentEx = session.exercises[exIndex];
     const currentSet = currentEx?.sets[setIndex];
     if (!currentSet || !currentSet.subSets || !currentSet.subSets[subIndex]) return;
@@ -969,6 +1040,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     delta: number
   ) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     sounds.playTickSound();
 
     const currentEx = session.exercises[exIndex];
@@ -1002,6 +1074,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     delta: number
   ) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     sounds.playTickSound();
 
     const currentEx = session.exercises[exIndex];
@@ -1035,6 +1108,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     val: number | null
   ) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const currentEx = session.exercises[exIndex];
     const currentSet = currentEx?.sets[setIndex];
     if (!currentSet || !currentSet.subSets || !currentSet.subSets[subIndex]) return;
@@ -1061,6 +1135,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // Workout Notes & Feedback Handler
   const handleUpdateTrainerNotes = (notes: string) => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
     const updated: ActiveWorkoutSession = {
       ...session,
       trainerNotes: notes,
@@ -1069,24 +1144,30 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     storage.saveActiveSession(updated);
   };
 
-  // Start Workout Session (starts timer)
+  // Start Workout Session (starts continuous timer and unlocks editing)
   const handleStartWorkout = () => {
     if (!session) return;
     sounds.playTickSound();
     vibration.mediumPulse();
+    const baseStartTime =
+      session.elapsedSeconds && session.elapsedSeconds > 0
+        ? new Date(Date.now() - session.elapsedSeconds * 1000).toISOString()
+        : new Date().toISOString();
     const updated: ActiveWorkoutSession = {
       ...session,
       isStarted: true,
       isPaused: false,
-      startTime: new Date().toISOString(),
+      startTime: baseStartTime,
     };
     setSession(updated);
     storage.saveActiveSession(updated);
+    cloudSync.syncActiveSession(updated);
   };
 
-  // Finish Workout Session
+  // Finish Workout Session (stops timer and saves completed workout)
   const handleFinishWorkout = () => {
     if (!session) return;
+    if (!requireWorkoutStarted()) return;
 
     let totalVolumeKg = 0;
     let completedSetsCount = 0;
@@ -1111,8 +1192,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       });
     });
 
-    const mins = Math.floor(session.elapsedSeconds / 60);
-    const secs = session.elapsedSeconds % 60;
+    const startMs = session.startTime ? Date.parse(session.startTime) : NaN;
+    const finalElapsedSeconds =
+      session.isStarted && !isNaN(startMs)
+        ? Math.max(session.elapsedSeconds || 0, Math.floor((Date.now() - startMs) / 1000))
+        : session.elapsedSeconds || 0;
+
+    const mins = Math.floor(finalElapsedSeconds / 60);
+    const secs = finalElapsedSeconds % 60;
     const durationStr = `${mins}m ${secs}s`;
 
     const now = new Date();
@@ -1170,7 +1257,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       date: dateFormatted,
       time: timeFormatted,
       completedAt: now.toISOString(),
-      durationSeconds: session.elapsedSeconds,
+      durationSeconds: finalElapsedSeconds,
       durationFormatted: durationStr,
       totalVolumeKg,
       exercises: completedExercises,
@@ -1893,23 +1980,25 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         onClick={() =>
                           handleStartSplitExecution(selectedProgram, split as WorkoutSplit)
                         }
-                        className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/70 shadow-lg cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3"
+                        className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/70 shadow-lg cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3 overflow-hidden min-w-0"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                              <h4 className="text-base sm:text-lg font-black text-white group-hover:text-cyan-300 transition">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+                              <h4 className="text-sm sm:text-base font-black text-white group-hover:text-cyan-300 transition truncate">
                                 {split.name}
                               </h4>
                             </div>
-                            <p className="text-xs text-cyan-400 font-semibold flex items-center gap-1.5">
-                              <CalendarIcon className="w-3.5 h-3.5" />
-                              <span>Dias recomendados: {splitDays || 'Dias flexíveis'}</span>
+                            <p className="text-[11px] sm:text-xs text-cyan-400 font-semibold flex items-center gap-1.5 min-w-0">
+                              <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">
+                                Dias recomendados: {splitDays || 'Dias flexíveis'}
+                              </span>
                             </p>
                           </div>
 
-                          <span className="px-3 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-bold text-slate-200">
+                          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl bg-slate-800/90 border border-slate-700 text-[10px] sm:text-xs font-bold text-slate-200 shrink-0 whitespace-nowrap self-start leading-tight">
                             {exCount} exercício{exCount === 1 ? '' : 's'}
                           </span>
                         </div>
@@ -2145,7 +2234,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     </div>
                   </div>
 
-                  {/* Botão de Iniciar Treino ou Indicador de Tempo */}
+                  {/* Botão de Iniciar Treino ou Indicador de Tempo Contínuo */}
                   {!session.isStarted ? (
                     <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
                       <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 font-mono text-xs font-bold text-slate-400">
@@ -2158,38 +2247,58 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         type="button"
                         onClick={handleStartWorkout}
                         className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
-                        title="Clique para iniciar o treino e começar a contagem do tempo"
+                        title="Clique para iniciar o treino, começar a contagem do tempo e liberar edições"
                       >
                         <Play className="w-4 h-4 fill-slate-950" />
                         <span>Iniciar Treino</span>
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          vibration.mediumPulse();
-                          const updated = { ...session, isPaused: !session.isPaused };
-                          setSession(updated);
-                          storage.saveActiveSession(updated);
-                        }}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs active:scale-95 touch-manipulation cursor-pointer"
-                        title={session.isPaused ? 'Retomar Treino' : 'Pausar Cronômetro'}
+                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                      <div
+                        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-bold text-emerald-400 shadow-inner"
+                        title="Cronômetro em contagem contínua até concluir e finalizar o treino"
                       >
-                        {session.isPaused ? (
-                          <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-                        ) : (
-                          <Pause className="w-4 h-4 text-amber-400 fill-amber-400" />
-                        )}
-                      </button>
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-bold text-emerald-400">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         <Clock className="w-3.5 h-3.5 text-emerald-400" />
                         <span>{formatElapsed(session.elapsedSeconds)}</span>
+                        <span className="text-[10px] text-emerald-300/80 font-sans font-semibold hidden sm:inline">
+                          (Em andamento)
+                        </span>
                       </div>
+
+                      {/* Notificações em Segundo Plano */}
+                      {notificationPermission === 'granted' ? (
+                        <div
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-bold text-xs"
+                          title="Notificações ativas: você receberá alertas de descanso mesmo com o app minimizado"
+                        >
+                          <BellRing className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-[11px] hidden sm:inline">Avisos 2º Plano Ativos</span>
+                        </div>
+                      ) : notificationPermission === 'default' ? (
+                        <button
+                          type="button"
+                          onClick={handleRequestWorkoutNotificationPermission}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer"
+                          title="Clique para ativar alertas em segundo plano no celular/tablet"
+                        >
+                          <Bell className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                          <span className="text-[11px]">Ativar Alertas 2º Plano</span>
+                        </button>
+                      ) : null}
                     </div>
                   )}
                 </div>
+
+                {!session.isStarted && (
+                  <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/30 flex items-center gap-2 text-[11px] text-amber-200">
+                    <Info className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>
+                      <strong>Modo Visualização:</strong> Você pode expandir/recolher e abrir qualquer exercício para consultar as informações. As alterações só serão liberadas após clicar em <strong>Iniciar Treino</strong>.
+                    </span>
+                  </div>
+                )}
 
                 <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                   <div
@@ -2416,23 +2525,23 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   {/* RECOLHIDO: EXIBE APENAS O NOME DO EXERCÍCIO COM INDICADOR DE EXPANSÃO / ABRIR PÁGINA */}
                   {!isExpanded ? (
                     <div
-                      onClick={() => handleSelectExercise(ex.exerciseId)}
-                      className="p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/50 transition group"
+                      onClick={() => handleToggleExerciseExpand(ex.exerciseId)}
+                      className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 cursor-pointer hover:bg-slate-800/50 transition group"
                     >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 w-full sm:flex-1">
                         <span
-                          className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 border transition ${
+                          className={`font-black text-xs sm:text-sm flex items-center justify-center flex-shrink-0 transition mt-0.5 sm:mt-0 ${
                             isAllSetsCompleted
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                              : 'bg-slate-800 text-slate-300 border-slate-700 group-hover:border-slate-600'
+                              ? 'text-emerald-400'
+                              : 'text-slate-400 group-hover:text-cyan-300'
                           }`}
                         >
                           {exIndex + 1}
                         </span>
 
-                        <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="min-w-0 flex-1 space-y-1 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-extrabold text-sm sm:text-base text-white truncate group-hover:text-cyan-300 transition">
+                            <h4 className="font-extrabold text-sm sm:text-base text-white group-hover:text-cyan-300 transition leading-snug break-words sm:truncate flex-1 min-w-0">
                               {ex.exerciseName}
                             </h4>
                             {ex.substituteExerciseName && (
@@ -2443,15 +2552,24 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   handleRequestSwapSubstitute(exIndex);
                                 }}
                                 className={`p-1.5 rounded-lg border transition active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                                  !session.isStarted ? 'opacity-60 ' : ''
+                                }${
                                   ex.isUsingSubstitute
                                     ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
                                     : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
                                 }`}
-                                title={`Trocar por exercício substituto: ${ex.substituteExerciseName}`}
+                                title={
+                                  session.isStarted
+                                    ? `Trocar por exercício substituto: ${ex.substituteExerciseName}`
+                                    : `Inicie o treino para trocar pelo substituto (${ex.substituteExerciseName})`
+                                }
                               >
                                 <ArrowLeftRight className="w-3.5 h-3.5" />
                               </button>
                             )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {ex.isUsingSubstitute && (
                               <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
                                 Substituto
@@ -2477,7 +2595,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t border-slate-800/60 sm:border-t-0 flex-shrink-0 w-full sm:w-auto">
                         <span
                           className={`text-xs font-mono font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 ${
                             isAllSetsCompleted
@@ -2493,18 +2611,32 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           </span>
                         </span>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFocusedExerciseId(ex.exerciseId);
-                          }}
-                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer"
-                          title="Abrir página dedicada com todas as informações deste exercício"
-                        >
-                          <span>Executar</span>
-                          <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleExerciseExpand(ex.exerciseId);
+                            }}
+                            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition cursor-pointer"
+                            title="Expandir card do exercício"
+                          >
+                            <ChevronDown className="w-4 h-4 text-cyan-400" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFocusedExerciseId(ex.exerciseId);
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer"
+                            title="Abrir página dedicada com todas as informações deste exercício"
+                          >
+                            <span>{session.isStarted ? 'Executar' : 'Visualizar'}</span>
+                            <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -2515,7 +2647,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/20">
+                              <span className="text-emerald-400 font-black text-xs sm:text-sm flex items-center justify-center shrink-0">
                                 {exIndex + 1}
                               </span>
                               <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5">
@@ -2526,11 +2658,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   type="button"
                                   onClick={() => handleRequestSwapSubstitute(exIndex)}
                                   className={`p-1.5 rounded-xl border transition active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                                    !session.isStarted ? 'opacity-60 ' : ''
+                                  }${
                                     ex.isUsingSubstitute
                                       ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
                                       : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
                                   }`}
-                                  title={`Trocar por exercício substituto: ${ex.substituteExerciseName}`}
+                                  title={
+                                    session.isStarted
+                                      ? `Trocar por exercício substituto: ${ex.substituteExerciseName}`
+                                      : `Inicie o treino para trocar pelo substituto (${ex.substituteExerciseName})`
+                                  }
                                 >
                                   <ArrowLeftRight className="w-4 h-4" />
                                 </button>
@@ -2671,8 +2809,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => adjustReps(exIndex, setIndex, -1)}
-                                    className="w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation"
-                                    title="-1 repetição"
+                                    className={`w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation ${
+                                      !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
+                                    }`}
+                                    title={session.isStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
                                   >
                                     -
                                   </button>
@@ -2687,8 +2827,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => adjustReps(exIndex, setIndex, +1)}
-                                    className="w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation"
-                                    title="+1 repetição"
+                                    className={`w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation ${
+                                      !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
+                                    }`}
+                                    title={session.isStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
                                   >
                                     +
                                   </button>
@@ -2699,11 +2841,21 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <div className="relative flex justify-center text-center">
                                     <input
                                       type="text"
+                                      readOnly={!session.isStarted}
                                       inputMode="decimal"
                                       pattern="[0-9]*[.,]?[0-9]*"
                                       placeholder="—"
                                       value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
+                                      onClick={() => {
+                                        if (!session.isStarted) {
+                                          requireWorkoutStarted();
+                                        }
+                                      }}
                                       onKeyDown={(e) => {
+                                        if (!session.isStarted) {
+                                          e.preventDefault();
+                                          return;
+                                        }
                                         if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
                                         if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
                                         if (/^[0-9]$/.test(e.key)) return;
@@ -2711,6 +2863,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         e.preventDefault();
                                       }}
                                       onChange={(e) => {
+                                        if (!session.isStarted) return;
                                         const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
                                         if (raw === '') {
                                           setWeightDirect(exIndex, setIndex, null);
@@ -2723,7 +2876,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           );
                                         }
                                       }}
-                                      className="h-[38px] w-[50px] mx-0 text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
+                                      className={`h-[38px] w-[50px] mx-0 text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                                        !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
+                                      }`}
                                     />
                                   </div>
                                 </div>
@@ -2742,12 +2897,16 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                       )
                                     }
                                     className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group ${
+                                      !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
+                                    }${
                                       pseInfo
                                         ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass} ring-1 ${pseInfo.ringClass} shadow-md`
                                         : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 hover:border-amber-500/50 text-slate-400 hover:text-amber-400'
                                     }`}
                                     title={
-                                      pseInfo
+                                      !session.isStarted
+                                        ? 'Inicie o treino para definir PSE'
+                                        : pseInfo
                                         ? `PSE ${set.pse}: ${pseInfo.label} (${pseInfo.rirNote}) - Clique para alterar`
                                         : 'Definir PSE (0 a 10)'
                                     }
@@ -2778,11 +2937,19 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     type="button"
                                     onClick={() => handleToggleSetCheck(exIndex, setIndex)}
                                     className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation ${
+                                      !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
+                                    }${
                                       set.completed
                                         ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-500/40'
                                         : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                                     }`}
-                                    title={set.completed ? 'Desmarcar série' : 'Concluir série e iniciar descanso'}
+                                    title={
+                                      !session.isStarted
+                                        ? 'Inicie o treino para concluir séries'
+                                        : set.completed
+                                        ? 'Desmarcar série'
+                                        : 'Concluir série e iniciar descanso'
+                                    }
                                   >
                                     <Check
                                       className={`w-5 h-5 stroke-[3] transition-transform ${
@@ -2827,7 +2994,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleAdjustSubSetReps(exIndex, setIndex, subIdx, -1)
                                           }
-                                          className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
+                                          className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                                            !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
+                                          }`}
                                         >
                                           -
                                         </button>
@@ -2844,7 +3013,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleAdjustSubSetReps(exIndex, setIndex, subIdx, +1)
                                           }
-                                          className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
+                                          className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                                            !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
+                                          }`}
                                         >
                                           +
                                         </button>
@@ -2855,11 +3026,21 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         <div className="relative flex justify-center text-center">
                                           <input
                                             type="text"
+                                            readOnly={!session.isStarted}
                                             inputMode="decimal"
                                             pattern="[0-9]*[.,]?[0-9]*"
                                             placeholder="—"
                                             value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
+                                            onClick={() => {
+                                              if (!session.isStarted) {
+                                                requireWorkoutStarted();
+                                              }
+                                            }}
                                             onKeyDown={(e) => {
+                                              if (!session.isStarted) {
+                                                e.preventDefault();
+                                                return;
+                                              }
                                               if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
                                               if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
                                               if (/^[0-9]$/.test(e.key)) return;
@@ -2867,6 +3048,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                               e.preventDefault();
                                             }}
                                             onChange={(e) => {
+                                              if (!session.isStarted) return;
                                               const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
                                               if (raw === '') {
                                                 handleSetSubSetWeightDirect(exIndex, setIndex, subIdx, null);
@@ -2880,7 +3062,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                                 );
                                               }
                                             }}
-                                            className="h-[34px] w-[50px] mx-0 text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
+                                            className={`h-[34px] w-[50px] mx-0 text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
+                                              !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
+                                            }`}
                                           />
                                         </div>
                                       </div>
@@ -2898,12 +3082,16 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                             handleToggleSubSetCheck(exIndex, setIndex, subIdx)
                                           }
                                           className={`w-9 h-9 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 ${
+                                            !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
+                                          }${
                                             sub.completed
                                               ? 'bg-purple-600 text-white ring-2 ring-purple-400'
                                               : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                                           }`}
                                           title={
-                                            sub.completed
+                                            !session.isStarted
+                                              ? 'Inicie o treino para concluir subséries'
+                                              : sub.completed
                                               ? 'Desmarcar subsérie'
                                               : 'Concluir subsérie'
                                           }
@@ -2937,21 +3125,44 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       )}
 
                       {/* Footer do Exercício Expandido com botão de recolher */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 gap-2 flex-wrap">
                         <span className="text-[11px] text-slate-400">
-                          {isAllSetsCompleted
+                          {!session.isStarted
+                            ? 'Modo Visualização • Clique em "Iniciar Treino" para registrar séries'
+                            : isAllSetsCompleted
                             ? '✓ Todas as séries deste exercício concluídas'
                             : `Faltam ${ex.sets.length - completedInThisEx} série(s) para concluir`}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleFinishAndCollapseExercise(exIndex)}
-                          className="text-xs font-bold text-white flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 shadow-md shadow-emerald-950/40 transition active:scale-95"
-                          title="Concluir exercício, gravar séries no histórico de evolução e recolher"
-                        >
-                          <Check className="w-4 h-4 stroke-[3]" />
-                          <span>Concluir e Recolher</span>
-                        </button>
+                        {!session.isStarted ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleExerciseExpand(ex.exerciseId)}
+                              className="text-xs font-bold text-slate-200 flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition active:scale-95 cursor-pointer"
+                            >
+                              <ChevronUp className="w-4 h-4 text-cyan-400" />
+                              <span>Recolher</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleStartWorkout}
+                              className="text-xs font-black text-slate-950 flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md transition active:scale-95 cursor-pointer"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-slate-950" />
+                              <span>Iniciar Treino</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleFinishAndCollapseExercise(exIndex)}
+                            className="text-xs font-bold text-white flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 shadow-md shadow-emerald-950/40 transition active:scale-95 cursor-pointer"
+                            title="Concluir exercício, gravar séries no histórico de evolução e recolher"
+                          >
+                            <Check className="w-4 h-4 stroke-[3]" />
+                            <span>Concluir e Recolher</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2982,7 +3193,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </div>
               </div>
 
-              {session.trainerNotes && (
+              {session.trainerNotes && session.isStarted && (
                 <button
                   type="button"
                   onClick={() => handleUpdateTrainerNotes('')}
@@ -2998,11 +3209,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             {/* Textarea de Notas do Treinador */}
             <div className="space-y-1">
               <textarea
+                readOnly={!session.isStarted}
                 value={session.trainerNotes || ''}
-                onChange={(e) => handleUpdateTrainerNotes(e.target.value)}
+                onClick={() => {
+                  if (!session.isStarted) {
+                    requireWorkoutStarted();
+                  }
+                }}
+                onChange={(e) => {
+                  if (!session.isStarted) return;
+                  handleUpdateTrainerNotes(e.target.value);
+                }}
                 placeholder="Ex: No supino, fechar pegada em 2cm para proteger o ombro. No agachamento, manteve profundidade perfeita. Aluno sentiu bom estímulo no quadríceps..."
                 rows={3}
-                className="w-full p-3 text-xs sm:text-sm text-white bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/50 placeholder:text-slate-500 transition resize-y min-h-[80px]"
+                className={`w-full p-3 text-xs sm:text-sm text-white bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/50 placeholder:text-slate-500 transition resize-y min-h-[80px] ${
+                  !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
+                }`}
               />
               <div className="flex items-center justify-between text-[10px] text-slate-500 px-1">
                 <span>Ficará arquivado permanentemente no histórico de treinos do aluno.</span>
@@ -3036,25 +3258,36 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       </h4>
                     </div>
                     <p className="text-xs text-slate-400">
-                      {allCompleted
-                        ? '🎉 Parabéns! Todas as séries programadas foram concluídas.'
-                        : `${totalCompletedSets} de ${totalSets} séries concluídas. Clique no botão ao lado para concluir a sessão.`}
+                      {!session.isStarted
+                        ? 'Inicie o treino no topo da tela para começar a contagem do tempo e habilitar o registro.'
+                        : allCompleted
+                        ? '🎉 Parabéns! Todas as séries programadas foram concluídas. Clique ao lado para parar o cronômetro e finalizar.'
+                        : `${totalCompletedSets} de ${totalSets} séries concluídas. O cronômetro continuará rodando até você concluir e finalizar o treino.`}
                     </p>
                   </div>
 
-                  {allCompleted ? (
+                  {!session.isStarted ? (
+                    <button
+                      type="button"
+                      onClick={handleStartWorkout}
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0"
+                    >
+                      <Play className="w-5 h-5 fill-slate-950" />
+                      <span>Iniciar Treino</span>
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       onClick={handleFinishWorkout}
-                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0 animate-in fade-in duration-150"
+                      className={`w-full sm:w-auto px-6 py-3.5 rounded-xl active:scale-95 font-black text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0 animate-in fade-in duration-150 ${
+                        allCompleted
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-950/60'
+                          : 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-emerald-950/40'
+                      }`}
                     >
-                      <CheckCircle2 className="w-5 h-5 fill-slate-950 text-emerald-400" />
+                      <CheckCircle2 className="w-5 h-5" />
                       <span>Concluir e Finalizar</span>
                     </button>
-                  ) : (
-                    <span className="text-xs font-bold text-slate-400 bg-slate-950/80 px-4 py-2.5 rounded-xl border border-slate-800">
-                      Preencha todos os exercícios para finalizar
-                    </span>
                   )}
                 </div>
               </div>
@@ -3865,6 +4098,19 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           <span>{exerciseFinishedToast}</span>
         </div>
       )}
+
+      {/* CRONÔMETRO DE DESCANSO INTEGRADO ENTRE SÉRIES COM NOTIFICAÇÕES EM SEGUNDO PLANO */}
+      <RestCountdownTimer
+        key={`${timerExerciseName}-${timerSetNumber}-${timerSeconds}-${timerOpen}`}
+        isOpen={timerOpen}
+        initialSeconds={timerSeconds}
+        exerciseName={timerExerciseName}
+        setNumber={timerSetNumber}
+        onClose={() => setTimerOpen(false)}
+        onComplete={() => {
+          sounds.playRestCompleteBeep();
+        }}
+      />
     </div>
   );
 };

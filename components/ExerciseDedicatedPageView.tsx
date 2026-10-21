@@ -172,36 +172,26 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             </span>
           </div>
 
-          {/* Active Workout Timer Widget */}
+          {/* Active Workout Timer Widget (Runs continuously until workout is finished) */}
           <div className="flex items-center gap-2">
             {!isSessionStarted ? (
               <button
                 type="button"
                 onClick={onStartWorkout}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs flex items-center gap-1.5 active:scale-95 transition shadow-sm cursor-pointer"
-                title="Iniciar contagem de tempo do treino"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 active:scale-95 transition shadow-md shadow-emerald-950/50 cursor-pointer"
+                title="Iniciar contagem de tempo do treino e liberar edições"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
-                <span>Iniciar</span>
+                <span>Iniciar Treino</span>
               </button>
             ) : (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={onTogglePause}
-                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:scale-95 transition cursor-pointer"
-                  title={isSessionPaused ? 'Retomar' : 'Pausar'}
-                >
-                  {isSessionPaused ? (
-                    <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />
-                  ) : (
-                    <Pause className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                  )}
-                </button>
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-bold text-emerald-400">
-                  <Clock className="w-3 h-3 text-emerald-400" />
-                  <span>{formatElapsed(elapsedSeconds)}</span>
-                </div>
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-bold text-emerald-400 shadow-inner"
+                title="Cronômetro em andamento contínuo até concluir e finalizar o treino"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{formatElapsed(elapsedSeconds)}</span>
               </div>
             )}
           </div>
@@ -230,6 +220,33 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
         </div>
       </div>
 
+      {/* AVISO DE MODO VISUALIZAÇÃO ANTES DE INICIAR O TREINO */}
+      {!isSessionStarted && (
+        <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-black text-amber-300 block">
+                Modo Visualização (Treino ainda não iniciado)
+              </span>
+              <p className="text-[11px] text-slate-300">
+                Consulte séries, cargas anteriores e observações livremente. Para alterar cargas, repetições, PSE ou marcar séries, clique em <strong>Iniciar Treino</strong>.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onStartWorkout}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer shrink-0"
+          >
+            <Play className="w-3.5 h-3.5 fill-slate-950" />
+            <span>Iniciar Treino Agora</span>
+          </button>
+        </div>
+      )}
+
       {/* 2. HERO CABEÇALHO + SÉRIES DO EXERCÍCIO */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-4">
         {/* Header com Nome, Grupo Muscular, Método e Descanso */}
@@ -248,8 +265,14 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                 <button
                   type="button"
                   onClick={() => onRequestSwapSubstitute(focusedExerciseIndex)}
-                  className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center justify-center transition active:scale-90 cursor-pointer shadow-sm"
-                  title={`Trocar pelo exercício substituto: ${focusedExercise.substituteExerciseName}`}
+                  className={`p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center justify-center transition active:scale-90 cursor-pointer shadow-sm ${
+                    !isSessionStarted ? 'opacity-60' : ''
+                  }`}
+                  title={
+                    isSessionStarted
+                      ? `Trocar pelo exercício substituto: ${focusedExercise.substituteExerciseName}`
+                      : `Inicie o treino para trocar pelo substituto (${focusedExercise.substituteExerciseName})`
+                  }
                 >
                   <ArrowLeftRight className="w-4 h-4 text-amber-400" />
                 </button>
@@ -351,7 +374,9 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               <button
                 type="button"
                 onClick={() => onCopyFirstSetWeightToAll(focusedExerciseIndex)}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+                className={`px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer ${
+                  !isSessionStarted ? 'opacity-60' : ''
+                }`}
                 title="Copiar a carga da Série 1 para todas as demais séries"
               >
                 <Copy className="w-3 h-3 text-emerald-400" />
@@ -421,8 +446,10 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       <button
                         type="button"
                         onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, -1)}
-                        className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer"
-                        title="-1 repetição"
+                        className={`w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer ${
+                          !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                        title={isSessionStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
                       >
                         -
                       </button>
@@ -437,8 +464,10 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       <button
                         type="button"
                         onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, +1)}
-                        className="w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer"
-                        title="+1 repetição"
+                        className={`w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer ${
+                          !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                        title={isSessionStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
                       >
                         +
                       </button>
@@ -449,11 +478,21 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       <div className="relative flex justify-center text-center">
                         <input
                           type="text"
+                          readOnly={!isSessionStarted}
                           inputMode="decimal"
                           pattern="[0-9]*[.,]?[0-9]*"
                           placeholder="—"
                           value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
+                          onClick={() => {
+                            if (!isSessionStarted) {
+                              onSetWeightDirect(focusedExerciseIndex, setIndex, set.weightKg ?? null);
+                            }
+                          }}
                           onKeyDown={(e) => {
+                            if (!isSessionStarted) {
+                              e.preventDefault();
+                              return;
+                            }
                             if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
                             if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
                             if (/^[0-9]$/.test(e.key)) return;
@@ -461,6 +500,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                             e.preventDefault();
                           }}
                           onChange={(e) => {
+                            if (!isSessionStarted) return;
                             const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
                             if (raw === '') {
                               onSetWeightDirect(focusedExerciseIndex, setIndex, null);
@@ -473,7 +513,9 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                               );
                             }
                           }}
-                          className="h-[40px] w-[56px] text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600"
+                          className={`h-[40px] w-[56px] text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                            !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
+                          }`}
                         />
                       </div>
                     </div>
@@ -492,12 +534,16 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                           )
                         }
                         className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer ${
+                          !isSessionStarted ? 'opacity-60 cursor-not-allowed ' : ''
+                        }${
                           pseInfo
                             ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass} ring-1 ${pseInfo.ringClass} shadow-md`
                             : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 hover:border-amber-500/50 text-slate-400 hover:text-amber-400'
                         }`}
                         title={
-                          pseInfo
+                          !isSessionStarted
+                            ? 'Inicie o treino para definir o PSE'
+                            : pseInfo
                             ? `PSE ${set.pse}: ${pseInfo.label} (${pseInfo.rirNote}) - Clique para alterar`
                             : 'Definir PSE (0 a 10)'
                         }
@@ -528,11 +574,19 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                         type="button"
                         onClick={() => onToggleSetCheck(focusedExerciseIndex, setIndex)}
                         className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer ${
+                          !isSessionStarted ? 'opacity-60 cursor-not-allowed ' : ''
+                        }${
                           set.completed
                             ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-500/40'
                             : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                         }`}
-                        title={set.completed ? 'Desmarcar série' : 'Concluir série e iniciar cronômetro de descanso'}
+                        title={
+                          !isSessionStarted
+                            ? 'Inicie o treino para marcar séries concluídas'
+                            : set.completed
+                            ? 'Desmarcar série'
+                            : 'Concluir série e iniciar cronômetro de descanso'
+                        }
                       >
                         <Check
                           className={`w-5 h-5 stroke-[3] transition-transform ${
@@ -575,7 +629,9 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                               onClick={() =>
                                 onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, -1)
                               }
-                              className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
+                              className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                                !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
+                              }`}
                             >
                               -
                             </button>
@@ -592,7 +648,9 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                               onClick={() =>
                                 onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, +1)
                               }
-                              className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90"
+                              className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                                !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
+                              }`}
                             >
                               +
                             </button>
@@ -601,11 +659,23 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                           <div className="col-span-3 flex items-center justify-center">
                             <input
                               type="text"
+                              readOnly={!isSessionStarted}
                               inputMode="decimal"
                               pattern="[0-9]*[.,]?[0-9]*"
                               placeholder="—"
                               value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
+                              onClick={() => {
+                                if (!isSessionStarted) {
+                                  onSetSubSetWeightDirect(
+                                    focusedExerciseIndex,
+                                    setIndex,
+                                    subIdx,
+                                    sub.weightKg ?? null
+                                  );
+                                }
+                              }}
                               onChange={(e) => {
+                                if (!isSessionStarted) return;
                                 const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
                                 const parsed = raw === '' ? null : parseFloat(raw);
                                 onSetSubSetWeightDirect(
@@ -615,7 +685,9 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                                   parsed == null || isNaN(parsed) ? null : Math.max(0, parsed)
                                 );
                               }}
-                              className="h-[34px] w-[50px] text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600"
+                              className={`h-[34px] w-[50px] text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
+                                !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
+                              }`}
                             />
                           </div>
 
@@ -630,11 +702,19 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                                 onToggleSubSetCheck(focusedExerciseIndex, setIndex, subIdx)
                               }
                               className={`w-9 h-9 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer ${
+                                !isSessionStarted ? 'opacity-60 cursor-not-allowed ' : ''
+                              }${
                                 sub.completed
                                   ? 'bg-purple-600 text-white ring-2 ring-purple-400'
                                   : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                               }`}
-                              title={sub.completed ? 'Desmarcar' : 'Concluir'}
+                              title={
+                                !isSessionStarted
+                                  ? 'Inicie o treino para concluir subséries'
+                                  : sub.completed
+                                  ? 'Desmarcar'
+                                  : 'Concluir'
+                              }
                             >
                               <Check
                                 className={`w-5 h-5 stroke-[3] ${
@@ -706,9 +786,21 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
           <button
             type="button"
-            onClick={() => setIsCurrentCommentModalOpen(true)}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 hover:border-purple-500/50 border border-slate-700/80 text-xs font-bold text-white flex items-center justify-between sm:justify-start gap-2.5 transition active:scale-95 cursor-pointer shadow-sm group"
-            title="Abrir modal para adicionar ou editar comentário da sessão atual para este exercício"
+            onClick={() => {
+              if (!isSessionStarted) {
+                onUpdateExerciseComment(focusedExerciseIndex, focusedExercise.exerciseComment || '');
+                return;
+              }
+              setIsCurrentCommentModalOpen(true);
+            }}
+            className={`flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 hover:border-purple-500/50 border border-slate-700/80 text-xs font-bold text-white flex items-center justify-between sm:justify-start gap-2.5 transition active:scale-95 cursor-pointer shadow-sm group ${
+              !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
+            }`}
+            title={
+              isSessionStarted
+                ? 'Abrir modal para adicionar ou editar comentário da sessão atual para este exercício'
+                : 'Inicie o treino para adicionar comentário nesta sessão'
+            }
           >
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30">
@@ -755,17 +847,21 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
       <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="space-y-0.5">
           <span className="text-xs font-black text-white block">
-            {areAllExercisesCompleted
+            {!isSessionStarted
+              ? `Visualizando Exercício ${focusedExerciseIndex + 1} de ${totalExercises}`
+              : areAllExercisesCompleted
               ? '✓ Todos os exercícios deste treino foram preenchidos!'
               : isExerciseFullyCompleted
               ? '✓ Todas as séries deste exercício foram cumpridas!'
               : `${completedSetsCount} de ${totalSetsCount} séries concluídas neste exercício`}
           </span>
           <p className="text-[11px] text-slate-400">
-            {areAllExercisesCompleted
-              ? 'Treino completo! Clique em "Concluir e Finalizar" para salvar e registrar o treino.'
+            {!isSessionStarted
+              ? 'Clique em "Iniciar Treino" para começar a contagem do tempo e registrar as séries.'
+              : areAllExercisesCompleted
+              ? 'Treino completo! Clique em "Concluir e Finalizar" para parar o cronômetro e salvar.'
               : isLast
-              ? 'Último exercício. Conclua todas as séries de todos os exercícios para finalizar o treino.'
+              ? 'Último exercício. Conclua todas as séries ou finalize o treino quando terminar.'
               : `Próximo: ${session.exercises[focusedExerciseIndex + 1]?.exerciseName}`}
           </p>
         </div>
@@ -779,7 +875,30 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             Lista de Exercícios
           </button>
 
-          {areAllExercisesCompleted ? (
+          {!isSessionStarted ? (
+            <>
+              {!isLast && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectExercise(session.exercises[focusedExerciseIndex + 1].exerciseId)
+                  }
+                  className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-cyan-500/30 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>Próximo Exercício</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onStartWorkout}
+                className="flex-1 sm:flex-none px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+              >
+                <Play className="w-4 h-4 fill-slate-950" />
+                <span>Iniciar Treino</span>
+              </button>
+            </>
+          ) : areAllExercisesCompleted ? (
             <button
               type="button"
               onClick={() => {

@@ -89,9 +89,25 @@ export function useActiveWorkoutPersistence({
             storage.saveActiveSession(fresh);
             lastProgramIdRef.current = activeWorkoutRef.current.id;
           } else {
-            // Restore the active session exactly as it was saved
-            setSessionState(savedSession);
-            lastProgramIdRef.current = savedSession.programId;
+            // Restore the active session and recalculate real elapsed time if already started
+            let restoredSession = savedSession;
+            if (savedSession.isStarted && savedSession.startTime) {
+              const startMs = Date.parse(savedSession.startTime);
+              if (!isNaN(startMs)) {
+                const realElapsed = Math.max(
+                  savedSession.elapsedSeconds || 0,
+                  Math.floor((Date.now() - startMs) / 1000)
+                );
+                restoredSession = {
+                  ...savedSession,
+                  isPaused: false,
+                  elapsedSeconds: realElapsed,
+                };
+                storage.saveActiveSession(restoredSession);
+              }
+            }
+            setSessionState(restoredSession);
+            lastProgramIdRef.current = restoredSession.programId;
           }
 
           if (savedSession.clientId && onClientSyncRef.current) {

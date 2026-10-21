@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação para redirecionar o clique na aba Execução do Treino diretamente para a tela de escolha de aluno, exceto quando já houver um treino iniciado (em andamento ou pausado), caso em que redireciona diretamente para a tela de execução do treino ativo.",
-  "updatedAt":  "2026-10-20T13:06:05.151534399Z",
+  "summary":  "Plano de implementação para persistência real do cronômetro em segundo plano (app minimizado ou fechado), bloqueio de edições antes de clicar em Iniciar Treino (permitindo livre navegação e visualização) e contagem contínua até Concluir e Finalizar o treino.",
+  "updatedAt":  "2026-10-20T20:06:50.408560751Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

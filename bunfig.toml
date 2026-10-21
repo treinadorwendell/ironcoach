@@ -1,0 +1,4 @@
+[install]
+backend = "copyfile"
+prefer = "offline"
+concurrentScripts = 4

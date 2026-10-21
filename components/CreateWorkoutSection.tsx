@@ -233,13 +233,8 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     return progs[0]?.id || '';
   });
 
-  // Controls which program is expanded (accordion expansion effect)
-  const [expandedProgramId, setExpandedProgramId] = useState<string | null>(() => {
-    const progs = workouts.filter(
-      (w) => w.clientId === (preSelectedClientId || clients[0]?.id)
-    );
-    return progs[0]?.id || null;
-  });
+  // Controls which program is expanded (accordion expansion effect: starts completely collapsed)
+  const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
 
   const [isCreatingNewProgram, setIsCreatingNewProgram] = useState(false);
 
@@ -325,41 +320,39 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   const holdStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const preventClickDueToHoldRef = useRef(false);
 
-  // Handle client change via user selection
+  // Handle client change via user selection: all programs start collapsed
   const handleClientChange = (newClientId: string) => {
     setClientId(newClientId);
     setIsCreatingNewProgram(false);
+    setExpandedProgramId(null);
     const progs = workouts.filter((w) => w.clientId === newClientId);
     if (progs.length > 0) {
       const chosen = progs[0];
       setSelectedProgramId(chosen.id);
-      setExpandedProgramId(chosen.id);
       setEditingProgram(JSON.parse(JSON.stringify(chosen)));
       setSelectedSplitId(chosen.splits?.[0]?.id || '');
     } else {
       setSelectedProgramId('');
-      setExpandedProgramId(null);
       setEditingProgram(null);
       setSelectedSplitId('');
     }
   };
 
-  // Sync if preSelectedClientId arrives from outside navigation
+  // Sync if preSelectedClientId arrives from outside navigation: all programs start collapsed
   useEffect(() => {
     if (preSelectedClientId && preSelectedClientId !== clientId) {
       const timer = setTimeout(() => {
         setClientId(preSelectedClientId);
         setIsCreatingNewProgram(false);
+        setExpandedProgramId(null);
         const progs = workouts.filter((w) => w.clientId === preSelectedClientId);
         if (progs.length > 0) {
           const chosen = progs[0];
           setSelectedProgramId(chosen.id);
-          setExpandedProgramId(chosen.id);
           setEditingProgram(JSON.parse(JSON.stringify(chosen)));
           setSelectedSplitId(chosen.splits?.[0]?.id || '');
         } else {
           setSelectedProgramId('');
-          setExpandedProgramId(null);
           setEditingProgram(null);
           setSelectedSplitId('');
         }
@@ -2745,47 +2738,17 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 shadow-md ${
                     isExpanded
                       ? 'bg-slate-900 border-cyan-500 shadow-cyan-950/40 ring-2 ring-cyan-500/50'
-                      : isSelected
-                      ? 'bg-slate-950/90 border-slate-700'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      : 'bg-slate-950/80 border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900/50'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-1.5">
-                    <div className="space-y-0.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-xs text-white block truncate">
-                          {prog.name}
-                        </span>
-                        {isExpanded && (
-                          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-[11px] text-emerald-400 font-semibold block truncate">
-                        {prog.goal}
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="font-extrabold text-xs sm:text-sm text-white block truncate">
+                        {prog.name}
                       </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={(e) => handleOpenEditProgramModal(prog, e)}
-                        className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-                        title="Editar nome, objetivo e datas deste programa"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setProgramToDelete(prog);
-                        }}
-                        className="p-1.5 rounded-lg bg-slate-800/90 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition"
-                        title="Excluir este programa de treino"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {isExpanded && (
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
+                      )}
                     </div>
                   </div>
 
@@ -2840,18 +2803,8 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="space-y-4 overflow-hidden"
           >
-            {/* Header com indicador de expansão do programa ativo */}
-            <div className="flex items-center justify-between px-2 pt-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider">
-                  Treino Expandido: {editingProgram.name}
-                </span>
-                <span className="text-xs text-slate-400 hidden sm:inline">
-                  • {editingProgram.goal}
-                </span>
-              </div>
-
+            {/* Header com ações do programa ativo */}
+            <div className="flex items-center justify-end px-2 pt-1">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -2861,6 +2814,18 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 >
                   <Edit3 className="w-3 h-3" />
                   <span>Editar Informações</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProgramToDelete(editingProgram);
+                  }}
+                  className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 active:scale-95 transition bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800"
+                  title="Excluir este programa de treino"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Excluir Programa</span>
                 </button>
                 <button
                   type="button"

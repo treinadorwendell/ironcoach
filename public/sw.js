@@ -81,3 +81,61 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// BACKGROUND REST TIMER & NOTIFICATIONS
+let scheduledRestTimeout = null;
+
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === 'SCHEDULE_REST_NOTIFICATION') {
+    if (scheduledRestTimeout) {
+      clearTimeout(scheduledRestTimeout);
+      scheduledRestTimeout = null;
+    }
+
+    const { targetTime, exerciseName, setNumber } = event.data;
+    const now = Date.now();
+    const delay = Math.max(0, targetTime - now);
+
+    scheduledRestTimeout = setTimeout(() => {
+      self.registration.showNotification('⏱️ Descanso Finalizado!', {
+        body: `Hora da Série #${setNumber || 1} de ${exerciseName || 'Exercício'}. Bora lá!`,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: 'ironcoach-rest-complete',
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [250, 100, 250, 100, 400],
+        data: {
+          url: '/',
+          exerciseName,
+          setNumber,
+        },
+      });
+      scheduledRestTimeout = null;
+    }, delay);
+  } else if (event.data.type === 'CANCEL_REST_NOTIFICATION') {
+    if (scheduledRestTimeout) {
+      clearTimeout(scheduledRestTimeout);
+      scheduledRestTimeout = null;
+    }
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow('/');
+      }
+    })
+  );
+});
+

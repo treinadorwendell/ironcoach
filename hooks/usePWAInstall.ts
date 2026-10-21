@@ -94,23 +94,14 @@ export function useOnlineStatus() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      if (process.env.NODE_ENV === 'production') {
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => {
+          // SW active and ready for notifications
+        })
+        .catch((err) => {
           console.warn('SW registration info:', err);
         });
-      } else {
-        // In development, unregister any active service worker and clear caches to avoid stale HTML chunks
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          for (const reg of registrations) {
-            reg.unregister();
-          }
-        });
-        if ('caches' in window) {
-          caches.keys().then((keys) => {
-            keys.forEach((key) => caches.delete(key));
-          });
-        }
-      }
     }
   }, []);
 
