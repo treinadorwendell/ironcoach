@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação para persistência real do cronômetro em segundo plano (app minimizado ou fechado), bloqueio de edições antes de clicar em Iniciar Treino (permitindo livre navegação e visualização) e contagem contínua até Concluir e Finalizar o treino.",
-  "updatedAt":  "2026-10-20T20:06:50.408560751Z",
+  "summary":  "Plano de implementação para substituir o banco de dados de exercícios pelo arquivo JSON traduzido (870+ exercícios), adicionar busca avançada com filtros de Músculo Primário, Músculo Secundário e Equipamento, player de mídia animado estilo vídeo (recolhido por padrão no card da Criação e expansível na Execução) e modal de descrição detalhada da execução.",
+  "updatedAt":  "2026-10-21T22:33:48.608606329Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

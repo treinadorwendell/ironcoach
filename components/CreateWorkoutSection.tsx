@@ -56,7 +56,18 @@ import {
   ListChecks,
   Activity,
   ArrowLeftRight,
+  Film,
 } from 'lucide-react';
+import {
+  PRIMARY_MUSCLE_OPTIONS,
+  SECONDARY_MUSCLE_OPTIONS,
+  EQUIPMENT_OPTIONS,
+  formatAnatomyMuscle,
+  formatEquipment,
+  findExerciseMetadata,
+} from '@/lib/exerciseDatabase';
+import { ExerciseMediaPlayer } from '@/components/ExerciseMediaPlayer';
+import { ExerciseInstructionsModal } from '@/components/ExerciseInstructionsModal';
 
 export interface WorkoutChangeLogItem {
   id: string;
@@ -292,6 +303,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   const [isSelectingSubstituteForDb, setIsSelectingSubstituteForDb] = useState(false);
   const [dbSearchQuery, setDbSearchQuery] = useState('');
   const [dbSelectedMuscleFilter, setDbSelectedMuscleFilter] = useState<'Todos' | MuscleGroup>('Todos');
+  const [isDbFilterPanelOpen, setIsDbFilterPanelOpen] = useState(false);
+  const [dbPrimaryMuscleFilter, setDbPrimaryMuscleFilter] = useState<string>('Todos');
+  const [dbSecondaryMuscleFilter, setDbSecondaryMuscleFilter] = useState<string>('Todos');
+  const [dbEquipmentFilter, setDbEquipmentFilter] = useState<string>('Todos');
+  const [expandedDbMediaIds, setExpandedDbMediaIds] = useState<Record<string, boolean>>({});
   const [activeDbTab, setActiveDbTab] = useState<'catalog' | 'create_new'>('catalog');
 
   // Form for creating a new exercise in DB
@@ -301,6 +317,17 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
   // EXERCISES EXPANSION STATE (DEFAULT: COLLAPSED)
   const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
+  // EXERCISE MEDIA EXPANSION STATE INSIDE OPEN CARD (DEFAULT: COLLAPSED)
+  const [expandedCardMediaIds, setExpandedCardMediaIds] = useState<Record<string, boolean>>({});
+  // INLINE SEARCH & FILTER INSIDE EXERCISE CARD
+  const [activeInlineSearchCardId, setActiveInlineSearchCardId] = useState<string | null>(null);
+  const [openInlineFilterCardId, setOpenInlineFilterCardId] = useState<string | null>(null);
+  const [inlineCardPrimaryFilter, setInlineCardPrimaryFilter] = useState<string>('Todos');
+  const [inlineCardSecondaryFilter, setInlineCardSecondaryFilter] = useState<string>('Todos');
+  const [inlineCardEquipmentFilter, setInlineCardEquipmentFilter] = useState<string>('Todos');
+  const [instructionsModalExercise, setInstructionsModalExercise] = useState<
+    (Partial<DatabaseExercise> & { name: string }) | null
+  >(null);
 
   // COMBINE EXERCISES MODAL STATE
   const [isCombineModalOpen, setIsCombineModalOpen] = useState(false);
@@ -666,6 +693,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       setDbSelectedMuscleFilter('Todos');
     }
     setDbSearchQuery('');
+    setDbPrimaryMuscleFilter('Todos');
+    setDbSecondaryMuscleFilter('Todos');
+    setDbEquipmentFilter('Todos');
     setActiveDbTab('catalog');
     setIsExerciseDbModalOpen(true);
   };
@@ -703,7 +733,20 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         const oldEx = currentSplit.exercises[targetExerciseIndexForDb];
         const updatedExercises = currentSplit.exercises.map((ex, i) =>
           i === targetExerciseIndexForDb
-            ? { ...ex, name: dbExercise.name, muscleGroup: dbExercise.muscleGroup }
+            ? {
+                ...ex,
+                name: dbExercise.name,
+                muscleGroup: dbExercise.muscleGroup,
+                primaryMuscles: dbExercise.primaryMuscles,
+                secondaryMuscles: dbExercise.secondaryMuscles,
+                equipment: dbExercise.equipment,
+                level: dbExercise.level,
+                mechanic: dbExercise.mechanic,
+                force: dbExercise.force,
+                category: dbExercise.category,
+                instructions: dbExercise.instructions,
+                images: dbExercise.images,
+              }
             : ex
         );
         const updatedSplits = prev.splits.map((s) =>
@@ -723,6 +766,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
           method: 'Normal',
           observations: '',
           extraBlocks: [],
+          primaryMuscles: dbExercise.primaryMuscles,
+          secondaryMuscles: dbExercise.secondaryMuscles,
+          equipment: dbExercise.equipment,
+          level: dbExercise.level,
+          mechanic: dbExercise.mechanic,
+          force: dbExercise.force,
+          category: dbExercise.category,
+          instructions: dbExercise.instructions,
+          images: dbExercise.images,
           setDetails: [
             { id: `s-${newExId}-1`, setNumber: 1, repZone: '8-12', method: 'Normal' },
             { id: `s-${newExId}-2`, setNumber: 2, repZone: '8-12', method: 'Normal' },
@@ -779,6 +831,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       ? activeSplit.exercises[targetExerciseIndexForDb].name.trim().toLowerCase()
       : null;
 
+  const activeDbFilterCount =
+    (dbPrimaryMuscleFilter !== 'Todos' ? 1 : 0) +
+    (dbSecondaryMuscleFilter !== 'Todos' ? 1 : 0) +
+    (dbEquipmentFilter !== 'Todos' ? 1 : 0);
+
   const filteredDbExercises = exerciseDatabase.filter((ex) => {
     const matchesMuscle = targetSubstituteMuscle
       ? ex.muscleGroup === targetSubstituteMuscle
@@ -786,11 +843,30 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
     const isNotSameMain = targetMainExerciseName
       ? ex.name.trim().toLowerCase() !== targetMainExerciseName
       : true;
+    const matchesPrimary =
+      dbPrimaryMuscleFilter === 'Todos' ||
+      (ex.primaryMuscles || []).includes(dbPrimaryMuscleFilter);
+    const matchesSecondary =
+      dbSecondaryMuscleFilter === 'Todos' ||
+      (ex.secondaryMuscles || []).includes(dbSecondaryMuscleFilter);
+    const matchesEquipment =
+      dbEquipmentFilter === 'Todos' ||
+      (ex.equipment || 'peso do corpo').toLowerCase() === dbEquipmentFilter.toLowerCase();
+    const query = dbSearchQuery.toLowerCase().trim();
     const matchesSearch =
-      !dbSearchQuery.trim() ||
-      ex.name.toLowerCase().includes(dbSearchQuery.toLowerCase().trim()) ||
-      ex.muscleGroup.toLowerCase().includes(dbSearchQuery.toLowerCase().trim());
-    return matchesMuscle && isNotSameMain && matchesSearch;
+      !query ||
+      ex.name.toLowerCase().includes(query) ||
+      ex.muscleGroup.toLowerCase().includes(query) ||
+      (ex.equipment || '').toLowerCase().includes(query) ||
+      (ex.primaryMuscles || []).some((m) => m.toLowerCase().includes(query));
+    return (
+      matchesMuscle &&
+      isNotSameMain &&
+      matchesPrimary &&
+      matchesSecondary &&
+      matchesEquipment &&
+      matchesSearch
+    );
   });
 
   // EXERCISE CRUD INSIDE ACTIVE SPLIT
@@ -1964,26 +2040,169 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 >
                   {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
                 </span>
-                <input
-                  type="text"
-                  value={ex.name}
-                  onChange={(e) => {
-                    const newName = e.target.value;
-                    const matched = exerciseDatabase.find(
-                      (d) => d.name.toLowerCase() === newName.trim().toLowerCase()
-                    );
-                    if (matched) {
-                      updateExercise(exIndex, {
-                        name: newName,
-                        muscleGroup: matched.muscleGroup,
-                      });
-                    } else {
-                      updateExercise(exIndex, 'name', newName);
+                <div className="relative flex-1 flex items-center gap-1.5 min-w-0">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={ex.name}
+                      onFocus={() => setActiveInlineSearchCardId(ex.id)}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setActiveInlineSearchCardId((curr) => (curr === ex.id ? null : curr));
+                        }, 200);
+                      }}
+                      onChange={(e) => {
+                        const newName = e.target.value;
+                        setActiveInlineSearchCardId(ex.id);
+                        const matched = exerciseDatabase.find(
+                          (d) => d.name.toLowerCase() === newName.trim().toLowerCase()
+                        );
+                        if (matched) {
+                          updateExercise(exIndex, {
+                            name: matched.name,
+                            muscleGroup: matched.muscleGroup,
+                            primaryMuscles: matched.primaryMuscles,
+                            secondaryMuscles: matched.secondaryMuscles,
+                            equipment: matched.equipment,
+                            level: matched.level,
+                            mechanic: matched.mechanic,
+                            force: matched.force,
+                            category: matched.category,
+                            instructions: matched.instructions,
+                            images: matched.images,
+                          });
+                        } else {
+                          updateExercise(exIndex, 'name', newName);
+                        }
+                      }}
+                      placeholder="Digite o nome do exercício para buscar..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                    />
+
+                    {/* Live Search Autocomplete Dropdown when typing or filtering */}
+                    {(activeInlineSearchCardId === ex.id || openInlineFilterCardId === ex.id) && (() => {
+                      const q = ex.name.trim().toLowerCase();
+                      const inlineMatches = exerciseDatabase
+                        .filter((d) => {
+                          const matchQ =
+                            !q ||
+                            d.name.toLowerCase().includes(q) ||
+                            (d.primaryMuscles || []).some((m) => m.toLowerCase().includes(q)) ||
+                            (d.equipment || '').toLowerCase().includes(q);
+                          const matchPrim =
+                            inlineCardPrimaryFilter === 'Todos' ||
+                            (d.primaryMuscles || []).includes(inlineCardPrimaryFilter);
+                          const matchSec =
+                            inlineCardSecondaryFilter === 'Todos' ||
+                            (d.secondaryMuscles || []).includes(inlineCardSecondaryFilter);
+                          const matchEq =
+                            inlineCardEquipmentFilter === 'Todos' ||
+                            (d.equipment || 'peso do corpo').toLowerCase() ===
+                              inlineCardEquipmentFilter.toLowerCase();
+                          return matchQ && matchPrim && matchSec && matchEq;
+                        })
+                        .slice(0, 12);
+
+                      if (inlineMatches.length === 0) return null;
+                      if (
+                        inlineMatches.length === 1 &&
+                        inlineMatches[0].name.toLowerCase() === q &&
+                        openInlineFilterCardId !== ex.id
+                      ) {
+                        return null;
+                      }
+
+                      return (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-40 max-h-60 overflow-y-auto rounded-2xl bg-slate-950 border border-cyan-500/40 shadow-2xl divide-y divide-slate-800/80">
+                          <div className="px-3 py-1.5 bg-slate-900/90 flex items-center justify-between text-[10px] text-slate-400 font-bold">
+                            <span>Sugestões do Banco ({inlineMatches.length}+ opções)</span>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setActiveInlineSearchCardId(null);
+                                setOpenInlineFilterCardId(null);
+                              }}
+                              className="text-slate-400 hover:text-white"
+                            >
+                              Fechar
+                            </button>
+                          </div>
+                          {inlineMatches.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                updateExercise(exIndex, {
+                                  name: item.name,
+                                  muscleGroup: item.muscleGroup,
+                                  primaryMuscles: item.primaryMuscles,
+                                  secondaryMuscles: item.secondaryMuscles,
+                                  equipment: item.equipment,
+                                  level: item.level,
+                                  mechanic: item.mechanic,
+                                  force: item.force,
+                                  category: item.category,
+                                  instructions: item.instructions,
+                                  images: item.images,
+                                });
+                                setActiveInlineSearchCardId(null);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-cyan-500/15 transition flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-white truncate">{item.name}</p>
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  <span className="text-[10px] font-semibold text-emerald-400">
+                                    {item.muscleGroup}
+                                  </span>
+                                  {item.primaryMuscles && item.primaryMuscles.length > 0 && (
+                                    <span className="text-[10px] text-cyan-300">
+                                      • {item.primaryMuscles.map(formatAnatomyMuscle).join(', ')}
+                                    </span>
+                                  )}
+                                  {item.equipment && (
+                                    <span className="text-[10px] text-slate-400">
+                                      • {formatEquipment(item.equipment)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {item.images && item.images.length > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[9px] font-bold shrink-0">
+                                  Mídia
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Botão de Filtro de Busca (Músculo Primário, Secundário e Equipamento) */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenInlineFilterCardId((curr) => (curr === ex.id ? null : ex.id))
                     }
-                  }}
-                  placeholder="Nome do Exercício"
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
-                />
+                    className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition shrink-0 ${
+                      openInlineFilterCardId === ex.id ||
+                      inlineCardPrimaryFilter !== 'Todos' ||
+                      inlineCardSecondaryFilter !== 'Todos' ||
+                      inlineCardEquipmentFilter !== 'Todos'
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                    title="Filtrar busca por anatomia (músculo primário/secundário) e equipamento"
+                  >
+                    <Filter className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="hidden md:inline">Filtros</span>
+                  </button>
+                </div>
+
                 <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 font-bold text-xs border border-emerald-500/30 whitespace-nowrap">
                   {ex.muscleGroup}
                 </span>
@@ -2052,6 +2271,85 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               </div>
             </div>
 
+            {/* Inline Filter Panel inside Exercise Card when Filter button is clicked */}
+            {openInlineFilterCardId === ex.id && (
+              <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5" />
+                    Filtros de Busca do Exercício
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInlineCardPrimaryFilter('Todos');
+                      setInlineCardSecondaryFilter('Todos');
+                      setInlineCardEquipmentFilter('Todos');
+                    }}
+                    className="text-[10px] font-bold text-slate-400 hover:text-white underline"
+                  >
+                    Limpar filtros
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                      Músculo Primário
+                    </label>
+                    <select
+                      value={inlineCardPrimaryFilter}
+                      onChange={(e) => setInlineCardPrimaryFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-emerald-300 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="Todos">Todos os Músculos Primários</option>
+                      {PRIMARY_MUSCLE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label} ({opt.count})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                      Músculo Secundário
+                    </label>
+                    <select
+                      value={inlineCardSecondaryFilter}
+                      onChange={(e) => setInlineCardSecondaryFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-cyan-300 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="Todos">Todos os Músculos Secundários</option>
+                      {SECONDARY_MUSCLE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label} ({opt.count})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                      Equipamento
+                    </label>
+                    <select
+                      value={inlineCardEquipmentFilter}
+                      onChange={(e) => setInlineCardEquipmentFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-purple-300 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="Todos">Todos os Equipamentos</option>
+                      {EQUIPMENT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label} ({opt.count})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Row 2: Muscle Group selection & Database Catalog Picker */}
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <label className="text-[10px] font-bold text-slate-400 uppercase">
@@ -2065,6 +2363,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   updateExercise(exIndex, {
                     muscleGroup: mg,
                     name: firstDbForMuscle ? firstDbForMuscle.name : ex.name,
+                    primaryMuscles: firstDbForMuscle?.primaryMuscles,
+                    secondaryMuscles: firstDbForMuscle?.secondaryMuscles,
+                    equipment: firstDbForMuscle?.equipment,
+                    level: firstDbForMuscle?.level,
+                    mechanic: firstDbForMuscle?.mechanic,
+                    force: firstDbForMuscle?.force,
+                    category: firstDbForMuscle?.category,
+                    instructions: firstDbForMuscle?.instructions,
+                    images: firstDbForMuscle?.images,
                     substituteExerciseName:
                       ex.substituteMuscleGroup && ex.substituteMuscleGroup !== mg
                         ? undefined
@@ -2093,6 +2400,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                       updateExercise(exIndex, {
                         name: found.name,
                         muscleGroup: found.muscleGroup,
+                        primaryMuscles: found.primaryMuscles,
+                        secondaryMuscles: found.secondaryMuscles,
+                        equipment: found.equipment,
+                        level: found.level,
+                        mechanic: found.mechanic,
+                        force: found.force,
+                        category: found.category,
+                        instructions: found.instructions,
+                        images: found.images,
                       });
                     } else {
                       updateExercise(exIndex, 'name', selectedName);
@@ -2120,7 +2436,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition active:scale-95 cursor-pointer"
               >
                 <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                <span>Trocar pelo Banco</span>
+                <span>Buscar no Banco</span>
               </button>
 
               {/* Botão Exercício Substituto (Desktop/Tablet: ícone + descrição | Mobile: somente o símbolo) */}
@@ -2168,6 +2484,127 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 </button>
               ) : null}
             </div>
+
+            {/* Row 2.5: Anatomical Badges, Execution Modal Button & Collapsible Exercise Media (Collapsed by Default inside open card) */}
+            {(() => {
+              const resolvedMeta = findExerciseMetadata(ex.name, exerciseDatabase);
+              const primaryMuscles = ex.primaryMuscles?.length
+                ? ex.primaryMuscles
+                : resolvedMeta?.primaryMuscles || [];
+              const secondaryMuscles = ex.secondaryMuscles?.length
+                ? ex.secondaryMuscles
+                : resolvedMeta?.secondaryMuscles || [];
+              const equipment = ex.equipment || resolvedMeta?.equipment;
+              const instructions = ex.instructions?.length
+                ? ex.instructions
+                : resolvedMeta?.instructions || [];
+              const images = ex.images?.length ? ex.images : resolvedMeta?.images || [];
+              const isMediaOpen = !!expandedCardMediaIds[ex.id];
+
+              if (
+                primaryMuscles.length === 0 &&
+                secondaryMuscles.length === 0 &&
+                !equipment &&
+                images.length === 0 &&
+                instructions.length === 0
+              ) {
+                return null;
+              }
+
+              return (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between gap-2 flex-wrap px-3 py-2 rounded-2xl bg-slate-900/70 border border-slate-800/90">
+                    <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                      {primaryMuscles.map((m) => (
+                        <span
+                          key={`prim-${m}`}
+                          className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold"
+                        >
+                          Primário: {formatAnatomyMuscle(m)}
+                        </span>
+                      ))}
+                      {secondaryMuscles.slice(0, 3).map((m) => (
+                        <span
+                          key={`sec-${m}`}
+                          className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 font-semibold"
+                        >
+                          Sec: {formatAnatomyMuscle(m)}
+                        </span>
+                      ))}
+                      {equipment && (
+                        <span className="px-2 py-0.5 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold">
+                          Equip.: {formatEquipment(equipment)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      {instructions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setInstructionsModalExercise({
+                              name: ex.name,
+                              muscleGroup: ex.muscleGroup,
+                              primaryMuscles,
+                              secondaryMuscles,
+                              equipment,
+                              level: ex.level || resolvedMeta?.level,
+                              mechanic: ex.mechanic || resolvedMeta?.mechanic,
+                              force: ex.force || resolvedMeta?.force,
+                              category: ex.category || resolvedMeta?.category,
+                              instructions,
+                              images,
+                            })
+                          }
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold transition cursor-pointer"
+                        >
+                          <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Execução</span>
+                        </button>
+                      )}
+
+                      {images.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedCardMediaIds((prev) => ({
+                              ...prev,
+                              [ex.id]: !prev[ex.id],
+                            }))
+                          }
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border transition cursor-pointer ${
+                            isMediaOpen
+                              ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                              : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
+                          }`}
+                        >
+                          <Film className="w-3.5 h-3.5" />
+                          <span>{isMediaOpen ? 'Ocultar Mídia' : 'Ver Mídia do Exercício'}</span>
+                          {isMediaOpen ? (
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded Animated Media Player inside the Exercise Card */}
+                  {isMediaOpen && images.length > 0 && (
+                    <div className="pt-1 animate-in fade-in duration-200">
+                      <ExerciseMediaPlayer
+                        images={images}
+                        exerciseName={ex.name}
+                        autoPlay={true}
+                        compact={true}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Indicador do Exercício Substituto Selecionado */}
             {ex.substituteExerciseName && (
@@ -3844,26 +4281,127 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
             {/* Modal Body */}
             {activeDbTab === 'catalog' ? (
               <div className="flex-1 flex flex-col min-h-0 p-4 space-y-3 overflow-hidden">
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={dbSearchQuery}
-                    onChange={(e) => setDbSearchQuery(e.target.value)}
-                    placeholder="Buscar exercício pelo nome (ex: Supino, Barra, Agachamento, Tríceps...)"
-                    className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 shadow-inner"
-                  />
-                  {dbSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setDbSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                {/* Search Bar + Filter Button */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={dbSearchQuery}
+                      onChange={(e) => setDbSearchQuery(e.target.value)}
+                      placeholder="Buscar exercício pelo nome (ex: Supino, Agachamento, Rosca, Puxada...)"
+                      className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 shadow-inner"
+                    />
+                    {dbSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setDbSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsDbFilterPanelOpen((prev) => !prev)}
+                    className={`px-3.5 py-2.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 transition shrink-0 cursor-pointer ${
+                      isDbFilterPanelOpen || activeDbFilterCount > 0
+                        ? 'bg-purple-600 text-white border-purple-400 shadow-md'
+                        : 'bg-slate-950 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                    <span>Filtros</span>
+                    {activeDbFilterCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-white text-purple-900 text-[10px] font-black">
+                        {activeDbFilterCount}
+                      </span>
+                    )}
+                  </button>
                 </div>
+
+                {/* Collapsible Filter Panel: Músculo Primário, Músculo Secundário, Equipamento */}
+                {isDbFilterPanelOpen && (
+                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-purple-500/40 space-y-3 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Filter className="w-3.5 h-3.5" />
+                        Filtrar por Anatomia e Equipamento
+                      </span>
+                      {activeDbFilterCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDbPrimaryMuscleFilter('Todos');
+                            setDbSecondaryMuscleFilter('Todos');
+                            setDbEquipmentFilter('Todos');
+                          }}
+                          className="text-[11px] font-bold text-rose-400 hover:text-rose-300 underline"
+                        >
+                          Limpar filtros ({activeDbFilterCount})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          Músculo Primário
+                        </label>
+                        <select
+                          value={dbPrimaryMuscleFilter}
+                          onChange={(e) => setDbPrimaryMuscleFilter(e.target.value)}
+                          className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-emerald-300 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="Todos">Todos ({PRIMARY_MUSCLE_OPTIONS.length})</option>
+                          {PRIMARY_MUSCLE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label} ({opt.count})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          Músculo Secundário
+                        </label>
+                        <select
+                          value={dbSecondaryMuscleFilter}
+                          onChange={(e) => setDbSecondaryMuscleFilter(e.target.value)}
+                          className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-cyan-300 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="Todos">Todos ({SECONDARY_MUSCLE_OPTIONS.length})</option>
+                          {SECONDARY_MUSCLE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label} ({opt.count})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                          Tipo de Equipamento
+                        </label>
+                        <select
+                          value={dbEquipmentFilter}
+                          onChange={(e) => setDbEquipmentFilter(e.target.value)}
+                          className="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-purple-300 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="Todos">Todos ({EQUIPMENT_OPTIONS.length})</option>
+                          {EQUIPMENT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label} ({opt.count})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Muscle Group Horizontal Filter Pills (locked to same muscle group when picking substitute) */}
                 {isSelectingSubstituteForDb && targetSubstituteMuscle ? (
@@ -3925,87 +4463,155 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                         Nenhum exercício encontrado
                       </p>
                       <p className="text-xs text-slate-500">
-                        Não encontramos exercícios com o termo &ldquo;{dbSearchQuery}&rdquo;.
+                        Não encontramos exercícios com os filtros ou termo selecionado.
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewExName(dbSearchQuery);
-                          setActiveDbTab('create_new');
-                        }}
-                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow hover:bg-emerald-500"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Cadastrar &ldquo;{dbSearchQuery}&rdquo; no Banco</span>
-                      </button>
+                      {dbSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewExName(dbSearchQuery);
+                            setActiveDbTab('create_new');
+                          }}
+                          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow hover:bg-emerald-500"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Cadastrar &ldquo;{dbSearchQuery}&rdquo; no Banco</span>
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    filteredDbExercises.map((dbEx) => (
-                      <div
-                        key={dbEx.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-purple-500/50 hover:bg-slate-950 transition group"
-                      >
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
-                            <Dumbbell className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-purple-300 transition">
-                              {dbEx.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] font-semibold text-emerald-400">
-                                {dbEx.muscleGroup}
-                              </span>
-                              {dbEx.isCustom && (
-                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                                  Personalizado
-                                </span>
+                    filteredDbExercises.slice(0, 120).map((dbEx) => {
+                      const isDbMediaExpanded = !!expandedDbMediaIds[dbEx.id];
+                      const hasImages = dbEx.images && dbEx.images.length > 0;
+                      return (
+                        <div
+                          key={dbEx.id}
+                          className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800/80 hover:border-purple-500/50 hover:bg-slate-950 transition group space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                              <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
+                                <Dumbbell className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-purple-300 transition">
+                                  {dbEx.name}
+                                </h4>
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  <span className="text-[10px] font-semibold text-emerald-400">
+                                    {dbEx.muscleGroup}
+                                  </span>
+                                  {dbEx.primaryMuscles && dbEx.primaryMuscles.length > 0 && (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-semibold">
+                                      Prim: {dbEx.primaryMuscles.map(formatAnatomyMuscle).join(', ')}
+                                    </span>
+                                  )}
+                                  {dbEx.secondaryMuscles && dbEx.secondaryMuscles.length > 0 && (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                                      Sec: {dbEx.secondaryMuscles.slice(0, 2).map(formatAnatomyMuscle).join(', ')}
+                                    </span>
+                                  )}
+                                  {dbEx.equipment && (
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                                      {formatEquipment(dbEx.equipment)}
+                                    </span>
+                                  )}
+                                  {dbEx.isCustom && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                                      Personalizado
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {hasImages && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedDbMediaIds((prev) => ({
+                                      ...prev,
+                                      [dbEx.id]: !prev[dbEx.id],
+                                    }))
+                                  }
+                                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                                    isDbMediaExpanded
+                                      ? 'bg-cyan-500 text-slate-950 border-cyan-400'
+                                      : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-slate-700'
+                                  }`}
+                                  title="Expandir/Recolher mídia do exercício"
+                                >
+                                  <Film className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">
+                                    {isDbMediaExpanded ? 'Ocultar' : 'Mídia'}
+                                  </span>
+                                </button>
                               )}
+
+                              {dbEx.instructions && dbEx.instructions.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setInstructionsModalExercise(dbEx)}
+                                  className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition cursor-pointer"
+                                  title="Ver instruções de execução"
+                                >
+                                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                                </button>
+                              )}
+
+                              {/* Add to workout button */}
+                              <button
+                                type="button"
+                                onClick={() => handleSelectExerciseFromDb(dbEx)}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-white text-xs font-extrabold shadow active:scale-95 transition cursor-pointer ${
+                                  isSelectingSubstituteForDb
+                                    ? 'bg-amber-600 hover:bg-amber-500'
+                                    : 'bg-emerald-600 hover:bg-emerald-500'
+                                }`}
+                              >
+                                {isSelectingSubstituteForDb ? (
+                                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Plus className="w-3.5 h-3.5" />
+                                )}
+                                <span>
+                                  {isSelectingSubstituteForDb
+                                    ? 'Escolher Substituto'
+                                    : targetExerciseIndexForDb !== null
+                                    ? 'Substituir'
+                                    : 'Adicionar'}
+                                </span>
+                              </button>
+
+                              {/* Delete from DB button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExerciseToDeleteFromDb(dbEx);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                                title="Excluir este exercício do banco de dados"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {/* Add to workout button */}
-                          <button
-                            type="button"
-                            onClick={() => handleSelectExerciseFromDb(dbEx)}
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-white text-xs font-extrabold shadow active:scale-95 transition cursor-pointer ${
-                              isSelectingSubstituteForDb
-                                ? 'bg-amber-600 hover:bg-amber-500'
-                                : 'bg-emerald-600 hover:bg-emerald-500'
-                            }`}
-                          >
-                            {isSelectingSubstituteForDb ? (
-                              <ArrowLeftRight className="w-3.5 h-3.5" />
-                            ) : (
-                              <Plus className="w-3.5 h-3.5" />
-                            )}
-                            <span>
-                              {isSelectingSubstituteForDb
-                                ? 'Escolher Substituto'
-                                : targetExerciseIndexForDb !== null
-                                ? 'Substituir'
-                                : 'Adicionar'}
-                            </span>
-                          </button>
-
-                          {/* Delete from DB button */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExerciseToDeleteFromDb(dbEx);
-                            }}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                            title="Excluir este exercício do banco de dados"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isDbMediaExpanded && dbEx.images && dbEx.images.length > 0 && (
+                            <div className="pt-1 border-t border-slate-800/80">
+                              <ExerciseMediaPlayer
+                                images={dbEx.images}
+                                exerciseName={dbEx.name}
+                                autoPlay={true}
+                                compact={true}
+                              />
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -4420,6 +5026,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
           </div>
         </div>
       )}
+
+      {/* EXERCISE EXECUTION INSTRUCTIONS MODAL */}
+      <ExerciseInstructionsModal
+        isOpen={!!instructionsModalExercise}
+        onClose={() => setInstructionsModalExercise(null)}
+        exercise={instructionsModalExercise}
+      />
     </div>
   );
 };

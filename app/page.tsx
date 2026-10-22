@@ -107,13 +107,14 @@ export default function Home() {
           },
           onActiveSessionChange: (cloudSession) => {
             if (cloudSession && cloudSession.isStarted) {
-              setWorkouts((currentWorkouts) => {
-                const matchingWorkout = currentWorkouts.find((w) => w.id === cloudSession.programId);
-                if (matchingWorkout) {
-                  setActiveWorkoutForExecution(matchingWorkout);
-                }
-                return currentWorkouts;
-              });
+              setHasActiveRunningSession(true);
+              const latestWorkouts = storage.getWorkouts();
+              const matchingWorkout = latestWorkouts.find((w) => w.id === cloudSession.programId);
+              if (matchingWorkout) {
+                setActiveWorkoutForExecution(matchingWorkout);
+              }
+            } else {
+              setHasActiveRunningSession(false);
             }
           },
         });
@@ -152,8 +153,12 @@ export default function Home() {
       setHasActiveRunningSession(Boolean(sess && sess.isStarted));
     };
     updateActiveRunningSession();
+    window.addEventListener('ironcoach:active-session-updated', updateActiveRunningSession);
     const interval = setInterval(updateActiveRunningSession, 1500);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('ironcoach:active-session-updated', updateActiveRunningSession);
+    };
   }, []);
 
   // CLIENT HANDLERS
@@ -229,82 +234,74 @@ export default function Home() {
 
   // CALENDAR HANDLERS
   const handleAddCalendarEvent = (newEvent: CalendarEvent) => {
-    setCalendarEvents((prev) => {
-      const existingIndex = prev.findIndex(
+    const existingIndex = calendarEvents.findIndex(
+      (e) =>
+        e.id === newEvent.id ||
+        (e.clientId === newEvent.clientId &&
+          e.date === newEvent.date &&
+          (!e.recurringDays || e.recurringDays.length === 0))
+    );
+    let updated: CalendarEvent[];
+    if (existingIndex >= 0) {
+      updated = [...calendarEvents];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        ...newEvent,
+        id: updated[existingIndex].id,
+      };
+      cloudSync.syncCalendarEvent(updated[existingIndex]);
+    } else {
+      updated = [newEvent, ...calendarEvents];
+      cloudSync.syncCalendarEvent(newEvent);
+    }
+    setCalendarEvents(updated);
+    storage.saveCalendarEvents(updated);
+  };
+
+  const handleAddCalendarEvents = (newEvents: CalendarEvent[]) => {
+    if (!newEvents || newEvents.length === 0) return;
+    const updated = [...calendarEvents];
+    const toSync: CalendarEvent[] = [];
+
+    newEvents.forEach((newEvent) => {
+      const existingIndex = updated.findIndex(
         (e) =>
           e.id === newEvent.id ||
           (e.clientId === newEvent.clientId &&
             e.date === newEvent.date &&
             (!e.recurringDays || e.recurringDays.length === 0))
       );
-      let updated: CalendarEvent[];
       if (existingIndex >= 0) {
-        updated = [...prev];
         updated[existingIndex] = {
           ...updated[existingIndex],
           ...newEvent,
           id: updated[existingIndex].id,
         };
-        cloudSync.syncCalendarEvent(updated[existingIndex]);
+        toSync.push(updated[existingIndex]);
       } else {
-        updated = [newEvent, ...prev];
-        cloudSync.syncCalendarEvent(newEvent);
+        updated.unshift(newEvent);
+        toSync.push(newEvent);
       }
-      storage.saveCalendarEvents(updated);
-      return updated;
     });
-  };
 
-  const handleAddCalendarEvents = (newEvents: CalendarEvent[]) => {
-    if (!newEvents || newEvents.length === 0) return;
-    setCalendarEvents((prev) => {
-      const updated = [...prev];
-      const toSync: CalendarEvent[] = [];
-
-      newEvents.forEach((newEvent) => {
-        const existingIndex = updated.findIndex(
-          (e) =>
-            e.id === newEvent.id ||
-            (e.clientId === newEvent.clientId &&
-              e.date === newEvent.date &&
-              (!e.recurringDays || e.recurringDays.length === 0))
-        );
-        if (existingIndex >= 0) {
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            ...newEvent,
-            id: updated[existingIndex].id,
-          };
-          toSync.push(updated[existingIndex]);
-        } else {
-          updated.unshift(newEvent);
-          toSync.push(newEvent);
-        }
-      });
-
-      storage.saveCalendarEvents(updated);
-      toSync.forEach((evt) => cloudSync.syncCalendarEvent(evt));
-      return updated;
-    });
+    setCalendarEvents(updated);
+    storage.saveCalendarEvents(updated);
+    toSync.forEach((evt) => cloudSync.syncCalendarEvent(evt));
   };
 
   const handleUpdateCalendarEvent = (updatedEvent: CalendarEvent) => {
-    setCalendarEvents((prev) => {
-      const updated = prev.map((e) =>
-        e.id === updatedEvent.id ? updatedEvent : e
-      );
-      storage.saveCalendarEvents(updated);
-      return updated;
-    });
+    const updated = calendarEvents.map((e) =>
+      e.id === updatedEvent.id ? updatedEvent : e
+    );
+    setCalendarEvents(updated);
+    storage.saveCalendarEvents(updated);
     cloudSync.syncCalendarEvent(updatedEvent);
   };
 
   const handleDeleteCalendarEvent = (eventId: string) => {
-    setCalendarEvents((prev) => {
-      const updated = prev.filter((e) => e.id !== eventId);
-      storage.saveCalendarEvents(updated);
-      return updated;
-    });
+    const updated = calendarEvents.filter((e) => e.id !== eventId);
+    setCalendarEvents(updated);
+    storage.saveCalendarEvents(updated);
     cloudSync.removeCalendarEvent(eventId);
   };
 
@@ -376,6 +373,7 @@ export default function Home() {
     if (clientWorkout) {
       setActiveWorkoutForExecution(clientWorkout);
     }
+    setExecutionNavTrigger((prev) => prev + 1);
     setCurrentSection('execucao');
   };
 
@@ -386,6 +384,7 @@ export default function Home() {
 
   const handleStartExecutionFromBuilder = (workout: WorkoutProgram) => {
     setActiveWorkoutForExecution(workout);
+    setExecutionNavTrigger((prev) => prev + 1);
     setCurrentSection('execucao');
   };
 
@@ -526,7 +525,7 @@ export default function Home() {
                 className="w-full"
               >
                 <WorkoutExecutionSection
-                  key={`${activeWorkoutForExecution?.id || 'no-workout'}-${executionNavTrigger}`}
+                  key={`execucao-${executionNavTrigger}`}
                   clients={clients}
                   workouts={workouts}
                   activeWorkout={activeWorkoutForExecution}
@@ -539,6 +538,7 @@ export default function Home() {
                   }}
                   onConfirmWorkoutCompletedInAgenda={handleConfirmWorkoutCompletedInAgenda}
                   onFinishWorkout={() => {
+                    setHasActiveRunningSession(false);
                     setActiveWorkoutForExecution(null);
                   }}
                 />

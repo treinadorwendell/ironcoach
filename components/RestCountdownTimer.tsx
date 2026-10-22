@@ -50,6 +50,19 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   const timeLeftRef = useRef<number>(initialSeconds);
   const completedTriggeredRef = useRef<boolean>(false);
 
+  // Store callbacks & dynamic props in refs to prevent timer effect restarts
+  const onCompleteRef = useRef(onComplete);
+  const isMutedRef = useRef(isMuted);
+  const exerciseNameRef = useRef(exerciseName);
+  const setNumberRef = useRef(setNumber);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    isMutedRef.current = isMuted;
+    exerciseNameRef.current = exerciseName;
+    setNumberRef.current = setNumber;
+  }, [onComplete, isMuted, exerciseName, setNumber]);
+
   const showFeedbackToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -60,16 +73,44 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   // Schedule background notification whenever target time is set/updated
   const scheduleNotification = useCallback(
     (targetTimeMs: number) => {
-      if (!exerciseName) return;
+      if (!exerciseNameRef.current) return;
       notificationService.scheduleRestNotification({
-        exerciseName,
-        setNumber,
+        exerciseName: exerciseNameRef.current,
+        setNumber: setNumberRef.current,
         targetTimeMs,
         totalDurationSeconds: totalDuration,
       });
     },
-    [exerciseName, setNumber, totalDuration]
+    [totalDuration]
   );
+
+  // Initialize or reset timer when opened or when exercise/set changes
+  useEffect(() => {
+    if (isOpen) {
+      timeLeftRef.current = initialSeconds;
+      completedTriggeredRef.current = false;
+      const targetTime = new Date().getTime() + initialSeconds * 1000;
+      endTimeRef.current = targetTime;
+      const initTimer = setTimeout(() => {
+        setTimeLeft(initialSeconds);
+        setTotalDuration(initialSeconds);
+        setIsRunning(true);
+      }, 0);
+      if (exerciseName) {
+        notificationService.scheduleRestNotification({
+          exerciseName,
+          setNumber,
+          targetTimeMs: targetTime,
+          totalDurationSeconds: initialSeconds,
+        });
+      }
+      return () => clearTimeout(initTimer);
+    } else {
+      endTimeRef.current = null;
+      completedTriggeredRef.current = false;
+      notificationService.cancelRestNotification();
+    }
+  }, [isOpen, initialSeconds, exerciseName, setNumber]);
 
   // Request notification permission from the user
   const handleRequestPermission = async () => {
@@ -94,7 +135,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
       await handleRequestPermission();
       return;
     }
-    notificationService.triggerRestNotificationNow(exerciseName, setNumber);
+    notificationService.triggerRestNotificationNow(exerciseNameRef.current, setNumberRef.current);
     showFeedbackToast('Alerta de teste enviado com sucesso!');
   };
 
@@ -102,13 +143,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   useEffect(() => {
     if (!isOpen || !isRunning) {
       if (timerRef.current) clearInterval(timerRef.current);
-      notificationService.cancelRestNotification();
       return;
-    }
-
-    if (!endTimeRef.current) {
-      endTimeRef.current = Date.now() + timeLeftRef.current * 1000;
-      scheduleNotification(endTimeRef.current);
     }
 
     const syncCountdown = () => {
@@ -121,16 +156,19 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
 
       if (remainingSecs <= 0 && !completedTriggeredRef.current) {
         completedTriggeredRef.current = true;
-        if (timerRef.current) clearInterval(timerRef.current);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
 
-        // Dispara a Notificação push/sistema (seja em 1º ou 2º plano)
-        notificationService.triggerRestNotificationNow(exerciseName, setNumber);
+        // Fire single notification for rest completion
+        notificationService.triggerRestNotificationNow(exerciseNameRef.current, setNumberRef.current);
 
-        if (!isMuted) {
+        if (!isMutedRef.current) {
           sounds.playRestCompleteBeep();
         }
         vibration.timerFinished();
-        if (onComplete) onComplete();
+        if (onCompleteRef.current) onCompleteRef.current();
       }
     };
 
@@ -153,10 +191,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
       if (timerRef.current) clearInterval(timerRef.current);
       notificationService.stopBackgroundTicker();
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
-      window.removeEventListener('focus', syncCountdown);
-      window.removeEventListener('pageshow', syncCountdown);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('pageshow', handleVisibilityOrFocus);
     };
-  }, [isOpen, isRunning, isMuted, exerciseName, setNumber, onComplete, scheduleNotification]);
+  }, [isOpen, isRunning]);
 
   if (!isOpen) return null;
 

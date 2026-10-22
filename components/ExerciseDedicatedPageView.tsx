@@ -31,8 +31,15 @@ import {
   PenLine,
   X,
   ArrowLeftRight,
+  Film,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { ExerciseCommentsHistoryModal } from './ExerciseCommentsHistoryModal';
+import { findExerciseMetadata } from '@/lib/exerciseDatabase';
+import { ExerciseMediaPlayer } from './ExerciseMediaPlayer';
+import { ExerciseInstructionsModal } from './ExerciseInstructionsModal';
 
 interface ExerciseDedicatedPageViewProps {
   session: ActiveWorkoutSession;
@@ -57,7 +64,7 @@ interface ExerciseDedicatedPageViewProps {
   onSetSubSetWeightDirect: (exIndex: number, setIndex: number, subIndex: number, val: number | null) => void;
   onTriggerRestTimer: (seconds: number, exerciseName: string, setNumber: number) => void;
   onFinishAndAdvance: (exIndex: number) => void;
-  onFinishWorkout: () => void;
+  onFinishWorkout: (finalExerciseIndex?: number) => void;
   onCopyFirstSetWeightToAll: (exIndex: number) => void;
   onUpdateExerciseComment: (exIndex: number, comment: string) => void;
   isSessionStarted: boolean;
@@ -99,9 +106,24 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
 }) => {
   const [isCommentsModalOpen, setIsCommentsModalOpen] = React.useState(false);
   const [isCurrentCommentModalOpen, setIsCurrentCommentModalOpen] = React.useState(false);
+  const [isMediaExpanded, setIsMediaExpanded] = React.useState(false);
+  const [isInstructionsModalOpen, setIsInstructionsModalOpen] = React.useState(false);
   const totalExercises = session.exercises.length;
   const isFirst = focusedExerciseIndex === 0;
   const isLast = focusedExerciseIndex === totalExercises - 1;
+
+  const resolvedMeta = React.useMemo(
+    () => findExerciseMetadata(focusedExercise.exerciseName),
+    [focusedExercise.exerciseName]
+  );
+  const exerciseImages =
+    focusedExercise.images && focusedExercise.images.length > 0
+      ? focusedExercise.images
+      : resolvedMeta?.images || [];
+  const exerciseInstructions =
+    focusedExercise.instructions && focusedExercise.instructions.length > 0
+      ? focusedExercise.instructions
+      : resolvedMeta?.instructions || [];
 
   const completedSetsCount = focusedExercise.sets.filter((s) => s.completed).length;
   const totalSetsCount = focusedExercise.sets.length;
@@ -311,6 +333,39 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                 <Clock className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Descanso: {focusedExercise.restSeconds}s</span>
               </button>
+
+              {/* Botão para Visualizar a Mídia / Vídeo do Exercício (caso tenha) */}
+              {exerciseImages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsMediaExpanded((prev) => !prev)}
+                  className={`px-3 py-1 rounded-lg border font-extrabold flex items-center gap-1.5 active:scale-95 transition cursor-pointer ${
+                    isMediaExpanded
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                      : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
+                  }`}
+                  title="Expandir e exibir mídia/vídeo do exercício"
+                >
+                  <Film className="w-3.5 h-3.5" />
+                  <span>{isMediaExpanded ? 'Ocultar Vídeo' : 'Ver Mídia / Vídeo'}</span>
+                  {isMediaExpanded ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
+
+              {/* Botão para Abrir Modal com a Descrição da Execução do Exercício */}
+              <button
+                type="button"
+                onClick={() => setIsInstructionsModalOpen(true)}
+                className="px-3 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+                title="Abrir modal com a descrição passo a passo da execução do exercício"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Execução</span>
+              </button>
             </div>
           </div>
 
@@ -337,6 +392,17 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             </div>
           </div>
         </div>
+
+        {/* MÍDIA / VÍDEO DO EXERCÍCIO EXPANDIDO */}
+        {isMediaExpanded && exerciseImages.length > 0 && (
+          <div className="animate-in fade-in duration-200">
+            <ExerciseMediaPlayer
+              images={exerciseImages}
+              exerciseName={focusedExercise.exerciseName}
+              autoPlay={true}
+            />
+          </div>
+        )}
 
         {/* COMBINAÇÃO (BI-SET / TRI-SET) SE HOUVER */}
         {focusedExercise.combinationGroupId && (
@@ -902,8 +968,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             <button
               type="button"
               onClick={() => {
-                onFinishAndAdvance(focusedExerciseIndex);
-                onFinishWorkout();
+                onFinishWorkout(focusedExerciseIndex);
               }}
               className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation animate-in fade-in zoom-in-95 duration-200"
             >
@@ -1004,6 +1069,29 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           </div>
         </div>
       )}
+
+      {/* MODAL DE DESCRIÇÃO DA EXECUÇÃO DO EXERCÍCIO */}
+      <ExerciseInstructionsModal
+        isOpen={isInstructionsModalOpen}
+        onClose={() => setIsInstructionsModalOpen(false)}
+        exercise={{
+          name: focusedExercise.exerciseName,
+          muscleGroup: focusedExercise.muscleGroup,
+          primaryMuscles: focusedExercise.primaryMuscles?.length
+            ? focusedExercise.primaryMuscles
+            : resolvedMeta?.primaryMuscles,
+          secondaryMuscles: focusedExercise.secondaryMuscles?.length
+            ? focusedExercise.secondaryMuscles
+            : resolvedMeta?.secondaryMuscles,
+          equipment: focusedExercise.equipment || resolvedMeta?.equipment,
+          level: focusedExercise.level || resolvedMeta?.level,
+          mechanic: focusedExercise.mechanic || resolvedMeta?.mechanic,
+          force: focusedExercise.force || resolvedMeta?.force,
+          category: focusedExercise.category || resolvedMeta?.category,
+          instructions: exerciseInstructions,
+          images: exerciseImages,
+        }}
+      />
     </motion.div>
   );
 };

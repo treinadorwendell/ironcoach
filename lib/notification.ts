@@ -14,6 +14,8 @@ class NotificationService {
   private currentPayload: RestNotificationPayload | null = null;
   private worker: Worker | null = null;
   private onTickCallback: (() => void) | null = null;
+  private activeSessionId: string | null = null;
+  private lastNotificationTimestamp: number = 0;
 
   constructor() {
     this.initBackgroundWorker();
@@ -113,7 +115,10 @@ class NotificationService {
 
   // Schedule notification for when rest timer hits zero
   public async scheduleRestNotification(payload: RestNotificationPayload) {
+    const sessionId = `${payload.exerciseName}-${payload.setNumber}-${payload.targetTimeMs}`;
+    this.activeSessionId = sessionId;
     this.currentPayload = payload;
+
     const now = Date.now();
     const delay = Math.max(0, payload.targetTimeMs - now);
 
@@ -145,7 +150,7 @@ class NotificationService {
 
     // 4. Client-side timeout backup
     this.scheduledTimeout = setTimeout(() => {
-      this.triggerRestNotificationNow(payload.exerciseName, payload.setNumber);
+      this.triggerRestNotificationNow(payload.exerciseName, payload.setNumber, sessionId);
       this.stopBackgroundTicker();
     }, delay);
   }
@@ -156,8 +161,8 @@ class NotificationService {
 
     if (Date.now() >= this.currentPayload.targetTimeMs) {
       const { exerciseName, setNumber } = this.currentPayload;
-      this.cancelRestNotification();
-      this.triggerRestNotificationNow(exerciseName, setNumber);
+      const sessionId = this.activeSessionId || `${exerciseName}-${setNumber}`;
+      this.triggerRestNotificationNow(exerciseName, setNumber, sessionId);
     }
   }
 
@@ -168,6 +173,7 @@ class NotificationService {
       this.scheduledTimeout = null;
     }
     this.currentPayload = null;
+    this.activeSessionId = null;
     this.stopBackgroundTicker();
 
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -182,10 +188,39 @@ class NotificationService {
     }
   }
 
-  // Trigger the notification immediately
-  public async triggerRestNotificationNow(exerciseName: string, setNumber: number) {
+  // Trigger the notification immediately with strict debounce protection
+  public async triggerRestNotificationNow(exerciseName: string, setNumber: number, sessionId?: string) {
     if (!this.isSupported() || Notification.permission !== 'granted') {
       return;
+    }
+
+    const now = Date.now();
+
+    // STRICT ANTI-DUPLICATION:
+    // If a notification was already dispatched within the last 6 seconds, abort immediately.
+    if (now - this.lastNotificationTimestamp < 6000) {
+      return;
+    }
+    this.lastNotificationTimestamp = now;
+
+    // Immediately stop competing scheduled timers and cancel SW scheduled timeout
+    if (this.scheduledTimeout) {
+      clearTimeout(this.scheduledTimeout);
+      this.scheduledTimeout = null;
+    }
+    this.currentPayload = null;
+    this.stopBackgroundTicker();
+
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration && registration.active) {
+          registration.active.postMessage({
+            type: 'CANCEL_REST_NOTIFICATION',
+            triggeredAt: now,
+          });
+        }
+      } catch {}
     }
 
     const title = '⏱️ Tempo de Descanso Concluído!';
@@ -195,14 +230,14 @@ class NotificationService {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: 'ironcoach-rest-complete',
-      renotify: true,
+      renotify: false, // Prevents repeated alerts/chimes if re-triggered or updated
       requireInteraction: true,
       vibrate: [250, 100, 250, 100, 400],
       data: {
         url: '/',
         exerciseName,
         setNumber,
-        timestamp: Date.now(),
+        timestamp: now,
       },
     };
 

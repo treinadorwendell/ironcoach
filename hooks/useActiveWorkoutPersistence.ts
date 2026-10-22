@@ -5,9 +5,9 @@ import {
   ActiveWorkoutSession,
   WorkoutProgram,
   WorkoutSplit,
-  ExecutionExerciseState,
 } from '@/types';
 import { storage } from '@/lib/storage';
+import { cloudSync } from '@/lib/firebase';
 
 interface UseActiveWorkoutPersistenceProps {
   activeWorkout: WorkoutProgram | null;
@@ -21,9 +21,11 @@ export function useActiveWorkoutPersistence({
   onClientSync,
 }: UseActiveWorkoutPersistenceProps) {
   const [session, setSessionState] = useState<ActiveWorkoutSession | null>(null);
+  const sessionRef = useRef<ActiveWorkoutSession | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const isHydratedRef = useRef(false);
   const lastProgramIdRef = useRef<string | null>(null);
+  const isClearedRef = useRef(false);
 
   const activeWorkoutRef = useRef(activeWorkout);
   const buildSessionRef = useRef(buildSession);
@@ -55,18 +57,24 @@ export function useActiveWorkoutPersistence({
     hasActiveProgressRef.current = hasActiveProgress;
   }, [hasActiveProgress]);
 
-  // Set session and immediately persist to localStorage
+  // Set session and immediately persist to localStorage outside of React state updater
   const setSessionAndPersist = useCallback(
-    (newSessionOrUpdater: ActiveWorkoutSession | null | ((prev: ActiveWorkoutSession | null) => ActiveWorkoutSession | null)) => {
-      setSessionState((prev) => {
-        const next =
-          typeof newSessionOrUpdater === 'function'
-            ? newSessionOrUpdater(prev)
-            : newSessionOrUpdater;
+    (
+      newSessionOrUpdater:
+        | ActiveWorkoutSession
+        | null
+        | ((prev: ActiveWorkoutSession | null) => ActiveWorkoutSession | null)
+    ) => {
+      const prev = sessionRef.current;
+      const next =
+        typeof newSessionOrUpdater === 'function'
+          ? newSessionOrUpdater(prev)
+          : newSessionOrUpdater;
 
-        storage.saveActiveSession(next);
-        return next;
-      });
+      sessionRef.current = next;
+      isClearedRef.current = next === null;
+      setSessionState(next);
+      storage.saveActiveSession(next);
     },
     []
   );
@@ -78,6 +86,7 @@ export function useActiveWorkoutPersistence({
         const savedSession = storage.getActiveSession();
 
         if (savedSession && savedSession.exercises && savedSession.exercises.length > 0) {
+          isClearedRef.current = false;
           // If the session has no real active progress yet, rebuild with updated last-performed loads or empty state
           if (
             !hasActiveProgressRef.current(savedSession) &&
@@ -85,6 +94,7 @@ export function useActiveWorkoutPersistence({
             savedSession.programId === activeWorkoutRef.current.id
           ) {
             const fresh = buildSessionRef.current(activeWorkoutRef.current);
+            sessionRef.current = fresh;
             setSessionState(fresh);
             storage.saveActiveSession(fresh);
             lastProgramIdRef.current = activeWorkoutRef.current.id;
@@ -106,6 +116,7 @@ export function useActiveWorkoutPersistence({
                 storage.saveActiveSession(restoredSession);
               }
             }
+            sessionRef.current = restoredSession;
             setSessionState(restoredSession);
             lastProgramIdRef.current = restoredSession.programId;
           }
@@ -115,7 +126,9 @@ export function useActiveWorkoutPersistence({
           }
         } else if (activeWorkoutRef.current) {
           // No saved session found; initialize fresh from active workout template
+          isClearedRef.current = false;
           const fresh = buildSessionRef.current(activeWorkoutRef.current);
+          sessionRef.current = fresh;
           setSessionState(fresh);
           storage.saveActiveSession(fresh);
           lastProgramIdRef.current = activeWorkoutRef.current.id;
@@ -134,39 +147,50 @@ export function useActiveWorkoutPersistence({
   // Sync with activeWorkout prop when it changes AFTER initial hydration
   useEffect(() => {
     if (!isHydratedRef.current || !activeWorkout) return;
+    if (isClearedRef.current && lastProgramIdRef.current === activeWorkout.id) {
+      return;
+    }
 
-    // If we already have a session loaded:
-    setSessionState((currentSession) => {
-      // If current session is already for this workout, preserve current progress (don't overwrite!)
-      if (currentSession && currentSession.programId === activeWorkout.id) {
-        return currentSession;
+    const currentSession = sessionRef.current;
+
+    // If current session is already for this workout, preserve current progress (don't overwrite!)
+    if (currentSession && currentSession.programId === activeWorkout.id) {
+      return;
+    }
+
+    // If current session has active progress for another workout, don't silently overwrite unless workout changed
+    if (
+      currentSession &&
+      hasActiveProgress(currentSession) &&
+      lastProgramIdRef.current === currentSession.programId
+    ) {
+      if (currentSession.programId !== activeWorkout.id) {
+        isClearedRef.current = false;
+        const fresh = buildSession(activeWorkout);
+        sessionRef.current = fresh;
+        lastProgramIdRef.current = activeWorkout.id;
+        setSessionState(fresh);
+        storage.saveActiveSession(fresh);
       }
+      return;
+    }
 
-      // If current session has active progress for another workout, don't silently overwrite
-      if (currentSession && hasActiveProgress(currentSession) && lastProgramIdRef.current === currentSession.programId) {
-        // If the user deliberately changed the workout to another one:
-        if (currentSession.programId !== activeWorkout.id) {
-          const fresh = buildSession(activeWorkout);
-          storage.saveActiveSession(fresh);
-          lastProgramIdRef.current = activeWorkout.id;
-          return fresh;
-        }
-        return currentSession;
-      }
-
-      // Initialize fresh for new workout
-      const fresh = buildSession(activeWorkout);
-      storage.saveActiveSession(fresh);
-      lastProgramIdRef.current = activeWorkout.id;
-      return fresh;
-    });
+    // Initialize fresh for new workout
+    isClearedRef.current = false;
+    const fresh = buildSession(activeWorkout);
+    sessionRef.current = fresh;
+    lastProgramIdRef.current = activeWorkout.id;
+    setSessionState(fresh);
+    storage.saveActiveSession(fresh);
   }, [activeWorkout, buildSession, hasActiveProgress]);
 
   // Force start a new session (e.g. user selects a split or starts fresh)
   const startNewSession = useCallback(
     (prog: WorkoutProgram, split?: WorkoutSplit) => {
+      isClearedRef.current = false;
       const fresh = buildSession(prog, split);
       lastProgramIdRef.current = prog.id;
+      sessionRef.current = fresh;
       setSessionState(fresh);
       storage.saveActiveSession(fresh);
     },
@@ -175,9 +199,11 @@ export function useActiveWorkoutPersistence({
 
   // Clear active workout session (e.g. after finishing workout)
   const clearActiveSession = useCallback(() => {
+    isClearedRef.current = true;
+    sessionRef.current = null;
     setSessionState(null);
-    lastProgramIdRef.current = null;
     storage.saveActiveSession(null);
+    cloudSync.syncActiveSession(null);
   }, []);
 
   return {

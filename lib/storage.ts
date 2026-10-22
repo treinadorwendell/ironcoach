@@ -23,7 +23,8 @@ const STORAGE_KEYS = {
   HISTORY: 'ironcoach_history_v1',
   ACTIVE_SESSION: 'ironcoach_active_session_v2',
   COMPLETED_WORKOUTS: 'ironcoach_completed_workouts_v1',
-  EXERCISE_DATABASE: 'ironcoach_exercise_db_v2',
+  EXERCISE_DATABASE: 'ironcoach_exercise_db_v3_json',
+  LEGACY_EXERCISE_DATABASE: 'ironcoach_exercise_db_v2',
   EXERCISE_FINISHED_SNAPSHOTS: 'ironcoach_exercise_finished_snapshots_v1',
   EXERCISE_COMMENTS: 'ironcoach_exercise_comments_v1',
 };
@@ -659,6 +660,13 @@ export const storage = {
       } else {
         localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(session));
       }
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('ironcoach:active-session-updated', { detail: { session } })
+          );
+        }
+      }, 0);
     } catch (e) {
       console.error('Error saving active session:', e);
     }
@@ -668,15 +676,29 @@ export const storage = {
   getExerciseDatabase(): DatabaseExercise[] {
     if (typeof window === 'undefined') return INITIAL_EXERCISE_DATABASE;
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_DATABASE);
-      if (!data) {
-        localStorage.setItem(
-          STORAGE_KEYS.EXERCISE_DATABASE,
-          JSON.stringify(INITIAL_EXERCISE_DATABASE)
-        );
-        return INITIAL_EXERCISE_DATABASE;
+      const customRaw = localStorage.getItem(STORAGE_KEYS.EXERCISE_DATABASE);
+      const deletedRaw = localStorage.getItem('ironcoach_deleted_exercise_ids_v3');
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+      let customList: DatabaseExercise[] = [];
+      if (customRaw) {
+        const parsed: DatabaseExercise[] = JSON.parse(customRaw);
+        customList = parsed.filter((ex) => ex && ex.isCustom);
+      } else {
+        const legacyRaw = localStorage.getItem(STORAGE_KEYS.LEGACY_EXERCISE_DATABASE);
+        if (legacyRaw) {
+          const legacyParsed: DatabaseExercise[] = JSON.parse(legacyRaw);
+          customList = legacyParsed.filter((ex) => ex && ex.isCustom);
+          localStorage.setItem(STORAGE_KEYS.EXERCISE_DATABASE, JSON.stringify(customList));
+        }
       }
-      return JSON.parse(data);
+
+      const customIds = new Set(customList.map((c) => c.id));
+      const baseCatalog = INITIAL_EXERCISE_DATABASE.filter(
+        (ex) => !deletedIds.has(ex.id) && !customIds.has(ex.id)
+      );
+
+      return [...customList.filter((ex) => !deletedIds.has(ex.id)), ...baseCatalog];
     } catch {
       return INITIAL_EXERCISE_DATABASE;
     }
@@ -685,38 +707,66 @@ export const storage = {
   saveExerciseDatabase(exercises: DatabaseExercise[]) {
     if (typeof window === 'undefined') return;
     try {
+      const customOnly = exercises.filter((ex) => ex && ex.isCustom);
       localStorage.setItem(
         STORAGE_KEYS.EXERCISE_DATABASE,
-        JSON.stringify(exercises)
+        JSON.stringify(customOnly)
       );
     } catch (e) {
       console.error('Error saving exercise database:', e);
     }
   },
 
-  addExerciseToDatabase(name: string, muscleGroup: MuscleGroup): DatabaseExercise {
-    const list = this.getExerciseDatabase();
+  addExerciseToDatabase(
+    name: string,
+    muscleGroup: MuscleGroup,
+    extra?: Partial<DatabaseExercise>
+  ): DatabaseExercise {
+    const currentAll = this.getExerciseDatabase();
     const newEx: DatabaseExercise = {
       id: `custom-ex-${Date.now()}`,
       name: name.trim(),
       muscleGroup,
+      primaryMuscles: extra?.primaryMuscles || [],
+      secondaryMuscles: extra?.secondaryMuscles || [],
+      equipment: extra?.equipment || 'outros',
+      level: extra?.level || 'intermediario',
+      mechanic: extra?.mechanic || null,
+      force: extra?.force || null,
+      category: extra?.category || 'forca',
+      instructions: extra?.instructions || [],
+      images: extra?.images || [],
       isCustom: true,
       createdAt: new Date().toISOString(),
     };
-    const updated = [newEx, ...list];
+    const updated = [newEx, ...currentAll];
     this.saveExerciseDatabase(updated);
     return newEx;
   },
 
   deleteExerciseFromDatabase(exerciseId: string): DatabaseExercise[] {
-    const list = this.getExerciseDatabase();
-    const updated = list.filter((ex) => ex.id !== exerciseId);
-    this.saveExerciseDatabase(updated);
-    return updated;
+    if (typeof window !== 'undefined') {
+      try {
+        const deletedRaw = localStorage.getItem('ironcoach_deleted_exercise_ids_v3');
+        const deletedIds: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+        if (!deletedIds.includes(exerciseId)) {
+          deletedIds.push(exerciseId);
+          localStorage.setItem('ironcoach_deleted_exercise_ids_v3', JSON.stringify(deletedIds));
+        }
+      } catch (e) {
+        console.error('Error recording deleted exercise id:', e);
+      }
+    }
+    const list = this.getExerciseDatabase().filter((ex) => ex.id !== exerciseId);
+    this.saveExerciseDatabase(list);
+    return list;
   },
 
   resetExerciseDatabase(): DatabaseExercise[] {
-    this.saveExerciseDatabase(INITIAL_EXERCISE_DATABASE);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ironcoach_deleted_exercise_ids_v3');
+      localStorage.removeItem(STORAGE_KEYS.EXERCISE_DATABASE);
+    }
     return INITIAL_EXERCISE_DATABASE;
   },
 

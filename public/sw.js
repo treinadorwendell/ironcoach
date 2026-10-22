@@ -84,6 +84,7 @@ self.addEventListener('fetch', (event) => {
 
 // BACKGROUND REST TIMER & NOTIFICATIONS
 let scheduledRestTimeout = null;
+let lastRestNotificationTime = 0;
 
 self.addEventListener('message', (event) => {
   if (!event.data) return;
@@ -99,12 +100,20 @@ self.addEventListener('message', (event) => {
     const delay = Math.max(0, targetTime - now);
 
     scheduledRestTimeout = setTimeout(() => {
+      const nowTs = Date.now();
+      // Debounce: prevent duplicate notification if one was already triggered recently (within 8s)
+      if (nowTs - lastRestNotificationTime < 8000) {
+        scheduledRestTimeout = null;
+        return;
+      }
+      lastRestNotificationTime = nowTs;
+
       self.registration.showNotification('⏱️ Descanso Finalizado!', {
         body: `Hora da Série #${setNumber || 1} de ${exerciseName || 'Exercício'}. Bora lá!`,
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
         tag: 'ironcoach-rest-complete',
-        renotify: true,
+        renotify: false,
         requireInteraction: true,
         vibrate: [250, 100, 250, 100, 400],
         data: {
@@ -119,6 +128,9 @@ self.addEventListener('message', (event) => {
     if (scheduledRestTimeout) {
       clearTimeout(scheduledRestTimeout);
       scheduledRestTimeout = null;
+    }
+    if (event.data.triggeredAt) {
+      lastRestNotificationTime = event.data.triggeredAt;
     }
   }
 });

@@ -69,10 +69,14 @@ import {
   BarChart3,
   Percent,
   Flag,
+  Film,
 } from 'lucide-react';
 import { PsePickerModal, getPseInfo } from './PsePickerModal';
 import { ExerciseDedicatedPageView } from './ExerciseDedicatedPageView';
-import { CalendarEvent } from '@/types';
+import { CalendarEvent, DatabaseExercise } from '@/types';
+import { findExerciseMetadata } from '@/lib/exerciseDatabase';
+import { ExerciseMediaPlayer } from './ExerciseMediaPlayer';
+import { ExerciseInstructionsModal } from './ExerciseInstructionsModal';
 
 interface WorkoutExecutionSectionProps {
   clients: Client[];
@@ -173,6 +177,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           };
         });
 
+        const meta = findExerciseMetadata(ex.name);
+
         return {
           exerciseId: ex.id,
           exerciseName: ex.name,
@@ -188,6 +194,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           substituteMuscleGroup: ex.substituteMuscleGroup || ex.muscleGroup,
           isUsingSubstitute: false,
           originalExerciseName: ex.name,
+          primaryMuscles: ex.primaryMuscles?.length ? ex.primaryMuscles : meta?.primaryMuscles,
+          secondaryMuscles: ex.secondaryMuscles?.length
+            ? ex.secondaryMuscles
+            : meta?.secondaryMuscles,
+          equipment: ex.equipment || meta?.equipment,
+          level: ex.level || meta?.level,
+          mechanic: ex.mechanic || meta?.mechanic,
+          force: ex.force || meta?.force,
+          category: ex.category || meta?.category,
+          instructions: ex.instructions?.length ? ex.instructions : meta?.instructions,
+          images: ex.images?.length ? ex.images : meta?.images,
         };
       });
 
@@ -315,6 +332,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Individual exercise expansion states (default: collapsed on workout selection)
   const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
+  // Exercise media/video expansion state inside execution cards
+  const [expandedExecutionMediaIds, setExpandedExecutionMediaIds] = useState<
+    Record<string, boolean>
+  >({});
+  // Exercise execution instructions modal state
+  const [executionInstructionsModalEx, setExecutionInstructionsModalEx] = useState<
+    (Partial<DatabaseExercise> & { name: string }) | null
+  >(null);
 
   // ID do exercício atualmente focado na página dedicada
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(null);
@@ -512,6 +537,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       };
     });
 
+    const newMeta = findExerciseMetadata(newExerciseName);
     const updatedExercises = [...session.exercises];
     updatedExercises[exerciseIndex] = {
       ...currentEx,
@@ -521,6 +547,15 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       isUsingSubstitute: newIsUsingSubstitute,
       exerciseComment: '',
       sets: resetSets,
+      primaryMuscles: newMeta?.primaryMuscles,
+      secondaryMuscles: newMeta?.secondaryMuscles,
+      equipment: newMeta?.equipment,
+      level: newMeta?.level,
+      mechanic: newMeta?.mechanic,
+      force: newMeta?.force,
+      category: newMeta?.category,
+      instructions: newMeta?.instructions,
+      images: newMeta?.images,
     };
 
     const updatedSession = {
@@ -764,7 +799,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Session elapsed timer ticker - usa timestamp real (startTime) para continuar contando mesmo com app minimizado ou fechado no mobile/tablet
   useEffect(() => {
-    if (!hasActiveSession || !isSessionStarted) return;
+    if (!hasActiveSession || !isSessionStarted || isFinishedModalOpen) return;
 
     const syncElapsedFromClock = () => {
       setSession((prev) => {
@@ -786,7 +821,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           isPaused: false,
           elapsedSeconds: nextElapsed,
         };
-        storage.saveActiveSession(updated);
         return updated;
       });
     };
@@ -812,7 +846,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       window.removeEventListener('focus', syncElapsedFromClock);
       window.removeEventListener('pageshow', syncElapsedFromClock);
     };
-  }, [hasActiveSession, isSessionStarted, setSession]);
+  }, [hasActiveSession, isSessionStarted, isFinishedModalOpen, setSession]);
 
   // Toggle set check status
   const handleToggleSetCheck = (exIndex: number, setIndex: number) => {
@@ -1164,16 +1198,62 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     cloudSync.syncActiveSession(updated);
   };
 
-  // Finish Workout Session (stops timer and saves completed workout)
-  const handleFinishWorkout = () => {
+  // Finish Workout Session (stops timer immediately and saves completed workout)
+  const handleFinishWorkout = (finalExerciseIndex?: number) => {
     if (!session) return;
     if (!requireWorkoutStarted()) return;
+
+    // 1. Interrompe imediatamente o cronômetro de descanso e fecha qualquer visualização focada
+    setTimerOpen(false);
+    setFocusedExerciseId(null);
+
+    // 2. Congela o tempo exato do treino no instante do clique
+    const startMs = session.startTime ? Date.parse(session.startTime) : NaN;
+    const nowMs = new Date().getTime();
+    const finalElapsedSeconds =
+      session.isStarted && !isNaN(startMs)
+        ? Math.max(session.elapsedSeconds || 0, Math.floor((nowMs - startMs) / 1000))
+        : session.elapsedSeconds || 0;
+
+    // 3. Consolida séries e snapshots de evolução sem regravar activeSession com isStarted: true
+    const consolidatedExercises = session.exercises.map((ex, idx) => {
+      const sets =
+        typeof finalExerciseIndex === 'number' && idx === finalExerciseIndex
+          ? ex.sets.map((s) => ({ ...s, completed: true }))
+          : ex.sets;
+
+      if (ex.exerciseComment && ex.exerciseComment.trim()) {
+        storage.saveExerciseComment(session.clientId, ex.exerciseName, ex.exerciseComment);
+      }
+
+      if (
+        (typeof finalExerciseIndex === 'number' && idx === finalExerciseIndex) ||
+        sets.some((s) => s.completed)
+      ) {
+        const savedSnapshot = storage.recordExerciseFinishedOnCollapse(
+          session.clientId,
+          ex.exerciseName,
+          sets
+        );
+        if (savedSnapshot) {
+          cloudSync.syncFinishedExerciseSnapshot(savedSnapshot);
+        }
+      }
+
+      return {
+        ...ex,
+        sets,
+      };
+    });
+
+    // 4. Encerra imediatamente a sessão ativa na memória, localStorage e Firestore para interromper o cronômetro
+    clearActiveSession();
 
     let totalVolumeKg = 0;
     let completedSetsCount = 0;
     let totalSetsCount = 0;
 
-    session.exercises.forEach((ex) => {
+    consolidatedExercises.forEach((ex) => {
       ex.sets.forEach((s) => {
         totalSetsCount++;
         if (s.completed) {
@@ -1191,12 +1271,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         }
       });
     });
-
-    const startMs = session.startTime ? Date.parse(session.startTime) : NaN;
-    const finalElapsedSeconds =
-      session.isStarted && !isNaN(startMs)
-        ? Math.max(session.elapsedSeconds || 0, Math.floor((Date.now() - startMs) / 1000))
-        : session.elapsedSeconds || 0;
 
     const mins = Math.floor(finalElapsedSeconds / 60);
     const secs = finalElapsedSeconds % 60;
@@ -1222,7 +1296,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       cleanProgramName = activeWorkout.name;
     }
 
-    const completedExercises: CompletedExerciseRecord[] = session.exercises.map((ex) => ({
+    const completedExercises: CompletedExerciseRecord[] = consolidatedExercises.map((ex) => ({
       exerciseId: ex.exerciseId,
       name: ex.exerciseName,
       muscleGroup: ex.muscleGroup,
@@ -1292,6 +1366,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     setIsReportViewOpen(false);
     setNextWorkoutGoalText('');
 
+    // Prepara o estado base para a seleção geral de alunos enquanto o modal de celebração é exibido
+    setSelectedProgram(null);
+    setSelectedClientId('');
+    setExpandedExerciseIds({});
+    setCurrentStep('selecao-aluno');
     setIsFinishedModalOpen(true);
 
     try {
@@ -1302,8 +1381,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         colors: ['#10b981', '#38bdf8', '#fbbf24', '#ffffff'],
       });
     } catch {}
-
-    clearActiveSession();
   };
 
   const handleGenerateFeedbackReport = () => {
@@ -1337,7 +1414,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // Confirmação final do treino realizado e atualização do status na agenda
   const handleConfirmFinishWorkout = () => {
     if (!workoutSummary) {
+      clearActiveSession();
+      setFocusedExerciseId(null);
+      setSelectedProgram(null);
+      setSelectedClientId('');
+      setExpandedExerciseIds({});
       setIsFinishedModalOpen(false);
+      setCurrentStep('selecao-aluno');
+      if (onFinishWorkout) onFinishWorkout();
       return;
     }
 
@@ -1420,7 +1504,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           const endH = `${String(endHourNum).padStart(2, '0')}:${startH.split(':')[1] || '00'}`;
 
           const newEvt: CalendarEvent = {
-            id: `evt-${Date.now()}`,
+            id: `evt-${crypto.randomUUID()}`,
             clientId: workoutSummary.clientId,
             clientName: workoutSummary.clientName,
             title: recEvt?.title || workoutSummary.workoutName || 'Treino Realizado',
@@ -1449,8 +1533,13 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       }
     }
 
+    clearActiveSession();
+    setFocusedExerciseId(null);
+    setSelectedProgram(null);
+    setSelectedClientId('');
+    setExpandedExerciseIds({});
     setIsFinishedModalOpen(false);
-    setCurrentStep('programas');
+    setCurrentStep('selecao-aluno');
     if (onFinishWorkout) onFinishWorkout();
   };
 
@@ -1480,16 +1569,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   return (
     <div className={`space-y-4 ${timerOpen ? 'pb-64' : 'pb-36'}`}>
-      {/* Rest Countdown Floating Overlay */}
-      <RestCountdownTimer
-        key={`${timerExerciseName}-${timerSetNumber}`}
-        isOpen={timerOpen}
-        initialSeconds={timerSeconds}
-        exerciseName={timerExerciseName}
-        setNumber={timerSetNumber}
-        onClose={() => setTimerOpen(false)}
-      />
-
       <AnimatePresence mode="wait">
         {/* ETAPA 0: SELEÇÃO DE ALUNO (OBRIGATÓRIA AO ENTRAR NA ABA SE SEM TREINO ATIVO) */}
         {currentStep === 'selecao-aluno' && (
@@ -1632,9 +1711,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         <span className="text-[11px] text-slate-400 group-hover:text-emerald-300 font-semibold transition">
                           Selecionar Aluno ➔
                         </span>
-                        <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-slate-950 transition">
-                          <ChevronRight className="w-4 h-4" />
-                        </div>
                       </div>
                     </div>
                   );
@@ -2701,7 +2777,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end flex-shrink-0">
                             <span
                               className={`text-xs font-mono font-bold px-2 py-1 rounded-xl ${
                                 isAllSetsCompleted
@@ -2711,6 +2787,89 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             >
                               {completedInThisEx}/{ex.sets.length} séries
                             </span>
+
+                            {/* Botão para Visualizar a Mídia / Vídeo do Exercício (caso tenha) */}
+                            {(() => {
+                              const resolvedMeta = findExerciseMetadata(ex.exerciseName);
+                              const mediaImages =
+                                ex.images && ex.images.length > 0
+                                  ? ex.images
+                                  : resolvedMeta?.images || [];
+                              const isMediaExpanded = !!expandedExecutionMediaIds[ex.exerciseId];
+
+                              if (mediaImages.length === 0) return null;
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedExecutionMediaIds((prev) => ({
+                                      ...prev,
+                                      [ex.exerciseId]: !prev[ex.exerciseId],
+                                    }))
+                                  }
+                                  className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                                    isMediaExpanded
+                                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                                      : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
+                                  }`}
+                                  title="Expandir e exibir mídia/vídeo do exercício"
+                                >
+                                  <Film className="w-3.5 h-3.5" />
+                                  <span>{isMediaExpanded ? 'Ocultar Vídeo' : 'Ver Mídia'}</span>
+                                  {isMediaExpanded ? (
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              );
+                            })()}
+
+                            {/* Botão para Abrir Modal com a Descrição da Execução do Exercício */}
+                            {(() => {
+                              const resolvedMeta = findExerciseMetadata(ex.exerciseName);
+                              const instructions =
+                                ex.instructions && ex.instructions.length > 0
+                                  ? ex.instructions
+                                  : resolvedMeta?.instructions || [];
+                              const mediaImages =
+                                ex.images && ex.images.length > 0
+                                  ? ex.images
+                                  : resolvedMeta?.images || [];
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExecutionInstructionsModalEx({
+                                      name: ex.exerciseName,
+                                      muscleGroup: ex.muscleGroup,
+                                      primaryMuscles:
+                                        ex.primaryMuscles?.length
+                                          ? ex.primaryMuscles
+                                          : resolvedMeta?.primaryMuscles,
+                                      secondaryMuscles:
+                                        ex.secondaryMuscles?.length
+                                          ? ex.secondaryMuscles
+                                          : resolvedMeta?.secondaryMuscles,
+                                      equipment: ex.equipment || resolvedMeta?.equipment,
+                                      level: ex.level || resolvedMeta?.level,
+                                      mechanic: ex.mechanic || resolvedMeta?.mechanic,
+                                      force: ex.force || resolvedMeta?.force,
+                                      category: ex.category || resolvedMeta?.category,
+                                      instructions,
+                                      images: mediaImages,
+                                    })
+                                  }
+                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                                  title="Abrir modal com a descrição passo a passo da execução do exercício"
+                                >
+                                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Execução</span>
+                                </button>
+                              );
+                            })()}
 
                             <button
                               type="button"
@@ -2733,6 +2892,28 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             </button>
                           </div>
                         </div>
+
+                        {/* Player de Mídia / Vídeo Expandido ao clicar em "Ver Mídia" */}
+                        {(() => {
+                          const resolvedMeta = findExerciseMetadata(ex.exerciseName);
+                          const mediaImages =
+                            ex.images && ex.images.length > 0
+                              ? ex.images
+                              : resolvedMeta?.images || [];
+                          const isMediaExpanded = !!expandedExecutionMediaIds[ex.exerciseId];
+
+                          if (!isMediaExpanded || mediaImages.length === 0) return null;
+
+                          return (
+                            <div className="pt-2 animate-in fade-in duration-200">
+                              <ExerciseMediaPlayer
+                                images={mediaImages}
+                                exerciseName={ex.exerciseName}
+                                autoPlay={true}
+                              />
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES (LOGO ABAIXO DO CABEÇALHO) */}
@@ -3278,7 +3459,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   ) : (
                     <button
                       type="button"
-                      onClick={handleFinishWorkout}
+                      onClick={() => handleFinishWorkout()}
                       className={`w-full sm:w-auto px-6 py-3.5 rounded-xl active:scale-95 font-black text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0 animate-in fade-in duration-150 ${
                         allCompleted
                           ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-950/60'
@@ -4101,15 +4282,18 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
       {/* CRONÔMETRO DE DESCANSO INTEGRADO ENTRE SÉRIES COM NOTIFICAÇÕES EM SEGUNDO PLANO */}
       <RestCountdownTimer
-        key={`${timerExerciseName}-${timerSetNumber}-${timerSeconds}-${timerOpen}`}
         isOpen={timerOpen}
         initialSeconds={timerSeconds}
         exerciseName={timerExerciseName}
         setNumber={timerSetNumber}
         onClose={() => setTimerOpen(false)}
-        onComplete={() => {
-          sounds.playRestCompleteBeep();
-        }}
+      />
+
+      {/* MODAL DE DESCRIÇÃO DA EXECUÇÃO DO EXERCÍCIO */}
+      <ExerciseInstructionsModal
+        isOpen={!!executionInstructionsModalEx}
+        onClose={() => setExecutionInstructionsModalEx(null)}
+        exercise={executionInstructionsModalEx}
       />
     </div>
   );

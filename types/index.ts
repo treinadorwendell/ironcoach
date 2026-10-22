@@ -47,10 +47,33 @@ export const MUSCLE_GROUPS: MuscleGroup[] = [
   'Abdômen',
 ];
 
+export interface RawJsonExercise {
+  name: string;
+  force: string | null;
+  level: string;
+  mechanic: string | null;
+  equipment: string | null;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  instructions: string[];
+  category: string;
+  images: string[];
+  id: string;
+}
+
 export interface DatabaseExercise {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string | null;
+  level?: string;
+  mechanic?: string | null;
+  force?: string | null;
+  category?: string;
+  instructions?: string[];
+  images?: string[];
   isCustom?: boolean;
   createdAt?: string;
 }
@@ -127,6 +150,15 @@ export interface ExerciseItem {
   combinationOrder?: number; // Ordem na sequência da combinação (1, 2, 3...)
   substituteExerciseName?: string; // Exercício substituto do mesmo grupo muscular
   substituteMuscleGroup?: MuscleGroup;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string | null;
+  level?: string;
+  mechanic?: string | null;
+  force?: string | null;
+  category?: string;
+  instructions?: string[];
+  images?: string[];
 }
 
 export interface WorkoutSplit {
@@ -190,6 +222,15 @@ export interface ExecutionExerciseState {
   substituteMuscleGroup?: MuscleGroup;
   isUsingSubstitute?: boolean;
   originalExerciseName?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  equipment?: string | null;
+  level?: string;
+  mechanic?: string | null;
+  force?: string | null;
+  category?: string;
+  instructions?: string[];
+  images?: string[];
 }
 
 export interface ActiveWorkoutSession {

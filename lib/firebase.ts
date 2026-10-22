@@ -280,6 +280,7 @@ class FirestoreSyncService {
   private currentCallbacks: CloudSyncCallbacks | null = null;
   private lastSyncTimestamp: number = Date.now();
   private isSyncingNow: boolean = false;
+  private lastSessionClearedAt: number = 0;
 
   public subscribe(userId: string, callbacks: CloudSyncCallbacks) {
     this.unsubscribe();
@@ -387,7 +388,10 @@ class FirestoreSyncService {
         (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const session = data?.session as ActiveWorkoutSession | null;
+            const session = (data?.session as ActiveWorkoutSession | null) ?? null;
+            if (session && Date.now() - this.lastSessionClearedAt < 5000) {
+              return;
+            }
             storage.saveActiveSession(session);
             callbacks.onActiveSessionChange?.(session);
           }
@@ -406,10 +410,13 @@ class FirestoreSyncService {
           if (!snapshot.empty) {
             const list: DatabaseExercise[] = [];
             snapshot.forEach((docSnap) => {
-              list.push(docSnap.data() as DatabaseExercise);
+              const data = docSnap.data() as DatabaseExercise;
+              if (data && data.isCustom) {
+                list.push(data);
+              }
             });
             storage.saveExerciseDatabase(list);
-            callbacks.onExerciseDbChange?.(list);
+            callbacks.onExerciseDbChange?.(storage.getExerciseDatabase());
           }
         },
         (error) => {
@@ -500,10 +507,12 @@ class FirestoreSyncService {
         batch.set(ref, sanitizeForFirestore({ ...rec, userId }), { merge: true });
       });
 
-      localExercises.forEach((ex) => {
-        const ref = doc(db, 'users', userId, 'customExercises', ex.id);
-        batch.set(ref, sanitizeForFirestore({ ...ex, userId }), { merge: true });
-      });
+      localExercises
+        .filter((ex) => ex.isCustom)
+        .forEach((ex) => {
+          const ref = doc(db, 'users', userId, 'customExercises', ex.id);
+          batch.set(ref, sanitizeForFirestore({ ...ex, userId }), { merge: true });
+        });
 
       await batch.commit();
       console.log('Local data successfully seeded to Firestore cloud');
@@ -621,6 +630,11 @@ class FirestoreSyncService {
   }
 
   public async syncActiveSession(session: ActiveWorkoutSession | null) {
+    if (!session) {
+      this.lastSessionClearedAt = Date.now();
+    } else {
+      this.lastSessionClearedAt = 0;
+    }
     if (!this.currentUserId) return;
     const path = `users/${this.currentUserId}/settings/activeSession`;
     try {
@@ -775,8 +789,8 @@ class FirestoreSyncService {
       const sessionSnap = await getDoc(sessionDocRef);
       if (sessionSnap.exists()) {
         const data = sessionSnap.data();
-        const session = data?.session as ActiveWorkoutSession | null;
-        if (session) {
+        const session = (data?.session as ActiveWorkoutSession | null) ?? null;
+        if (!(session && Date.now() - this.lastSessionClearedAt < 5000)) {
           storage.saveActiveSession(session);
           this.currentCallbacks?.onActiveSessionChange?.(session);
         }
@@ -788,10 +802,13 @@ class FirestoreSyncService {
       if (!exercisesSnap.empty) {
         const exercisesList: DatabaseExercise[] = [];
         exercisesSnap.forEach((docSnap) => {
-          exercisesList.push(docSnap.data() as DatabaseExercise);
+          const data = docSnap.data() as DatabaseExercise;
+          if (data && data.isCustom) {
+            exercisesList.push(data);
+          }
         });
         storage.saveExerciseDatabase(exercisesList);
-        this.currentCallbacks?.onExerciseDbChange?.(exercisesList);
+        this.currentCallbacks?.onExerciseDbChange?.(storage.getExerciseDatabase());
       }
 
       this.lastSyncTimestamp = Date.now();
