@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Client, ContractType, Gender, CompletedWorkoutRecord, TrainerProfile } from '@/types';
 import { storage } from '@/lib/storage';
@@ -80,6 +80,38 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     setHistoryPageClientId(clientId || null);
     setIsHistoryPageOpen(true);
     setCompletedWorkouts(storage.getCompletedWorkouts());
+  };
+
+  // Plan Dropdown State (Mobile & Tablet)
+  const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
+  const planDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close drop list on click outside or touch outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        planDropdownRef.current &&
+        !planDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsPlanDropdownOpen(false);
+      }
+    };
+    if (isPlanDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isPlanDropdownOpen]);
+
+  // Contagem dinâmica de alunos por plano
+  const planCounts = {
+    Todos: clients.length,
+    Mensal: clients.filter((c) => c.contractType === 'Mensal').length,
+    Semanal: clients.filter((c) => c.contractType === 'Semanal').length,
+    Avulsa: clients.filter((c) => c.contractType === 'Avulsa').length,
   };
 
   useEffect(() => {
@@ -374,21 +406,148 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         </button>
       </div>
 
-      {/* Contract Filter Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {(['Todos', 'Mensal', 'Semanal', 'Avulsa'] as const).map((filter) => (
-          <button
-            key={filter}
-            onClick={() => setContractFilter(filter)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
-              contractFilter === filter
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800/80'
-            }`}
-          >
-            {filter === 'Todos' ? 'Todos os Planos' : `Plano ${filter}`}
-          </button>
-        ))}
+      {/* Opção de Selecionar Plano: Drop List Button no Mobile e Tablet, Pills no Desktop */}
+      <div className="w-full">
+        {/* Mobile e Tablet: Botão de Drop List */}
+        <div className="block lg:hidden relative" ref={planDropdownRef}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 sm:p-3 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+              <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 shrink-0">
+                <Layers className="w-4 h-4" />
+              </span>
+              <span>Selecionar Plano:</span>
+            </div>
+
+            {/* Botão de Drop List */}
+            <div className="relative flex-1 sm:max-w-xs">
+              <button
+                type="button"
+                onClick={() => setIsPlanDropdownOpen((prev) => !prev)}
+                className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-850 border border-slate-700/80 hover:border-emerald-500/50 active:scale-[0.99] text-xs font-bold text-white shadow-xs transition touch-manipulation cursor-pointer"
+                aria-expanded={isPlanDropdownOpen}
+                aria-haspopup="listbox"
+                aria-label="Selecionar plano para visualização"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      contractFilter === 'Todos' ? 'bg-cyan-400' : 'bg-emerald-400'
+                    }`}
+                  />
+                  <span className="truncate">
+                    {contractFilter === 'Todos' ? 'Todos os Planos' : `Plano ${contractFilter}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-slate-800 text-emerald-300 border border-slate-700/60">
+                    {planCounts[contractFilter]} {planCounts[contractFilter] === 1 ? 'aluno' : 'alunos'}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                      isPlanDropdownOpen ? 'rotate-180 text-emerald-400' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {/* Menu Popover da Drop List */}
+              <AnimatePresence>
+                {isPlanDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 right-0 top-full mt-1.5 z-40 p-1.5 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/90 space-y-1 backdrop-blur-xl"
+                  >
+                    {(['Todos', 'Mensal', 'Semanal', 'Avulsa'] as const).map((filter) => {
+                      const isSelected = contractFilter === filter;
+                      const count = planCounts[filter];
+                      return (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setContractFilter(filter);
+                            setIsPlanDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer touch-manipulation ${
+                            isSelected
+                              ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                              : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 truncate">
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${
+                                isSelected ? 'bg-emerald-400' : 'bg-slate-600'
+                              }`}
+                            />
+                            <span className="truncate font-medium">
+                              {filter === 'Todos' ? 'Todos os Planos' : `Plano ${filter}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                isSelected
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-slate-800 text-slate-400'
+                              }`}
+                            >
+                              {count} {count === 1 ? 'aluno' : 'alunos'}
+                            </span>
+                            {isSelected && <Check className="w-4 h-4 text-emerald-400" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Versão Desktop (lg+): Barra de Seleção de Planos com Pills */}
+        <div className="hidden lg:flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <Layers className="w-4 h-4" />
+            </span>
+            <span className="text-xs font-bold text-slate-300">Selecionar Plano:</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {(['Todos', 'Mensal', 'Semanal', 'Avulsa'] as const).map((filter) => {
+              const isSelected = contractFilter === filter;
+              const count = planCounts[filter];
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setContractFilter(filter)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 cursor-pointer flex items-center gap-2 ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50'
+                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800 hover:bg-slate-800/70'
+                  }`}
+                >
+                  <span>{filter === 'Todos' ? 'Todos os Planos' : `Plano ${filter}`}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md font-extrabold ${
+                      isSelected
+                        ? 'bg-emerald-700 text-emerald-100'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Client List Cards (Responsive Grid: 1 col mobile, 2 col tablet, 3 col desktop) */}
@@ -405,9 +564,23 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
                 {clients.length === 0
                   ? 'Comece cadastrando seu primeiro aluno para gerenciar treinos, avaliações e agendamentos.'
+                  : contractFilter !== 'Todos'
+                  ? `Nenhum aluno encontrado com o Plano ${contractFilter}.`
                   : 'Nenhum aluno corresponde aos filtros selecionados. Tente ajustar a busca.'}
               </p>
             </div>
+            {contractFilter !== 'Todos' && clients.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setContractFilter('Todos')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-emerald-400 font-bold text-xs border border-slate-700 active:scale-95 transition cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Ver Todos os Planos ({clients.length})</span>
+                </button>
+              </div>
+            )}
             {clients.length === 0 && (
               <div className="pt-2">
                 <button
