@@ -6,6 +6,7 @@ import {
   Client,
   WorkoutProgram,
   CalendarEvent,
+  TrainerProfile,
 } from '@/types';
 import {
   storage,
@@ -21,6 +22,7 @@ import { AgendaSection } from '@/components/AgendaSection';
 import { CreateWorkoutSection } from '@/components/CreateWorkoutSection';
 import { WorkoutExecutionSection } from '@/components/WorkoutExecutionSection';
 import { AuthScreen } from '@/components/AuthScreen';
+import { TrainerProfileModal } from '@/components/TrainerProfileModal';
 import { testConnection, cloudSync, auth, logoutUser } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { LogIn, X, RefreshCw } from 'lucide-react';
@@ -48,6 +50,10 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
   const [dismissedAuthBanner, setDismissedAuthBanner] = useState(false);
+
+  // Trainer Profile state & modal
+  const [trainerProfile, setTrainerProfile] = useState<TrainerProfile | null>(null);
+  const [isTrainerProfileModalOpen, setIsTrainerProfileModalOpen] = useState(false);
 
   // Hook de sincronização forçada com o Firestore ao retornar ao app após inatividade
   const { isSyncing: isResumingSync, syncNotice } = useInactivitySync({
@@ -88,6 +94,12 @@ export default function Home() {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user) {
+        // Hydrate local profile immediately if available for this user
+        const localProfile = storage.getTrainerProfile(user.uid);
+        if (localProfile) {
+          setTrainerProfile(localProfile);
+        }
+
         // Guarantee trainer always lands on Agenda after login or registration
         setCurrentSection('agenda');
         cloudSync.subscribe(user.uid, {
@@ -117,8 +129,23 @@ export default function Home() {
               setHasActiveRunningSession(false);
             }
           },
+          onTrainerProfileChange: (cloudProfile) => {
+            if (cloudProfile && cloudProfile.name?.trim() && cloudProfile.isProfileCompleted) {
+              setTrainerProfile(cloudProfile);
+            } else {
+              const fallback = storage.getTrainerProfile(user.uid);
+              if (fallback && fallback.name?.trim() && fallback.isProfileCompleted) {
+                setTrainerProfile(fallback);
+              } else {
+                setTrainerProfile(cloudProfile || fallback || null);
+                setIsTrainerProfileModalOpen(true);
+              }
+            }
+          },
         });
       } else {
+        setTrainerProfile(null);
+        setIsTrainerProfileModalOpen(false);
         cloudSync.unsubscribe();
       }
     });
@@ -160,6 +187,14 @@ export default function Home() {
       window.removeEventListener('ironcoach:active-session-updated', updateActiveRunningSession);
     };
   }, []);
+
+  // TRAINER PROFILE HANDLER
+  const handleSaveTrainerProfile = (updatedProfile: TrainerProfile) => {
+    setTrainerProfile(updatedProfile);
+    storage.saveTrainerProfile(updatedProfile, currentUser?.uid);
+    cloudSync.syncTrainerProfile(updatedProfile);
+    setIsTrainerProfileModalOpen(false);
+  };
 
   // CLIENT HANDLERS
   const handleAddClient = (newClient: Client) => {
@@ -440,6 +475,7 @@ export default function Home() {
             currentSection === 'execucao' ? activeClient?.name : undefined
           }
           currentUser={currentUser}
+          trainerProfile={trainerProfile}
           onLogout={async () => {
             try {
               await logoutUser();
@@ -464,6 +500,8 @@ export default function Home() {
               >
                 <ClientSection
                   clients={clients}
+                  trainerProfile={trainerProfile}
+                  onOpenTrainerProfile={() => setIsTrainerProfileModalOpen(true)}
                   onAddClient={handleAddClient}
                   onUpdateClient={handleUpdateClient}
                   onDeleteClient={handleDeleteClient}
@@ -578,6 +616,21 @@ export default function Home() {
           }}
           hasActiveSession={hasActiveRunningSession}
         />
+
+        {/* Modal de Perfil do Treinador (Obrigatório no 1º acesso com Nome; Senha e Logo opcionais) */}
+        {isTrainerProfileModalOpen && (
+          <TrainerProfileModal
+            key={trainerProfile?.updatedAt || currentUser?.uid || 'trainer-profile'}
+            isOpen={isTrainerProfileModalOpen}
+            isFirstLoginMandatory={
+              !trainerProfile || !trainerProfile.name?.trim() || !trainerProfile.isProfileCompleted
+            }
+            initialProfile={trainerProfile}
+            currentUser={currentUser}
+            onClose={() => setIsTrainerProfileModalOpen(false)}
+            onSaveProfile={handleSaveTrainerProfile}
+          />
+        )}
       </div>
     </div>
   );

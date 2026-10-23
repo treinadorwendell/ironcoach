@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Client, ContractType, Gender, CompletedWorkoutRecord } from '@/types';
+import { Client, ContractType, Gender, CompletedWorkoutRecord, TrainerProfile } from '@/types';
 import { storage } from '@/lib/storage';
 import { WorkoutHistoryPage } from './WorkoutHistoryPage';
 import {
@@ -36,6 +36,8 @@ import {
 
 interface ClientSectionProps {
   clients: Client[];
+  trainerProfile?: TrainerProfile | null;
+  onOpenTrainerProfile?: () => void;
   onAddClient: (client: Client) => void;
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (clientId: string) => void;
@@ -45,6 +47,8 @@ interface ClientSectionProps {
 
 export const ClientSection: React.FC<ClientSectionProps> = ({
   clients,
+  trainerProfile,
+  onOpenTrainerProfile,
   onAddClient,
   onUpdateClient,
   onDeleteClient,
@@ -287,9 +291,55 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
 
   return (
     <div className="space-y-4 pb-24">
-      {/* Top Banner & KPI Cards */}
-      <div className="flex items-center gap-3 w-full">
-        <div className="w-full sm:w-auto sm:min-w-[260px] max-w-sm p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md flex flex-col justify-between min-h-[100px]">
+      {/* Top Banner: Botão IronCoach (Perfil do Treinador) & KPI Total de Alunos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+        {/* Botão dedicado do IronCoach para acessar o Perfil do Treinador */}
+        <button
+          type="button"
+          onClick={onOpenTrainerProfile}
+          className="w-full p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border border-slate-800 hover:border-emerald-500/50 shadow-md flex items-center justify-between gap-3 min-h-[100px] text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation"
+          title="Abrir Perfil do Treinador IronCoach"
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            {/* Miniatura do IronCoach (com Logo recortada/enquadrada do treinador ou ícone padrão) */}
+            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/30 flex-shrink-0 group-hover:scale-105 transition">
+              {trainerProfile?.logoDataUrl ? (
+                <img
+                  src={trainerProfile.logoDataUrl}
+                  alt="Logo IronCoach"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Dumbbell className="w-7 h-7 text-white" />
+              )}
+            </div>
+
+            {/* IronCoach + Nome do Treinador embaixo */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-lg tracking-tight text-white group-hover:text-emerald-300 transition leading-tight">
+                  IronCoach
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  Perfil
+                </span>
+              </div>
+              <p className="text-sm font-bold text-emerald-400 truncate mt-0.5">
+                {trainerProfile?.name?.trim() || 'Configurar Nome do Treinador'}
+              </p>
+              <span className="text-[11px] text-slate-400 block mt-0.5">
+                Toque para editar nome, senha e logo
+              </span>
+            </div>
+          </div>
+
+          <div className="w-9 h-9 rounded-xl bg-slate-800/90 group-hover:bg-emerald-600/20 text-slate-400 group-hover:text-emerald-300 border border-slate-700/80 group-hover:border-emerald-500/40 flex items-center justify-center shrink-0 transition">
+            <Edit2 className="w-4 h-4" />
+          </div>
+        </button>
+
+        {/* KPI Card: Total de Alunos */}
+        <div className="w-full p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md flex flex-col justify-between min-h-[100px]">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center">
             Total de Alunos
           </span>

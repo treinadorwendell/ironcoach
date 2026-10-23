@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  updatePassword,
   sendPasswordResetEmail,
   User,
 } from 'firebase/auth';
@@ -33,6 +34,7 @@ import {
   DatabaseExercise,
   ActiveWorkoutSession,
   ExerciseFinishedSnapshot,
+  TrainerProfile,
 } from '@/types';
 import { storage } from './storage';
 
@@ -218,6 +220,24 @@ export async function resetPassword(email: string): Promise<void> {
   }
 }
 
+export async function updateTrainerPassword(newPassword: string): Promise<void> {
+  if (!auth.currentUser) {
+    throw new Error('Nenhum treinador autenticado no momento.');
+  }
+  await updatePassword(auth.currentUser, newPassword);
+}
+
+export async function updateTrainerDisplayName(displayName: string): Promise<void> {
+  if (!auth.currentUser || !displayName.trim()) return;
+  try {
+    await updateProfile(auth.currentUser, {
+      displayName: displayName.trim(),
+    });
+  } catch (err) {
+    console.warn('Could not update auth displayName:', err);
+  }
+}
+
 export function getFirebaseAuthErrorMessage(error: unknown): string {
   if (!error) return 'Ocorreu um erro inesperado. Tente novamente.';
   const code = (error as { code?: string })?.code || '';
@@ -270,6 +290,7 @@ export interface CloudSyncCallbacks {
   onActiveSessionChange?: (session: ActiveWorkoutSession | null) => void;
   onExerciseDbChange?: (exercises: DatabaseExercise[]) => void;
   onExerciseSnapshotsChange?: (snapshots: ExerciseFinishedSnapshot[]) => void;
+  onTrainerProfileChange?: (profile: TrainerProfile | null) => void;
   onSyncStatusChange?: (status: 'synced' | 'syncing' | 'offline' | 'unauthenticated') => void;
 }
 
@@ -444,6 +465,36 @@ class FirestoreSyncService {
         }
       );
       this.activeUnsubscribers.push(unsubSnapshots);
+
+      // 8. Trainer Profile listener
+      const profileDocRef = doc(db, 'users', userId, 'settings', 'trainerProfile');
+      const unsubProfile = onSnapshot(
+        profileDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const profile = (data?.profile as TrainerProfile | null) ?? null;
+            if (profile) {
+              storage.saveTrainerProfile(profile, userId);
+              callbacks.onTrainerProfileChange?.(profile);
+              return;
+            }
+          }
+          const localScoped = storage.getTrainerProfile(userId);
+          if (localScoped && localScoped.name?.trim() && localScoped.isProfileCompleted) {
+            this.syncTrainerProfile(localScoped);
+            callbacks.onTrainerProfileChange?.(localScoped);
+          } else {
+            callbacks.onTrainerProfileChange?.(null);
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.GET, `users/${userId}/settings/trainerProfile`);
+          const localFallback = storage.getTrainerProfile(userId);
+          callbacks.onTrainerProfileChange?.(localFallback);
+        }
+      );
+      this.activeUnsubscribers.push(unsubProfile);
 
       this.isInitialSyncDone = true;
     } catch (err) {
@@ -686,6 +737,24 @@ class FirestoreSyncService {
         sanitizeForFirestore({
           ...snapshot,
           userId: this.currentUserId,
+        })
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  }
+
+  public async syncTrainerProfile(profile: TrainerProfile) {
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid) return;
+    const path = `users/${targetUid}/settings/trainerProfile`;
+    try {
+      await setDoc(
+        doc(db, 'users', targetUid, 'settings', 'trainerProfile'),
+        sanitizeForFirestore({
+          profile,
+          userId: targetUid,
+          updatedAt: new Date().toISOString(),
         })
       );
     } catch (error) {

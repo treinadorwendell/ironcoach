@@ -13,6 +13,7 @@ import {
   ExerciseCommentRecord,
   WorkoutFeedbackReport,
   ExerciseImprovementItem,
+  TrainerProfile,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -27,6 +28,7 @@ const STORAGE_KEYS = {
   LEGACY_EXERCISE_DATABASE: 'ironcoach_exercise_db_v2',
   EXERCISE_FINISHED_SNAPSHOTS: 'ironcoach_exercise_finished_snapshots_v1',
   EXERCISE_COMMENTS: 'ironcoach_exercise_comments_v1',
+  TRAINER_PROFILE: 'ironcoach_trainer_profile_v1',
 };
 
 // Clean initial state (no dummy clients, workouts, calendar events, or histories)
@@ -202,6 +204,45 @@ export function expandLegacyRecurringEvents(rawEvents: CalendarEvent[]): {
 export const storage = {
   purgeAllSampleData() {
     purgeAllSampleData();
+  },
+
+  getTrainerProfile(userId?: string): TrainerProfile | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      if (userId) {
+        const scopedData = localStorage.getItem(`${STORAGE_KEYS.TRAINER_PROFILE}_${userId}`);
+        if (scopedData) {
+          return JSON.parse(scopedData);
+        }
+      }
+      const data = localStorage.getItem(STORAGE_KEYS.TRAINER_PROFILE);
+      if (!data) return null;
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  },
+
+  saveTrainerProfile(profile: TrainerProfile, userId?: string) {
+    if (typeof window === 'undefined') return;
+    try {
+      const serialized = JSON.stringify(profile);
+      localStorage.setItem(STORAGE_KEYS.TRAINER_PROFILE, serialized);
+      if (userId) {
+        localStorage.setItem(`${STORAGE_KEYS.TRAINER_PROFILE}_${userId}`, serialized);
+      }
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('ironcoach:trainer-profile-updated', {
+              detail: { profile, userId },
+            })
+          );
+        }
+      }, 0);
+    } catch (e) {
+      console.error('Error saving trainer profile:', e);
+    }
   },
 
   getClients(): Client[] {

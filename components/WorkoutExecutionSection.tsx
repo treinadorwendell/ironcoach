@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import {
@@ -102,6 +102,178 @@ interface WorkoutExecutionSectionProps {
     trainerNotes?: string
   ) => void;
 }
+
+interface ExecutionIconButtonWithTooltipProps {
+  icon: React.ReactNode;
+  tooltipText: string;
+  onClick: () => void;
+  ariaLabel: string;
+  active?: boolean;
+  disabled?: boolean;
+  variant?: 'cyan' | 'emerald' | 'slate';
+  tooltipAlign?: 'right' | 'center' | 'left';
+}
+
+const ExecutionIconButtonWithTooltip: React.FC<ExecutionIconButtonWithTooltipProps> = ({
+  icon,
+  tooltipText,
+  onClick,
+  ariaLabel,
+  active = false,
+  disabled = false,
+  variant = 'slate',
+  tooltipAlign = 'right',
+}) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef<boolean>(false);
+  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (disabled) return;
+    isLongPressRef.current = false;
+    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
+    clearTimer();
+    timerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setShowTooltip(true);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(30);
+        } catch {
+          // ignore
+        }
+      }
+    }, 1000);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pointerStartPosRef.current) return;
+    const dx = Math.abs(e.clientX - pointerStartPosRef.current.x);
+    const dy = Math.abs(e.clientY - pointerStartPosRef.current.y);
+    if (dx > 8 || dy > 8) {
+      clearTimer();
+      if (showTooltip) {
+        setShowTooltip(false);
+      }
+    }
+  };
+
+  const handlePointerUp = () => {
+    clearTimer();
+    if (isLongPressRef.current) {
+      // Soltar após 1 segundo de toque contínuo: fecha o tooltip imediatamente sem disparar o clique
+      setShowTooltip(false);
+      isLongPressRef.current = false;
+    } else {
+      // Toque / clique rápido inferior a 1 segundo: aciona a ação normalmente
+      if (!disabled) {
+        onClick();
+      }
+    }
+    pointerStartPosRef.current = null;
+  };
+
+  const handlePointerCancel = () => {
+    clearTimer();
+    setShowTooltip(false);
+    isLongPressRef.current = false;
+    pointerStartPosRef.current = null;
+  };
+
+  const handlePointerLeave = () => {
+    clearTimer();
+    setShowTooltip(false);
+    isLongPressRef.current = false;
+    pointerStartPosRef.current = null;
+  };
+
+  // Cores e destaques dos botões
+  let colorClasses =
+    'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border-slate-700';
+  if (active) {
+    if (variant === 'cyan') {
+      colorClasses =
+        'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/25 font-bold';
+    } else if (variant === 'emerald') {
+      colorClasses =
+        'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/25 font-bold';
+    } else {
+      colorClasses = 'bg-slate-700 text-white border-slate-600';
+    }
+  } else {
+    if (variant === 'cyan') {
+      colorClasses =
+        'bg-slate-800/90 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border-slate-700 hover:border-cyan-500/50';
+    } else if (variant === 'emerald') {
+      colorClasses =
+        'bg-slate-800/90 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border-slate-700 hover:border-emerald-500/50';
+    }
+  }
+
+  if (disabled) {
+    colorClasses =
+      'bg-slate-800/40 text-slate-600 border-slate-800 cursor-not-allowed opacity-50';
+  }
+
+  const alignClass =
+    tooltipAlign === 'right'
+      ? 'right-0'
+      : tooltipAlign === 'left'
+      ? 'left-0'
+      : 'left-1/2 -translate-x-1/2';
+
+  return (
+    <div className="relative inline-flex items-center">
+      <button
+        type="button"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onPointerLeave={handlePointerLeave}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        className={`p-2 sm:p-2.5 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center justify-center select-none touch-manipulation ${colorClasses}`}
+      >
+        {icon}
+      </button>
+
+      {/* Tooltip flutuante com fechamento automático ao soltar */}
+      <AnimatePresence>
+        {showTooltip && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 3, scale: 0.96 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className={`absolute top-full mt-2 ${alignClass} z-50 pointer-events-none whitespace-nowrap`}
+          >
+            <div className="relative bg-slate-950/95 text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl shadow-2xl border border-cyan-500/40 ring-1 ring-cyan-500/20 backdrop-blur-md flex items-center gap-1.5">
+              <div
+                className={`absolute -top-1 w-2 h-2 bg-slate-950 border-t border-l border-cyan-500/40 rotate-45 ${
+                  tooltipAlign === 'right'
+                    ? 'right-3'
+                    : tooltipAlign === 'left'
+                    ? 'left-3'
+                    : 'left-1/2 -translate-x-1/2'
+                }`}
+              />
+              <span className="relative z-10">{tooltipText}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = ({
   clients,
@@ -2717,78 +2889,93 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     </div>
                   ) : (
                     /* EXPANDIDO: VISUALIZAÇÃO COMPLETA DO EXERCÍCIO E SUAS SÉRIES */
-                    <div className="p-4 space-y-3.5">
-                      {/* Card Header: Exercise Name, Muscle Group, Method, Rest Time & Collapse button */}
-                      <div className="space-y-2 border-b border-slate-800/80 pb-3">
+                    <div className="p-3.5 sm:p-4 space-y-3">
+                      {/* Card Header: 3 Linhas Elegantes e Compactas para Mobile */}
+                      <div className="space-y-2.5 border-b border-slate-800/80 pb-3">
+                        {/* Linha 1: Nome do Exercício completo exibido na horizontal ajustado à tela Mobile */}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-emerald-400 font-black text-xs sm:text-sm flex items-center justify-center shrink-0">
-                                {exIndex + 1}
-                              </span>
-                              <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-1.5">
-                                <span>{ex.exerciseName}</span>
-                              </h3>
-                              {ex.substituteExerciseName && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRequestSwapSubstitute(exIndex)}
-                                  className={`p-1.5 rounded-xl border transition active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
-                                    !session.isStarted ? 'opacity-60 ' : ''
-                                  }${
-                                    ex.isUsingSubstitute
-                                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
-                                      : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
-                                  }`}
-                                  title={
-                                    session.isStarted
-                                      ? `Trocar por exercício substituto: ${ex.substituteExerciseName}`
-                                      : `Inicie o treino para trocar pelo substituto (${ex.substituteExerciseName})`
-                                  }
-                                >
-                                  <ArrowLeftRight className="w-4 h-4" />
-                                </button>
-                              )}
-                              {ex.isUsingSubstitute && (
-                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
-                                  Substituto ativo
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 flex-wrap text-xs">
-                              <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold border border-slate-700">
-                                {ex.muscleGroup}
-                              </span>
-                              {ex.combinationGroupId && (
-                                <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40 flex items-center gap-1">
-                                  <Link2 className="w-3 h-3 text-purple-400" />
-                                  <span>
-                                    {ex.combinationLabel || 'Combinado'} ({ex.combinationOrder || 1}º em sequência contínua)
-                                  </span>
-                                </span>
-                              )}
-                              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 font-semibold border border-amber-500/30">
-                                {ex.method}
-                              </span>
-                              <span className="text-slate-400 font-mono text-[11px]">
-                                Descanso: {ex.restSeconds}s
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="min-w-[24px] h-6 px-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-black text-xs flex items-center justify-center shrink-0">
+                              {exIndex + 1}
+                            </span>
+                            <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight leading-snug break-words flex-1 min-w-0">
+                              {ex.exerciseName}
+                            </h3>
+                            {ex.substituteExerciseName && (
+                              <button
+                                type="button"
+                                onClick={() => handleRequestSwapSubstitute(exIndex)}
+                                className={`p-1.5 rounded-xl border transition active:scale-95 cursor-pointer flex items-center justify-center shrink-0 ${
+                                  !session.isStarted ? 'opacity-60 ' : ''
+                                }${
+                                  ex.isUsingSubstitute
+                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
+                                    : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
+                                }`}
+                                title={
+                                  session.isStarted
+                                    ? `Trocar por exercício substituto: ${ex.substituteExerciseName}`
+                                    : `Inicie o treino para trocar pelo substituto (${ex.substituteExerciseName})`
+                                }
+                              >
+                                <ArrowLeftRight className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
+                        </div>
 
-                          <div className="flex items-center gap-1.5 flex-wrap justify-end flex-shrink-0">
+                        {/* Linha 2: Informações complementares (Grupo Muscular, Método, Combinado, Descanso) */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs">
+                          {ex.isUsingSubstitute && (
+                            <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] sm:text-[11px] border border-cyan-500/30">
+                              Substituto ativo
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold text-[10px] sm:text-[11px] border border-slate-700">
+                            {ex.muscleGroup}
+                          </span>
+                          {ex.combinationGroupId && (
+                            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold text-[10px] sm:text-[11px] border border-purple-500/40 flex items-center gap-1">
+                              <Link2 className="w-3 h-3 text-purple-400" />
+                              <span>
+                                {ex.combinationLabel || 'Combinado'} ({ex.combinationOrder || 1}º)
+                              </span>
+                            </span>
+                          )}
+                          {ex.method && ex.method !== 'Normal' && (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-bold text-[10px] sm:text-[11px] border border-amber-500/30">
+                              {ex.method}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 font-mono text-[10px] sm:text-[11px] border border-slate-800">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>Descanso: {ex.restSeconds}s</span>
+                          </span>
+                        </div>
+
+                        {/* Linha 3: Contagem de séries concluídas + 4 Botões somente ícone com Tooltip Long-Press (1s) */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
+                          {/* Contagem de séries concluídas */}
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span
-                              className={`text-xs font-mono font-bold px-2 py-1 rounded-xl ${
+                              className={`text-xs font-mono font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition ${
                                 isAllSetsCompleted
                                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-slate-800 text-slate-300'
+                                  : 'bg-slate-800 text-slate-300 border border-slate-700/60'
                               }`}
                             >
-                              {completedInThisEx}/{ex.sets.length} séries
+                              {isAllSetsCompleted && (
+                                <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
+                              )}
+                              <span>
+                                {completedInThisEx}/{ex.sets.length} séries
+                              </span>
                             </span>
+                          </div>
 
-                            {/* Botão para Visualizar a Mídia / Vídeo do Exercício (caso tenha) */}
+                          {/* 4 Botões Somente Ícone */}
+                          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+                            {/* 1. Mídia / Vídeo */}
                             {(() => {
                               const resolvedMeta = findExerciseMetadata(ex.exerciseName);
                               const mediaImages =
@@ -2796,37 +2983,37 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   ? ex.images
                                   : resolvedMeta?.images || [];
                               const isMediaExpanded = !!expandedExecutionMediaIds[ex.exerciseId];
-
-                              if (mediaImages.length === 0) return null;
+                              const hasMedia = mediaImages.length > 0;
 
                               return (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setExpandedExecutionMediaIds((prev) => ({
-                                      ...prev,
-                                      [ex.exerciseId]: !prev[ex.exerciseId],
-                                    }))
+                                <ExecutionIconButtonWithTooltip
+                                  icon={<Film className="w-4 h-4" />}
+                                  tooltipText={
+                                    !hasMedia
+                                      ? 'Nenhuma mídia disponível'
+                                      : isMediaExpanded
+                                      ? 'Ocultar mídia demonstrativa'
+                                      : 'Expandir mídia demonstrativa'
                                   }
-                                  className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                                    isMediaExpanded
-                                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
-                                      : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
-                                  }`}
-                                  title="Expandir e exibir mídia/vídeo do exercício"
-                                >
-                                  <Film className="w-3.5 h-3.5" />
-                                  <span>{isMediaExpanded ? 'Ocultar Vídeo' : 'Ver Mídia'}</span>
-                                  {isMediaExpanded ? (
-                                    <ChevronUp className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <ChevronDown className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
+                                  tooltipAlign="left"
+                                  tooltipPosition="top"
+                                  variant="cyan"
+                                  active={isMediaExpanded}
+                                  disabled={!hasMedia}
+                                  ariaLabel={isMediaExpanded ? 'Ocultar mídia demonstrativa' : 'Expandir mídia demonstrativa'}
+                                  onClick={() => {
+                                    if (hasMedia) {
+                                      setExpandedExecutionMediaIds((prev) => ({
+                                        ...prev,
+                                        [ex.exerciseId]: !prev[ex.exerciseId],
+                                      }));
+                                    }
+                                  }}
+                                />
                               );
                             })()}
 
-                            {/* Botão para Abrir Modal com a Descrição da Execução do Exercício */}
+                            {/* 2. Descrição da Execução */}
                             {(() => {
                               const resolvedMeta = findExerciseMetadata(ex.exerciseName);
                               const instructions =
@@ -2839,8 +3026,13 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   : resolvedMeta?.images || [];
 
                               return (
-                                <button
-                                  type="button"
+                                <ExecutionIconButtonWithTooltip
+                                  icon={<BookOpen className="w-4 h-4" />}
+                                  tooltipText="Instruções e postura de execução"
+                                  tooltipAlign="center"
+                                  tooltipPosition="top"
+                                  variant="emerald"
+                                  ariaLabel="Instruções de execução"
                                   onClick={() =>
                                     setExecutionInstructionsModalEx({
                                       name: ex.exerciseName,
@@ -2862,34 +3054,31 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                       images: mediaImages,
                                     })
                                   }
-                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                                  title="Abrir modal com a descrição passo a passo da execução do exercício"
-                                >
-                                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Execução</span>
-                                </button>
+                                />
                               );
                             })()}
 
-                            <button
-                              type="button"
+                            {/* 3. Página Completa */}
+                            <ExecutionIconButtonWithTooltip
+                              icon={<Maximize2 className="w-4 h-4" />}
+                              tooltipText="Abrir em página completa"
+                              tooltipAlign="right"
+                              tooltipPosition="top"
+                              variant="cyan"
+                              ariaLabel="Página completa"
                               onClick={() => setFocusedExerciseId(ex.exerciseId)}
-                              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                              title="Abrir este exercício em uma página dedicada com todas as informações"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
-                              <span className="hidden sm:inline">Página Completa</span>
-                            </button>
+                            />
 
-                            <button
-                              type="button"
+                            {/* 4. Recolher Card */}
+                            <ExecutionIconButtonWithTooltip
+                              icon={<ChevronUp className="w-4 h-4" />}
+                              tooltipText="Recolher detalhes deste exercício"
+                              tooltipAlign="right"
+                              tooltipPosition="top"
+                              variant="slate"
+                              ariaLabel="Recolher exercício"
                               onClick={() => handleToggleExerciseExpand(ex.exerciseId)}
-                              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                              title="Recolher exercício"
-                            >
-                              <ChevronUp className="w-4 h-4 text-cyan-400" />
-                              <span>Recolher</span>
-                            </button>
+                            />
                           </div>
                         </div>
 

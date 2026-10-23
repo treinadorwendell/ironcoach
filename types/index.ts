@@ -1,6 +1,13 @@
 export type Gender = 'Feminino' | 'Masculino';
 export type ContractType = 'Avulsa' | 'Semanal' | 'Mensal';
 
+export interface TrainerProfile {
+  name: string;
+  logoDataUrl?: string;
+  isProfileCompleted?: boolean;
+  updatedAt: string;
+}
+
 export interface Client {
   id: string;
   name: string;
