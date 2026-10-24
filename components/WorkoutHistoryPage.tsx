@@ -385,56 +385,17 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
         </div>
       )}
 
-      {/* KPI Performance Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-md">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Award className="w-3.5 h-3.5 text-amber-400" />
-            <span>Treinos Realizados</span>
+      {/* KPI Performance Summary Card */}
+      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-md flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <Award className="w-4 h-4 text-amber-400" />
+          <span>Treinos Realizados</span>
+        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-black text-white">{stats.totalSessions}</span>
+          <span className="text-xs text-slate-400 font-semibold">
+            {stats.totalSessions === 1 ? 'sessão' : 'sessões'}
           </span>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-white">{stats.totalSessions}</span>
-            <span className="text-xs text-slate-400 font-semibold">sessões</span>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-md">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Dumbbell className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Volume Total (Cargas)</span>
-          </span>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-cyan-300">
-              {stats.totalVolumeKg.toLocaleString('pt-BR')}
-            </span>
-            <span className="text-xs text-slate-400 font-semibold">kg levantados</span>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-md">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Tempo em Treino</span>
-          </span>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-emerald-400">
-              {stats.formattedDuration}
-            </span>
-            <span className="text-xs text-slate-400 font-semibold">acumulados</span>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-md">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
-            <span>Séries Concluídas</span>
-          </span>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
-            <span className="text-2xl font-black text-purple-300">
-              {stats.totalCompletedSets}
-            </span>
-            <span className="text-xs text-slate-400 font-semibold">séries</span>
-          </div>
         </div>
       </div>
 

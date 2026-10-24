@@ -677,29 +677,16 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           )}
 
           {/* Submit & Cancel Actions */}
-          <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-slate-800">
-            {onLogout && (
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+            {!isFirstLoginMandatory && (
               <button
                 type="button"
-                onClick={onLogout}
-                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs font-bold transition active:scale-95 cursor-pointer shadow-xs"
-                title="Sair da conta / Trocar de Treinador"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
               >
-                <LogOut className="w-4 h-4 text-rose-400" />
-                <span>Sair da Conta</span>
+                Cancelar
               </button>
             )}
-
-            <div className="flex items-center gap-2.5 ml-auto">
-              {!isFirstLoginMandatory && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-                >
-                  Cancelar
-                </button>
-              )}
 
               <button
                 type="submit"
@@ -721,7 +708,6 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 )}
               </button>
             </div>
-          </div>
         </form>
       </div>
     </div>
