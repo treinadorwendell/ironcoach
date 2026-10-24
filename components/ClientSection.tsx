@@ -111,6 +111,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     Todos: clients.length,
     Mensal: clients.filter((c) => c.contractType === 'Mensal').length,
     Semanal: clients.filter((c) => c.contractType === 'Semanal').length,
+    Online: clients.filter((c) => c.contractType === 'Online').length,
     Avulsa: clients.filter((c) => c.contractType === 'Avulsa').length,
   };
 
@@ -216,6 +217,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       if (type === 'Avulsa') setContractValue('90');
       if (type === 'Semanal') setContractValue('220');
       if (type === 'Mensal') setContractValue('750');
+      if (type === 'Online') setContractValue('350');
     }
   };
 
@@ -460,7 +462,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     transition={{ duration: 0.15 }}
                     className="absolute left-0 right-0 top-full mt-1.5 z-40 p-1.5 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/90 space-y-1 backdrop-blur-xl"
                   >
-                    {(['Todos', 'Mensal', 'Semanal', 'Avulsa'] as const).map((filter) => {
+                    {(['Todos', 'Mensal', 'Semanal', 'Online', 'Avulsa'] as const).map((filter) => {
                       const isSelected = contractFilter === filter;
                       const count = planCounts[filter];
                       return (
@@ -519,7 +521,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
-            {(['Todos', 'Mensal', 'Semanal', 'Avulsa'] as const).map((filter) => {
+            {(['Todos', 'Mensal', 'Semanal', 'Online', 'Avulsa'] as const).map((filter) => {
               const isSelected = contractFilter === filter;
               const count = planCounts[filter];
               return (
@@ -946,9 +948,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       onChange={(e) => handleContractTypeChange(e.target.value as ContractType)}
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-emerald-500 font-medium"
                     >
-                      <option value="Avulsa">Avulsa (Por Aula)</option>
-                      <option value="Semanal">Semanal</option>
+                      <option value="Online">Online</option>
                       <option value="Mensal">Mensal</option>
+                      <option value="Semanal">Semanal</option>
+                      <option value="Avulsa">Avulsa (Por Aula)</option>
                     </select>
                   </div>
 

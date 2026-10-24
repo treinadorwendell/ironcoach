@@ -185,6 +185,8 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     let totalMensalValue = 0;
     let alunosSemanalCount = 0;
     let totalSemanalValue = 0;
+    let alunosOnlineCount = 0;
+    let totalOnlineValue = 0;
 
     // 1. Para aulas AVULSAS: somar o valor por cada aula realizada no período (requisito do usuário: somar o valor das avulsas)
     filteredEvents.forEach((evt) => {
@@ -206,7 +208,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       }
     });
 
-    // 2. Para Planos Mensais e Semanais: calcular com base nos alunos com plano ativo ou que tiveram atividade
+    // 2. Para Planos Mensais, Semanais e Online: calcular com base nos alunos com plano ativo ou que tiveram atividade
     const clientesFiltrados = selectedClientId === 'todos'
       ? clients.filter((c) => clientesComAulas.has(c.id) || c.contractType !== 'Avulsa')
       : clients.filter((c) => c.id === selectedClientId);
@@ -219,10 +221,13 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       } else if (client.contractType === 'Semanal') {
         alunosSemanalCount++;
         totalSemanalValue += val;
+      } else if (client.contractType === 'Online') {
+        alunosOnlineCount++;
+        totalOnlineValue += val;
       }
     });
 
-    const totalGeral = avulsasTotalValue + totalMensalValue + totalSemanalValue;
+    const totalGeral = avulsasTotalValue + totalMensalValue + totalSemanalValue + totalOnlineValue;
 
     // Contadores de status de aulas
     const totalAulas = filteredEvents.length;
@@ -238,6 +243,8 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       totalMensalValue,
       alunosSemanalCount,
       totalSemanalValue,
+      alunosOnlineCount,
+      totalOnlineValue,
       totalGeral,
       totalAulas,
       realizadas,
@@ -311,7 +318,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
         56
       );
       doc.text(
-        `• Planos Mensais/Semanais: R$ ${(financialSummary.totalMensalValue + financialSummary.totalSemanalValue).toFixed(2)}`,
+        `• Planos Mensais/Semanais/Online: R$ ${(financialSummary.totalMensalValue + financialSummary.totalSemanalValue + financialSummary.totalOnlineValue).toFixed(2)}`,
         105,
         61
       );
@@ -657,7 +664,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className={`grid grid-cols-2 ${financialSummary.alunosOnlineCount > 0 ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-4'} gap-3`}>
               {/* Card 1: Aulas Avulsas (Soma do valor conforme solicitado pelo usuário) */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide block print:text-black">
@@ -697,7 +704,22 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 </span>
               </div>
 
-              {/* Card 4: Faturamento Total Consolidado */}
+              {/* Card 4: Planos Online (quando houver) */}
+              {financialSummary.alunosOnlineCount > 0 && (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-950 border border-cyan-500/30 print:bg-white print:border print:border-black">
+                  <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wide block print:text-black">
+                    Planos Online
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black text-white font-mono block mt-1 print:text-black">
+                    R$ {financialSummary.totalOnlineValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-1 block print:text-slate-700">
+                    {financialSummary.alunosOnlineCount} {financialSummary.alunosOnlineCount === 1 ? 'aluno com plano online' : 'alunos com plano online'}
+                  </span>
+                </div>
+              )}
+
+              {/* Card Final: Faturamento Total Consolidado */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/40 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wide block print:text-black">
                   Receita Consolidada
@@ -831,6 +853,8 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                                 ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
                                 : contract === 'Semanal'
                                 ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
+                                : contract === 'Online'
+                                ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
                                 : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
                             } print:border-black print:text-black`}>
                               {contract}
@@ -887,7 +911,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                                   R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </span>
                                 <span className="text-[9px] text-slate-400 block font-sans">
-                                  {contract === 'Semanal' ? 'por semana' : 'por mês'}
+                                  {contract === 'Semanal' ? 'por semana' : contract === 'Online' ? 'online' : 'por mês'}
                                 </span>
                               </div>
                             )}

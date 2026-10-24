@@ -1,5 +1,5 @@
 export type Gender = 'Feminino' | 'Masculino';
-export type ContractType = 'Avulsa' | 'Semanal' | 'Mensal';
+export type ContractType = 'Avulsa' | 'Semanal' | 'Mensal' | 'Online';
 
 export interface TrainerProfile {
   name: string;
