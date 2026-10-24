@@ -118,6 +118,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [eventDate, setEventDate] = useState<string>(getTodayDateStr);
   const [recurringDays, setRecurringDays] = useState<number[]>([]); // Inicializado vazio para evitar duplicações automáticas
   const [recurringEndDate, setRecurringEndDate] = useState(''); // Data limite obrigatória até qual a recorrência permanece ativa
+  const [isRecurringExpanded, setIsRecurringExpanded] = useState(false);
   const [eventNotes, setEventNotes] = useState('');
   const [eventStatus, setEventStatus] = useState<CalendarEventStatus>('confirmado');
   const [rescheduledDate, setRescheduledDate] = useState('');
@@ -291,11 +292,15 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setEditingEvent(null);
     setSelectedClientId(clients[0]?.id || '');
     setEventTitle('Sessão de Personal Training');
-    setStartTime(defaultHour || '07:00');
-    setEndTime('08:00');
+    const initialStart = defaultHour || '07:00';
+    setStartTime(initialStart);
+    const parsedHour = parseInt(initialStart.slice(0, 2), 10);
+    const nextHour = isNaN(parsedHour) ? 8 : (parsedHour + 1) % 24;
+    setEndTime(`${String(nextHour).padStart(2, '0')}:00`);
     setEventDate(defaultDate || selectedDate);
     setRecurringDays([]);
     setRecurringEndDate('');
+    setIsRecurringExpanded(false);
     setEventNotes('');
     setEventStatus('confirmado');
     setRescheduledDate('');
@@ -311,8 +316,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     setStartTime(event.startTime);
     setEndTime(event.endTime);
     setEventDate(targetDate || (event.recurringDays && event.recurringDays.length > 0 ? selectedDate : event.date));
+    const hasRecurring = Boolean(event.recurringDays && event.recurringDays.length > 0);
     setRecurringDays(event.recurringDays || []);
     setRecurringEndDate(event.recurringEndDate || '');
+    setIsRecurringExpanded(hasRecurring);
     setEventNotes(event.notes || '');
     setEventStatus(event.status || 'confirmado');
     setRescheduledDate(event.rescheduledDate || '');
@@ -1075,15 +1082,23 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               </span>
             </div>
 
-            {/* Hourly Slots from 06:00 to 21:00 */}
+            {/* Hourly Slots from 00:00 to 23:00 */}
             <div className="space-y-2">
               {[
+                '00:00',
+                '01:00',
+                '02:00',
+                '03:00',
+                '04:00',
+                '05:00',
                 '06:00',
                 '07:00',
                 '08:00',
                 '09:00',
                 '10:00',
                 '11:00',
+                '12:00',
+                '13:00',
                 '14:00',
                 '15:00',
                 '16:00',
@@ -1091,6 +1106,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 '18:00',
                 '19:00',
                 '20:00',
+                '21:00',
+                '22:00',
+                '23:00',
               ].map((hour) => {
                 const hourEvents = dayEvents.filter((ev) => ev.startTime.startsWith(hour.slice(0, 2)));
 
@@ -1305,10 +1323,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         </div>
       )}
 
-      {/* VIEW: SEMANA (Weekly Columns) */}
-      {/* VIEW: SEMANA (Weekly Columns com datas reais e alinhadas) */}
+      {/* VIEW: SEMANA (Vertical no Mobile/Tablet e 7 Colunas no Desktop) */}
       {viewMode === 'semana' && (
-        <div className="grid grid-cols-7 gap-1.5 overflow-x-auto pb-2">
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-2.5 lg:gap-1.5 pb-2">
           {currentWeekDays.map((day) => {
             const dayEvts = filteredEvents.filter(
               (e) =>
@@ -1327,86 +1344,102 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 e.recurringDays.includes(day.idx);
               return isRecurring && !clientsWithDirect.has(e.clientId);
             });
-            const allDayEvts = [...dayEvts, ...recurringEvts];
+            const allDayEvts = [...dayEvts, ...recurringEvts].sort((a, b) =>
+              a.startTime.localeCompare(b.startTime)
+            );
 
             return (
               <div
                 key={day.dateStr}
-                className={`min-w-[110px] p-2.5 rounded-xl border space-y-2 flex flex-col transition ${
+                className={`w-full lg:min-w-[110px] p-3 lg:p-2.5 rounded-2xl lg:rounded-xl border space-y-2.5 lg:space-y-2 flex flex-col transition ${
                   day.isToday
                     ? 'bg-purple-950/25 border-purple-500/50 ring-1 ring-purple-500/40'
                     : 'bg-slate-900 border-slate-800'
                 }`}
               >
-                <div className="text-center pb-2 border-b border-slate-800">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-xs font-bold text-white uppercase">{day.dayName}</span>
-                    <span className={`text-xs font-black font-mono ${day.isToday ? 'text-purple-300' : 'text-slate-300'}`}>
+                <div className="flex items-center justify-between lg:block lg:text-center pb-2 border-b border-slate-800">
+                  <div className="flex items-center lg:justify-center gap-2 lg:gap-1.5">
+                    <span className="text-xs font-extrabold text-white uppercase tracking-wide">
+                      {day.dayName}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 lg:p-0 rounded-lg text-xs font-black font-mono ${
+                        day.isToday
+                          ? 'bg-purple-500/20 lg:bg-transparent text-purple-300 border border-purple-500/30 lg:border-0'
+                          : 'bg-slate-800/80 lg:bg-transparent text-slate-300'
+                      }`}
+                    >
                       {day.dayNum}
                     </span>
                   </div>
-                  <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
+                  <span className="block text-[11px] lg:text-[10px] text-slate-400 font-medium lg:mt-0.5">
                     {day.monthShort} • {allDayEvts.length} {allDayEvts.length === 1 ? 'aula' : 'aulas'}
                   </span>
                 </div>
 
                 <div className="space-y-1.5 flex-1">
-                  {allDayEvts.map((evt) => {
-                    const isRealizado = evt.status === 'realizado';
-                    const isReagendado = evt.status === 'reagendado';
-                    const isFalta = evt.status === 'falta';
+                  {allDayEvts.length === 0 ? (
+                    <p className="text-[11px] text-slate-600 italic py-1 lg:hidden">
+                      Nenhum compromisso agendado
+                    </p>
+                  ) : (
+                    allDayEvts.map((evt) => {
+                      const isRealizado = evt.status === 'realizado';
+                      const isReagendado = evt.status === 'reagendado';
+                      const isFalta = evt.status === 'falta';
 
-                    const weekCardClass = isRealizado
-                      ? 'bg-emerald-950/40 border-emerald-600/50 hover:border-emerald-400'
-                      : isReagendado
-                      ? 'bg-amber-950/40 border-amber-600/50 hover:border-amber-400'
-                      : isFalta
-                      ? 'bg-rose-950/40 border-rose-600/50 hover:border-rose-400'
-                      : 'bg-purple-950/60 border-purple-800/40 hover:border-purple-400';
+                      const weekCardClass = isRealizado
+                        ? 'bg-emerald-950/40 border-emerald-600/50 hover:border-emerald-400'
+                        : isReagendado
+                        ? 'bg-amber-950/40 border-amber-600/50 hover:border-amber-400'
+                        : isFalta
+                        ? 'bg-rose-950/40 border-rose-600/50 hover:border-rose-400'
+                        : 'bg-purple-950/60 border-purple-800/40 hover:border-purple-400';
 
-                    return (
-                      <div
-                        key={evt.id}
-                        onClick={() => openEditModal(evt, day.dateStr)}
-                        className={`p-2 rounded-lg border text-[11px] cursor-pointer transition space-y-1 ${weekCardClass}`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-mono text-purple-300 block text-[10px] font-bold">
-                            {evt.startTime}
-                          </span>
+                      return (
+                        <div
+                          key={evt.id}
+                          onClick={() => openEditModal(evt, day.dateStr)}
+                          className={`p-2.5 lg:p-2 rounded-xl lg:rounded-lg border text-xs lg:text-[11px] cursor-pointer transition space-y-1 ${weekCardClass}`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-mono text-purple-300 block text-[11px] lg:text-[10px] font-bold">
+                              {evt.startTime} - {evt.endTime}
+                            </span>
+                            {isRealizado && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-400" title="Realizado" />
+                            )}
+                            {isReagendado && (
+                              <span className="w-2 h-2 rounded-full bg-amber-400" title="Reagendado" />
+                            )}
+                            {isFalta && (
+                              <span className="w-2 h-2 rounded-full bg-rose-400" title="Falta" />
+                            )}
+                            {(!evt.status || evt.status === 'confirmado') && (
+                              <span className="w-2 h-2 rounded-full bg-purple-400" title="Agendado" />
+                            )}
+                          </div>
+                          <strong className="text-white block truncate">{evt.clientName}</strong>
                           {isRealizado && (
-                            <span className="w-2 h-2 rounded-full bg-emerald-400" title="Realizado" />
+                            <span className="text-[10px] lg:text-[9px] font-extrabold text-emerald-400 block">✓ Realizado</span>
                           )}
                           {isReagendado && (
-                            <span className="w-2 h-2 rounded-full bg-amber-400" title="Reagendado" />
+                            <span className="text-[10px] lg:text-[9px] font-extrabold text-amber-400 block">↺ Reagendado</span>
                           )}
                           {isFalta && (
-                            <span className="w-2 h-2 rounded-full bg-rose-400" title="Falta" />
-                          )}
-                          {(!evt.status || evt.status === 'confirmado') && (
-                            <span className="w-2 h-2 rounded-full bg-purple-400" title="Agendado" />
+                            <span className="text-[10px] lg:text-[9px] font-extrabold text-rose-400 block">✕ Falta</span>
                           )}
                         </div>
-                        <strong className="text-white block truncate">{evt.clientName}</strong>
-                        {isRealizado && (
-                          <span className="text-[9px] font-extrabold text-emerald-400 block">✓ Realizado</span>
-                        )}
-                        {isReagendado && (
-                          <span className="text-[9px] font-extrabold text-amber-400 block">↺ Reagendado</span>
-                        )}
-                        {isFalta && (
-                          <span className="text-[9px] font-extrabold text-rose-400 block">✕ Falta</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
 
                 <button
                   onClick={() => openNewModal(day.dateStr)}
-                  className="w-full py-1 text-[11px] text-slate-400 hover:text-white bg-slate-950 rounded-lg border border-slate-800 hover:border-slate-700 active:scale-95 transition"
+                  className="w-full py-2 lg:py-1 text-xs lg:text-[11px] font-semibold text-slate-400 hover:text-white bg-slate-950 rounded-xl lg:rounded-lg border border-slate-800 hover:border-slate-700 active:scale-95 transition"
                 >
-                  + Add
+                  + Adicionar Horário
                 </button>
               </div>
             );
@@ -1876,66 +1909,125 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 </div>
               )}
 
-              {/* Dias da Semana Recorrentes */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Repetir nos dias da semana (Recorrência)
-                </label>
-                <div className="grid grid-cols-7 gap-1">
-                  {DAYS_NAMES.map((name, idx) => {
-                    const isSelected = recurringDays.includes(idx);
-                    return (
-                      <button
-                        type="button"
-                        key={name}
-                        onClick={() => toggleRecurringDay(idx)}
-                        className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
-                          isSelected
-                            ? 'bg-purple-600 text-white shadow-md'
-                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
-                        }`}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Data Limite da Recorrência (Obrigatória quando houver dias selecionados) */}
-              {recurringDays.length > 0 && (
-                <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/40 space-y-2 animate-in fade-in">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="recurringEndDateInput"
-                      className="text-xs font-bold text-purple-200 flex items-center gap-1.5 cursor-pointer"
+              {/* Botão de Seleção de Recorrência que Expande os Dias da Semana */}
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextExpanded = !isRecurringExpanded;
+                    setIsRecurringExpanded(nextExpanded);
+                    if (!nextExpanded) {
+                      setRecurringDays([]);
+                      setRecurringEndDate('');
+                      if (duplicateError) setDuplicateError(null);
+                    }
+                  }}
+                  aria-expanded={isRecurringExpanded}
+                  className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl border text-left transition active:scale-[0.99] cursor-pointer ${
+                    isRecurringExpanded || recurringDays.length > 0
+                      ? 'bg-purple-600/15 border-purple-500/60 text-white shadow-sm ring-1 ring-purple-500/30'
+                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-purple-500/40 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center border transition shrink-0 ${
+                        isRecurringExpanded || recurringDays.length > 0
+                          ? 'bg-purple-600 border-purple-400 text-white'
+                          : 'bg-slate-900 border-slate-700 text-transparent'
+                      }`}
                     >
-                      <CalendarIcon className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Até qual data a recorrência fica ativa? *</span>
-                    </label>
-                    <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
-                      Obrigatório
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      id="recurringEndDateInput"
-                      type="date"
-                      required
-                      min={eventDate || getTodayDateStr()}
-                      value={recurringEndDate}
-                      onChange={(e) => {
-                        setRecurringEndDate(e.target.value);
-                        if (duplicateError) setDuplicateError(null);
-                      }}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-purple-500/50 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/60 focus:border-purple-400 transition"
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                    <Repeat
+                      className={`w-4 h-4 shrink-0 ${
+                        isRecurringExpanded || recurringDays.length > 0 ? 'text-purple-400' : 'text-slate-400'
+                      }`}
                     />
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold block truncate">
+                        Repetir nos dias da semana (Recorrência)
+                      </span>
+                      {recurringDays.length > 0 && (
+                        <span className="text-[10px] font-semibold text-purple-300 block truncate">
+                          Dias selecionados: {recurringDays.map((d) => DAYS_NAMES[d]).join(', ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] text-purple-300/80 leading-relaxed">
-                    Selecione no calendário a data limite até a qual os treinos serão repetidos semanalmente ({recurringDays.map((d) => DAYS_NAMES[d]).join(', ')}). Após essa data, o agendamento não será mais repetido automaticamente.
-                  </p>
-                </div>
-              )}
+
+                  <ChevronDown
+                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                      isRecurringExpanded ? 'rotate-180 text-purple-400' : 'text-slate-400'
+                    }`}
+                  />
+                </button>
+
+                {/* Painel Expansível: Dias da Semana + Data Limite da Recorrência */}
+                {isRecurringExpanded && (
+                  <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-purple-500/30 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-300 mb-2">
+                        Selecione os dias da semana para agendamento:
+                      </span>
+                      <div className="grid grid-cols-7 gap-1">
+                        {DAYS_NAMES.map((name, idx) => {
+                          const isSelected = recurringDays.includes(idx);
+                          return (
+                            <button
+                              type="button"
+                              key={name}
+                              onClick={() => toggleRecurringDay(idx)}
+                              className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400'
+                                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white hover:border-slate-700'
+                              }`}
+                            >
+                              {name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Data Limite da Recorrência (Obrigatória quando houver dias selecionados) */}
+                    {recurringDays.length > 0 && (
+                      <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/40 space-y-2 animate-in fade-in">
+                        <div className="flex items-center justify-between">
+                          <label
+                            htmlFor="recurringEndDateInput"
+                            className="text-xs font-bold text-purple-200 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <CalendarIcon className="w-3.5 h-3.5 text-purple-400" />
+                            <span>Até qual data a recorrência fica ativa? *</span>
+                          </label>
+                          <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+                            Obrigatório
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <input
+                            id="recurringEndDateInput"
+                            type="date"
+                            required
+                            min={eventDate || getTodayDateStr()}
+                            value={recurringEndDate}
+                            onChange={(e) => {
+                              setRecurringEndDate(e.target.value);
+                              if (duplicateError) setDuplicateError(null);
+                            }}
+                            className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-purple-500/50 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/60 focus:border-purple-400 transition"
+                          />
+                        </div>
+                        <p className="text-[11px] text-purple-300/80 leading-relaxed">
+                          Selecione no calendário a data limite até a qual os treinos serão repetidos semanalmente ({recurringDays.map((d) => DAYS_NAMES[d]).join(', ')}). Após essa data, o agendamento não será mais repetido automaticamente.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Status da Aula (Realizado, Reagendado, Falta, Agendado) */}
               <div>
