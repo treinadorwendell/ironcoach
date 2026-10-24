@@ -1,5 +1,20 @@
 export type Gender = 'Feminino' | 'Masculino';
-export type ContractType = 'Avulsa' | 'Semanal' | 'Mensal' | 'Online';
+export type ContractCategory = 'Presencial' | 'Online';
+export type PresencialSubPlan = 'Mensal' | 'Semanal' | 'Avulsa';
+export type OnlineSubPlan = 'Mensal' | 'Trimestral' | 'Semestral' | 'Anual';
+
+export type ContractType =
+  | 'Presencial - Mensal'
+  | 'Presencial - Semanal'
+  | 'Presencial - Avulsa'
+  | 'Online - Mensal'
+  | 'Online - Trimestral'
+  | 'Online - Semestral'
+  | 'Online - Anual'
+  | 'Avulsa'
+  | 'Semanal'
+  | 'Mensal'
+  | 'Online';
 
 export interface TrainerProfile {
   name: string;

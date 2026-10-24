@@ -112,6 +112,7 @@ interface ExecutionIconButtonWithTooltipProps {
   disabled?: boolean;
   variant?: 'cyan' | 'emerald' | 'slate';
   tooltipAlign?: 'right' | 'center' | 'left';
+  tooltipPosition?: 'top' | 'bottom';
 }
 
 const ExecutionIconButtonWithTooltip: React.FC<ExecutionIconButtonWithTooltipProps> = ({

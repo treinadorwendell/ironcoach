@@ -73,7 +73,8 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     if (customValues[client.id] !== undefined) {
       return customValues[client.id];
     }
-    return client.contractValue || (client.contractType === 'Avulsa' ? 80 : 350);
+    const isAvulsa = client.contractType === 'Avulsa' || client.contractType === 'Presencial - Avulsa';
+    return client.contractValue || (isAvulsa ? 80 : 350);
   }, [customValues]);
 
   const handleUpdateCustomValue = (clientId: string, val: number) => {
@@ -191,10 +192,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     // 1. Para aulas AVULSAS: somar o valor por cada aula realizada no período (requisito do usuário: somar o valor das avulsas)
     filteredEvents.forEach((evt) => {
       const client = clients.find((c) => c.id === evt.clientId);
-      const contract = client?.contractType || 'Avulsa';
+      const contract = client?.contractType || 'Presencial - Avulsa';
 
       // Se for contrato Avulso e status for 'realizado'
-      if (contract === 'Avulsa') {
+      if (contract === 'Avulsa' || contract === 'Presencial - Avulsa') {
         if (evt.status === 'realizado') {
           avulsasCount++;
           const val = client ? getClientValue(client) : 80;
@@ -210,18 +211,19 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
     // 2. Para Planos Mensais, Semanais e Online: calcular com base nos alunos com plano ativo ou que tiveram atividade
     const clientesFiltrados = selectedClientId === 'todos'
-      ? clients.filter((c) => clientesComAulas.has(c.id) || c.contractType !== 'Avulsa')
+      ? clients.filter((c) => clientesComAulas.has(c.id) || (c.contractType !== 'Avulsa' && c.contractType !== 'Presencial - Avulsa'))
       : clients.filter((c) => c.id === selectedClientId);
 
     clientesFiltrados.forEach((client) => {
       const val = getClientValue(client);
-      if (client.contractType === 'Mensal') {
+      const ct = client.contractType || '';
+      if (ct === 'Mensal' || ct === 'Presencial - Mensal') {
         alunosMensalCount++;
         totalMensalValue += val;
-      } else if (client.contractType === 'Semanal') {
+      } else if (ct === 'Semanal' || ct === 'Presencial - Semanal') {
         alunosSemanalCount++;
         totalSemanalValue += val;
-      } else if (client.contractType === 'Online') {
+      } else if (ct.startsWith('Online')) {
         alunosOnlineCount++;
         totalOnlineValue += val;
       }
@@ -849,11 +851,11 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                           {/* Plano do Aluno */}
                           <td className="p-3 whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              contract === 'Avulsa'
+                              contract === 'Avulsa' || contract === 'Presencial - Avulsa'
                                 ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                                : contract === 'Semanal'
+                                : contract === 'Semanal' || contract === 'Presencial - Semanal'
                                 ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
-                                : contract === 'Online'
+                                : contract.startsWith('Online')
                                 ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
                                 : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
                             } print:border-black print:text-black`}>
@@ -896,7 +898,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
                           {/* Valor Financeiro */}
                           <td className="p-3 text-right font-mono font-bold whitespace-nowrap">
-                            {contract === 'Avulsa' ? (
+                            {contract === 'Avulsa' || contract === 'Presencial - Avulsa' ? (
                               <div>
                                 <span className="text-emerald-400 print:text-black">
                                   R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -911,7 +913,11 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                                   R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </span>
                                 <span className="text-[9px] text-slate-400 block font-sans">
-                                  {contract === 'Semanal' ? 'por semana' : contract === 'Online' ? 'online' : 'por mês'}
+                                  {contract === 'Semanal' || contract === 'Presencial - Semanal'
+                                    ? 'por semana'
+                                    : contract.startsWith('Online')
+                                    ? contract.toLowerCase()
+                                    : 'por mês'}
                                 </span>
                               </div>
                             )}

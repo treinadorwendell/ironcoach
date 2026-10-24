@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano detalhado para redesenhar o cabeçalho dos exercícios na aba Execução de Treino, organizando o nome completo na horizontal ajustado ao mobile, etiquetas informativas, contagem de séries concluídas e barra de ações com botões somente de ícones com tooltips interativos de 1 segundo (long press).",
-  "updatedAt":  "2026-10-22T21:14:43.018729894Z",
+  "summary":  "Plano de implementação para o novo fluxo da Aba Cliente e Página de Perfil do Aluno, com cards simplificados na listagem, menu de cards grandes no perfil do aluno, edição de medidas físicas e estruturação dos planos em categorias Presencial (Mensal, Semanal, Avulsa) e Online (Mensal, Trimestral, Semestral, Anual).",
+  "updatedAt":  "2026-10-24T17:34:52.415480359Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

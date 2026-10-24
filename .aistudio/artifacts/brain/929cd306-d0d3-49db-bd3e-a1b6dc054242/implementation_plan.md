@@ -1,57 +1,106 @@
-# Plano de Implementação: Cabeçalho Compacto de Exercício na Aba Execução
+# Reformulação da Aba Cliente e Página Dedicada de Perfil do Aluno
 
-Ajustar a estrutura visual e de interação no topo de cada exercício expandido na aba **Execução de Treino**, otimizando o espaço em telas móveis e proporcionando acesso rápido a mídia, descrição da execução, modo tela cheia e recolhimento através de botões somente-ícone com tooltips interativos acionados ao segurar por 1 segundo.
+Reestruturação da experiência de gestão de alunos no IronCoach para tornar os cards da listagem mais enxutos e focar os detalhes físicos, financeiros e operacionais em uma nova **Página de Perfil do Aluno** interativa com menu de cards grandes.
 
----
+## User Review & Critical Decisions
 
-## 1. Diagnóstico do Estado Atual
-No arquivo `components/WorkoutExecutionSection.tsx`:
-- O cabeçalho do card do exercício combina título, tags e botões com rótulos de texto extensos (*"Ver Mídia / Ocultar Vídeo"*, *"Execução"*, *"Página Completa"*, *"Recolher"*).
-- Em dispositivos móveis, essa sobrecarga de texto causa quebras de linha irregulares, botões comprimidos e rolagem vertical excessiva antes de chegar às séries do exercício.
+> [!IMPORTANT]
+> As decisões abaixo refletem suas escolhas confirmadas e orientam a construção da nova experiência:
 
----
-
-## 2. Estrutura Proposta da Interface
-
-### A. Linha 1: Nome Completo do Exercício (Ajustado ao Mobile)
-- Exibição na horizontal sem truncamento forçado, com tipografia fluida e responsiva (`text-base sm:text-lg font-black tracking-tight`).
-- Indicador numérico do exercício estilizado (`#1`, `#2`, etc.) alinhado ao nome com leitura confortável em telas pequenas.
-
-### B. Linha 2: Informações Complementares (Entre o Nome e os Botões)
-- Emblemas visuais organizados horizontalmente com rolagem suave se necessário:
-  - Grupo Muscular (com tag sutil e ícone).
-  - Método de Treino (quando houver, ex.: Bi-set, Drop-set, Pirâmide).
-  - Intervalo de Descanso sugerido (ex.: `⏱ 60s`).
-
-### C. Linha 3: Contagem de Séries Concluídas e Botões de Ação (Somente Ícones)
-Disposição flexível e alinhada:
-- **Lado esquerdo**: Contador visual compacto de séries prontas (ex.: `2 de 4 séries concluídas` ou `2/4 concluídas` com badge dinâmico que fica verde quando 100% completo).
-- **Lado direito**: Grupo de botões estilizados contendo **exclusivamente ícones**:
-  1. **Expandir/Ocultar Mídia**: Ícone `Film` / `Video` (mostra indicador visual se há animação/vídeo disponível).
-  2. **Descrição da Execução**: Ícone `BookOpen` (abre o modal com passo a passo e postura).
-  3. **Página Completa**: Ícone `Maximize2` (foca no exercício na visualização dedicada).
-  4. **Recolher Card**: Ícone `ChevronUp` (contrai o card para navegação rápida na lista).
+- **Decisão Confirmada 1 — Navegação no Perfil do Aluno**: A página do Perfil do Aluno exibirá um **menu de 4 cards grandes e táteis** levando para: **Informações** (dados físicos e plano), **Histórico de Treinos**, **Criar Treino** e **Execução do Treino**.
+- **Decisão Confirmada 2 — Filtro de Planos Detalhado**: Os planos passam a ser estruturados em duas modalidades com seus respectivos subplanos:
+  - **Presencial**: Mensal, Semanal, Avulsa.
+  - **Online**: Mensal, Trimestral, Semestral, Anual.
+  O filtro da Aba Clientes permitirá filtrar tanto por modalidade quanto pelos subplanos detalhados, mantendo compatibilidade automática com os alunos já cadastrados.
+- **Decisão Confirmada 3 — Botão de Editar no Card da Lista**: O botão de edição rápida direto no card da listagem abrirá o modal rápido focado nos dados cadastrais e de contato (Nome, Data de nascimento `DD/MM/AAAA`, E-mail, Telefone e Gênero), enquanto o toque no card do aluno abrirá a página completa do **Perfil do Aluno**.
 
 ---
 
-## 3. Mecanismo de Tooltip por Long-Press (1 Segundo)
-- Criar um componente utilitário reutilizável para o botão com tooltip (`LongPressTooltipButton` ou hook integrado):
-  - Ao iniciar o toque/clique (`onPointerDown`), inicia um temporizador de **1000ms (1 segundo)**.
-  - Ao atingir 1000ms sem cancelamento, exibe um balão tooltip flutuante animado acima do botão com o texto explicativo (ex.: *"Expandir vídeo demonstrativo"*, *"Ver instruções passo a passo de execução"*, *"Abrir exercício em página inteira"*, *"Recolher detalhes deste exercício"*).
-  - Ao soltar (`onPointerUp`), mover para fora (`onPointerLeave`) ou cancelar (`onPointerCancel`), o temporizador é limpo e o tooltip fecha imediatamente.
-  - No desktop, também exibe o tooltip em hover padrão após pequeno delay para acessibilidade com mouse.
+## 1. Overview & Core Concept
+
+- **O Que Faz**:
+  1. **Simplificação do Card na Aba Clientes**: Exibe apenas Nome, Data de nascimento (`DD/MM/AAAA`), E-mail, Número de telefone, botão de Editar cadastro rápido e botão de Excluir. Todo o card funciona como área clicável para abrir o Perfil do Aluno.
+  2. **Nova Página de Perfil do Aluno**: Ao tocar no card de um aluno, abre-se a visão dedicada daquele aluno com cabeçalho de identificação, botão de retorno para a lista e um **Menu Principal em Cards Grandes** para acessar:
+     - **Informações**: Painel completo para editar **Peso (kg)**, **Altura (cm)**, **Data de Nascimento (`DIA/MÊS/ANO`)**, observações e configurar o **Tipo de Plano** dividido entre **Presencial** (`Mensal`, `Semanal`, `Avulsa`) e **Online** (`Mensal`, `Trimestral`, `Semestral`, `Anual`) com seu respectivo valor em R$.
+     - **Histórico de Treinos**: Abre a visualização de histórico exclusiva do aluno.
+     - **Criar Treino**: Direciona para o construtor de programas e divisões já vinculado ao aluno.
+     - **Execução do Treino**: Inicia ou retoma a sessão de treino em tempo real para o aluno selecionado.
+- **Público-Alvo**: Personal trainers utilizando tablet em orientação vertical ou smartphone na sala de musculação.
+- **Valor Principal**: Leitura imediata dos contatos na lista de alunos e acesso centralizado, com alvos de toque amplos ($\ge 48\text{px}$), a todas as operações do aluno dentro de seu perfil.
 
 ---
 
-## 4. Arquivos Afetados
-- `components/WorkoutExecutionSection.tsx`: Atualização do cabeçalho do card de exercício, integração do mecanismo de long-press e remodelagem do layout horizontal para mobile.
-- Verificação de tipos e compilação com `compile_applet`.
+## 2. User Experience & Visual Design
+
+- **Fluxo do Usuário (Passo a Passo)**:
+  1. **Listagem de Clientes**: O treinador visualiza os cards limpos contendo avatar/inicial, nome, data de nascimento, e-mail e telefone, além dos ícones de editar cadastro básico e excluir no canto superior direito.
+  2. **Acesso ao Perfil do Aluno**: Ao clicar sobre o card do aluno, a tela transiciona suavemente para a **Página de Perfil do Aluno**.
+  3. **Menu de Cards Grandes no Perfil**: Quatro cards amplos em grid responsivo (`grid-cols-1 sm:grid-cols-2`) apresentam ícones claros, descrição direta e indicadores contextuais:
+     - Card **Informações** (exibe resumo atual de Peso, Altura e Plano ativo).
+     - Card **Histórico de Treinos** (exibe total de sessões concluídas).
+     - Card **Criar Treino** (acesso direto à prescrição do aluno).
+     - Card **Execução do Treino** (ação imediata para iniciar o treino do dia).
+  4. **Subpágina / Painel de Informações do Aluno**: Ao acessar *Informações*, o treinador edita com máscara automática `DD/MM/AAAA` a data de nascimento, Peso (`kg`), Altura (`cm`), seleciona a modalidade (**Presencial** ou **Online**), escolhe o subplano correspondente e define o valor em R$, salvando com sincronização imediata no Firebase e armazenamento local.
+- **Identidade Visual & Tema**:
+  - *Direção Estética*: Utilitário esportivo de alto contraste em tema escuro (`slate-950` / `slate-900`), otimizado para legibilidade em ambiente de academia.
+  - *Paleta de Cores*: Superfícies neutras em `slate-900/90` com bordas sutis `slate-800`, acentos primários em `emerald-500` (ações de confirmação e treinos presenciais) e `cyan-400` (modalidade online e navegação).
+  - *Tipografia & Hierarquia*: Números tabulares (`tabular-nums`) para peso, altura, datas e valores financeiros; metadados de contato alinhados sem excesso de cápsulas decorativas.
 
 ---
 
-## 5. Critérios de Sucesso
-- [x] O nome do exercício é renderizado integralmente na horizontal e se ajusta à tela móvel sem quebras desordenadas.
-- [x] As tags de grupo muscular, método e descanso ficam entre o nome e os controles de ação.
-- [x] A linha inferior possui a contagem de séries concluídas e os 4 botões exclusivamente com ícones.
-- [x] Ao segurar qualquer um dos 4 botões por 1 segundo, o tooltip descritivo aparece imediatamente e desaparece ao soltar.
-- [x] O clique rápido (< 1s) continua acionando a respectiva ação normalmente sem atraso perceptível.
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decisão 1 — Separação entre Edição Rápida de Contato e Informações Físicas/Plano**:
+  - *Abordagem Escolhida*: O botão de lápis no card da lista abre o modal rápido de cadastro/contato, enquanto medidas corporais (`Peso`, `Altura em cm`) e `Tipo de Plano` ficam concentrados na seção **Informações** dentro do Perfil do Aluno.
+  - *Por Quê*: Mantém a listagem principal limpa e rápida de escanear, conforme solicitado, delegando a configuração detalhada para a página do perfil.
+- **Decisão 2 — Modelagem Flexível de Planos Presenciais e Online**:
+  - *Abordagem Escolhida*: Suportar a categoria do plano (`Presencial` | `Online`) combinada aos subplanos (`Mensal`, `Semanal`, `Avulsa` para Presencial; `Mensal`, `Trimestral`, `Semestral`, `Anual` para Online), preservando retrocompatibilidade com registros anteriores (`Mensal`, `Semanal`, `Avulsa`, `Online`).
+  - *Por Quê*: Garante que nenhum dado já salvo no Firestore seja perdido e permite relatórios financeiros e filtros precisos na Aba Clientes e na Agenda.
+
+---
+
+## 4. Technical Architecture & Data Strategy
+
+### Diagrama de Arquitetura e Fluxo de Navegação
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              ABA CLIENTES                               │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ Filtro Detalhado: Todos | Presencial (3) | Online (4)             │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ Card do Aluno (Enxuto)                                            │  │
+│  │ • Nome, Nascimento (DD/MM/AAAA), E-mail, Telefone                 │  │
+│  │ • [Botão Editar Cadastro Rápido]   [Botão Excluir]                │  │
+│  └───────────────────────────────┬───────────────────────────────────┘  │
+└──────────────────────────────────┼──────────────────────────────────────┘
+                                   │ Clique no Card
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       PÁGINA DE PERFIL DO ALUNO                         │
+│  [← Voltar para Clientes]   Resumo: Nome • Nascimento • Contato         │
+│                                                                         │
+│  ┌─────────────────────────────────┐ ┌────────────────────────────────┐ │
+│  │ 1. INFORMAÇÕES                  │ │ 2. HISTÓRICO DE TREINOS        │ │
+│  │ • Editar Peso (kg), Altura (cm) │ │ • Acessar sessões concluídas   │ │
+│  │ • Nascimento (DIA/MÊS/ANO)      │ │   e evolução de cargas         │ │
+│  │ • Plano Presencial / Online     │ │                                │ │
+│  └─────────────────────────────────┘ └────────────────────────────────┘ │
+│  ┌─────────────────────────────────┐ ┌────────────────────────────────┐ │
+│  │ 3. CRIAR TREINO                 │ │ 4. EXECUÇÃO DO TREINO          │ │
+│  │ • Prescrever ou editar fichas   │ │ • Iniciar treino agora na      │ │
+│  │   deste aluno                   │ │   sala de musculação           │ │
+│  └─────────────────────────────────┘ └────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Modelo de Dados e Estado
+- **Entidade `Client`**:
+  - Campos básicos exibidos no card: `name`, `birthDate` (formato `DD/MM/AAAA`), `email`, `phone`.
+  - Campos gerenciados em **Perfil > Informações**: `weight` (kg), `height` (cm), `birthDate` (`DD/MM/AAAA`), `contractCategory` (`'Presencial' | 'Online'`), `contractSubType` / `contractType` (`'Presencial - Mensal'`, `'Presencial - Semanal'`, `'Presencial - Avulsa'`, `'Online - Mensal'`, `'Online - Trimestral'`, `'Online - Semestral'`, `'Online - Anual'`), `contractValue` (R$).
+- **Mapeamento de Interações**:
+  - `selectedProfileClient`: controla qual aluno está aberto na Página de Perfil do Aluno.
+  - `profileSubView`: alterna entre o menu de 4 cards grandes (`'menu'`), a tela de edição de `'informacoes'` e a visualização de `'historico'`.
+  - Os cards `'Criar Treino'` e `'Execução do Treino'` acionam os handlers globais `onCreateWorkoutForClient(client)` e `onStartWorkoutForClient(client)`, levando diretamente às respectivas seções com o aluno ativo.
