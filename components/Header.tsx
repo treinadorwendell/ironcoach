@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Dumbbell, LogOut, User as UserIcon } from 'lucide-react';
+import { Dumbbell, User as UserIcon } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { CloudSyncBadge } from './CloudSyncBadge';
@@ -15,6 +15,7 @@ interface HeaderProps {
   currentUser?: User | null;
   trainerProfile?: TrainerProfile | null;
   onLogout?: () => void;
+  onOpenTrainerProfile?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   trainerProfile,
   onLogout,
+  onOpenTrainerProfile,
 }) => {
   const trainerDisplayName =
     trainerProfile?.name?.trim() ||
@@ -34,9 +36,15 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-2 sm:px-4 py-2.5 sm:py-3 w-full">
       <div className="w-full flex items-center justify-between gap-2 px-1 sm:px-2">
-        {/* Brand */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl overflow-hidden bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/50 flex-shrink-0">
+        {/* Brand & Trainer profile trigger */}
+        <div
+          onClick={onOpenTrainerProfile}
+          className={`flex items-center gap-3 min-w-0 ${
+            onOpenTrainerProfile ? 'cursor-pointer group select-none' : ''
+          }`}
+          title={onOpenTrainerProfile ? 'Abrir perfil do treinador' : undefined}
+        >
+          <div className="w-10 h-10 rounded-2xl overflow-hidden bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/50 flex-shrink-0 group-hover:scale-105 transition">
             {trainerProfile?.logoDataUrl ? (
               <img
                 src={trainerProfile.logoDataUrl}
@@ -75,23 +83,12 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right tools: Cloud Sync, Offline badge, PWA install, Logout */}
+        {/* Right tools: Cloud Sync, Offline badge, PWA install */}
         <div className="flex items-center gap-2">
           <CloudSyncBadge />
           <OfflineIndicator />
 
           <PWAInstallButton />
-
-          {currentUser && onLogout && (
-            <button
-              type="button"
-              onClick={onLogout}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-300 border border-slate-700 transition active:scale-95"
-              title="Sair da conta / Trocar de Treinador"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
     </header>

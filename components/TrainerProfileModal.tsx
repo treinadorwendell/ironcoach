@@ -19,6 +19,7 @@ import {
   Sparkles,
   Loader2,
   Image as ImageIcon,
+  LogOut,
 } from 'lucide-react';
 import { TrainerProfile } from '@/types';
 import {
@@ -35,6 +36,7 @@ interface TrainerProfileModalProps {
   currentUser: User | null;
   onClose: () => void;
   onSaveProfile: (profile: TrainerProfile) => void;
+  onLogout?: () => void;
 }
 
 const CROP_VIEWPORT_SIZE = 180; // px on screen for interactive framing
@@ -47,6 +49,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
   currentUser,
   onClose,
   onSaveProfile,
+  onLogout,
 }) => {
   const [name, setName] = useState(
     () => initialProfile?.name || currentUser?.displayName || ''
@@ -648,37 +651,76 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             )}
           </div>
 
+          {/* Informações da Conta & Sessão do Treinador */}
+          {currentUser && (
+            <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Treinador Conectado
+                </span>
+                <span className="text-xs font-semibold text-slate-200 truncate block">
+                  {currentUser.email || currentUser.displayName || 'Treinador'}
+                </span>
+              </div>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-200 border border-rose-500/30 text-xs font-bold transition active:scale-95 shrink-0 cursor-pointer"
+                  title="Sair da conta e trocar de treinador"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Sair da Conta</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Submit & Cancel Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
-            {!isFirstLoginMandatory && (
+          <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-slate-800">
+            {onLogout && (
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                onClick={onLogout}
+                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 text-xs font-bold transition active:scale-95 cursor-pointer shadow-xs"
+                title="Sair da conta / Trocar de Treinador"
               >
-                Cancelar
+                <LogOut className="w-4 h-4 text-rose-400" />
+                <span>Sair da Conta</span>
               </button>
             )}
 
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-950/60 border border-emerald-400/30 active:scale-95 transition disabled:opacity-60 cursor-pointer"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Salvando Perfil...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 stroke-[2.5]" />
-                  <span>
-                    {isFirstLoginMandatory ? 'Concluir e Acessar IronCoach' : 'Salvar Perfil do Treinador'}
-                  </span>
-                </>
+            <div className="flex items-center gap-2.5 ml-auto">
+              {!isFirstLoginMandatory && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
               )}
-            </button>
+
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-950/60 border border-emerald-400/30 active:scale-95 transition disabled:opacity-60 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Salvando Perfil...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    <span>
+                      {isFirstLoginMandatory ? 'Concluir e Acessar IronCoach' : 'Salvar Perfil do Treinador'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

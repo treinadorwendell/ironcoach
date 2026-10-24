@@ -476,6 +476,7 @@ export default function Home() {
           }
           currentUser={currentUser}
           trainerProfile={trainerProfile}
+          onOpenTrainerProfile={() => setIsTrainerProfileModalOpen(true)}
           onLogout={async () => {
             try {
               await logoutUser();
@@ -629,6 +630,15 @@ export default function Home() {
             currentUser={currentUser}
             onClose={() => setIsTrainerProfileModalOpen(false)}
             onSaveProfile={handleSaveTrainerProfile}
+            onLogout={async () => {
+              try {
+                setIsTrainerProfileModalOpen(false);
+                await logoutUser();
+                setCurrentUser(null);
+              } catch (e) {
+                console.error('Logout error:', e);
+              }
+            }}
           />
         )}
       </div>
