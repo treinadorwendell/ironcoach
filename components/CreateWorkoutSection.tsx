@@ -14,6 +14,7 @@ import {
   WORKOUT_METHODS,
   ExerciseSetDetail,
   ExerciseSubSetDetail,
+  CustomWorkoutMethod,
 } from '@/types';
 import { storage } from '@/lib/storage';
 import { cloudSync } from '@/lib/firebase';
@@ -66,7 +67,11 @@ import {
   formatEquipment,
   findExerciseMetadata,
 } from '@/lib/exerciseDatabase';
-import { ExerciseMediaPlayer } from '@/components/ExerciseMediaPlayer';
+import {
+  ExerciseMediaPlayer,
+  ExerciseMediaModal,
+  ExerciseMediaModalData,
+} from '@/components/ExerciseMediaPlayer';
 import { ExerciseInstructionsModal } from '@/components/ExerciseInstructionsModal';
 
 export interface WorkoutChangeLogItem {
@@ -148,10 +153,13 @@ const COMMON_EXERCISES: Record<MuscleGroup, string[]> = {
 };
 
 // Helper to detect if a method requires automatic subsérie generation
-const isMethodWithSubsets = (method: string | undefined): boolean => {
+const isMethodWithSubsets = (
+  method: string | undefined,
+  customMethods?: CustomWorkoutMethod[]
+): boolean => {
   if (!method) return false;
   const m = method.trim().toLowerCase();
-  return (
+  if (
     m === '3/7' ||
     m === 'cluster-set' ||
     m === 'cluster set' ||
@@ -159,7 +167,12 @@ const isMethodWithSubsets = (method: string | undefined): boolean => {
     m === 'drop-set adaptado' ||
     m === 'fst-7' ||
     m === 'parcial'
-  );
+  ) {
+    return true;
+  }
+  const list = customMethods || storage.getCustomMethods();
+  const customMatch = list.find((cm) => cm.name.trim().toLowerCase() === m);
+  return !!customMatch?.hasSubSets;
 };
 
 // Generates smart default data for a subsérie based on the chosen advanced method
@@ -167,14 +180,24 @@ const getDefaultSubSetData = (
   method: string,
   subSetNumber: number,
   mainRepZone?: string,
-  mainWeight?: number
+  mainWeight?: number,
+  customMethods?: CustomWorkoutMethod[]
 ): ExerciseSubSetDetail => {
   const m = method.trim().toLowerCase();
   let repZone = 'Até a falha';
   let suggestedWeightKg: number | undefined = mainWeight;
   let note = '';
 
-  if (m === '3/7') {
+  const list = customMethods || storage.getCustomMethods();
+  const customMatch = list.find((cm) => cm.name.trim().toLowerCase() === m);
+
+  if (customMatch && customMatch.hasSubSets) {
+    const tpl =
+      customMatch.subSetsTemplate?.[subSetNumber - 1] ||
+      customMatch.subSetsTemplate?.[customMatch.subSetsTemplate.length - 1];
+    repZone = tpl?.repZone || mainRepZone || 'Até a falha';
+    note = tpl?.note || `Subsérie ${customMatch.name} #${subSetNumber}`;
+  } else if (m === '3/7') {
     const stepReps = Math.min(3 + subSetNumber, 7);
     repZone = `${stepReps} reps`;
     suggestedWeightKg = mainWeight;
@@ -217,6 +240,32 @@ const getDefaultSubSetData = (
     suggestedWeightKg,
     note,
   };
+};
+
+const getInitialSubSetsForMethod = (
+  method: string,
+  mainRepZone?: string,
+  mainWeight?: number,
+  customMethods?: CustomWorkoutMethod[]
+): ExerciseSubSetDetail[] => {
+  const m = method.trim().toLowerCase();
+  const list = customMethods || storage.getCustomMethods();
+  const customMatch = list.find((cm) => cm.name.trim().toLowerCase() === m);
+  if (
+    customMatch &&
+    customMatch.hasSubSets &&
+    customMatch.subSetsTemplate &&
+    customMatch.subSetsTemplate.length > 0
+  ) {
+    return customMatch.subSetsTemplate.map((tpl, idx) => ({
+      id: `subset-${Date.now()}-${idx + 1}-${Math.random().toString(36).substring(2, 6)}`,
+      subSetNumber: idx + 1,
+      repZone: tpl.repZone || mainRepZone || 'Até a falha',
+      suggestedWeightKg: mainWeight,
+      note: tpl.note || '',
+    }));
+  }
+  return [getDefaultSubSetData(method, 1, mainRepZone, mainWeight, list)];
 };
 
 export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
@@ -317,10 +366,31 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   const [changesLogFilter, setChangesLogFilter] = useState<'all' | 'exercise' | 'set' | 'split'>('all');
   const [changesLog, setChangesLog] = useState<WorkoutChangeLogItem[]>([]);
 
-  // EXERCISE DATABASE STATE
+  // EXERCISE DATABASE & CUSTOM METHODS STATE
   const [exerciseDatabase, setExerciseDatabase] = useState<DatabaseExercise[]>(() =>
     storage.getExerciseDatabase()
   );
+  const [customMethods, setCustomMethods] = useState<CustomWorkoutMethod[]>(() =>
+    storage.getCustomMethods()
+  );
+  const [mediaModalExercise, setMediaModalExercise] =
+    useState<ExerciseMediaModalData | null>(null);
+
+  useEffect(() => {
+    const handleDbUpdated = () => {
+      setExerciseDatabase(storage.getExerciseDatabase());
+    };
+    const handleMethodsUpdated = () => {
+      setCustomMethods(storage.getCustomMethods());
+    };
+    window.addEventListener('ironcoach:exercise-db-updated', handleDbUpdated);
+    window.addEventListener('ironcoach:custom-methods-updated', handleMethodsUpdated);
+    return () => {
+      window.removeEventListener('ironcoach:exercise-db-updated', handleDbUpdated);
+      window.removeEventListener('ironcoach:custom-methods-updated', handleMethodsUpdated);
+    };
+  }, []);
+
   const [isExerciseDbModalOpen, setIsExerciseDbModalOpen] = useState(false);
   const [targetExerciseIndexForDb, setTargetExerciseIndexForDb] = useState<number | null>(null);
   const [isSelectingSubstituteForDb, setIsSelectingSubstituteForDb] = useState(false);
@@ -769,6 +839,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 category: dbExercise.category,
                 instructions: dbExercise.instructions,
                 images: dbExercise.images,
+                videoUrl: dbExercise.videoUrl,
+                gifUrl: dbExercise.gifUrl,
+                mediaType: dbExercise.mediaType,
               }
             : ex
         );
@@ -798,6 +871,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
           category: dbExercise.category,
           instructions: dbExercise.instructions,
           images: dbExercise.images,
+          videoUrl: dbExercise.videoUrl,
+          gifUrl: dbExercise.gifUrl,
+          mediaType: dbExercise.mediaType,
           setDetails: [
             { id: `s-${newExId}-1`, setNumber: 1, repZone: '8-12', method: 'Normal' },
             { id: `s-${newExId}-2`, setNumber: 2, repZone: '8-12', method: 'Normal' },
@@ -1287,12 +1363,19 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         const updatedSet: ExerciseSetDetail = { ...s, [field]: value };
         if (field === 'method') {
           const newMethod = value as string;
-          if (isMethodWithSubsets(newMethod)) {
-            // Auto-create initial subsérie if none exists yet
-            if (!updatedSet.subSets || updatedSet.subSets.length === 0) {
-              updatedSet.subSets = [
-                getDefaultSubSetData(newMethod, 1, updatedSet.repZone, updatedSet.suggestedWeightKg),
-              ];
+          if (isMethodWithSubsets(newMethod, customMethods)) {
+            const isCustomMatch = customMethods.some(
+              (cm) =>
+                cm.name.trim().toLowerCase() === newMethod.trim().toLowerCase() &&
+                cm.hasSubSets
+            );
+            if (isCustomMatch || !updatedSet.subSets || updatedSet.subSets.length === 0) {
+              updatedSet.subSets = getInitialSubSetsForMethod(
+                newMethod,
+                updatedSet.repZone,
+                updatedSet.suggestedWeightKg,
+                customMethods
+              );
             }
           }
         }
@@ -1481,7 +1564,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
       const updatedSets = currentSets.map((s, idx) => {
         const updated: ExerciseSetDetail = { ...s, method };
-        if (isMethodWithSubsets(method)) {
+        if (isMethodWithSubsets(method, customMethods)) {
           if (idx === 0 && firstSetSubSets && firstSetSubSets.length > 0) {
             updated.subSets = firstSetSubSets;
           } else if (firstSetSubSets && firstSetSubSets.length > 0) {
@@ -1492,9 +1575,12 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               suggestedWeightKg: sub.suggestedWeightKg ?? s.suggestedWeightKg,
             }));
           } else {
-            updated.subSets = [
-              getDefaultSubSetData(method, 1, s.repZone, s.suggestedWeightKg),
-            ];
+            updated.subSets = getInitialSubSetsForMethod(
+              method,
+              s.repZone,
+              s.suggestedWeightKg,
+              customMethods
+            );
           }
         }
         return updated;
@@ -1903,23 +1989,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <GripVertical className="w-4 h-4" />
               </div>
 
-              <span
-                className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 transition-colors ${
-                  isMovingThis
-                    ? 'bg-cyan-400 text-slate-950 border border-cyan-300 ring-2 ring-cyan-400/50'
-                    : 'bg-slate-900 text-slate-300 border border-slate-800'
-                }`}
-              >
-                {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
-              </span>
-
               <div className="min-w-0 flex-1 space-y-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-extrabold text-sm text-white truncate">
                     {ex.name}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-800/80 text-emerald-400 font-bold text-[10px] border border-slate-700/60">
-                    {ex.muscleGroup}
                   </span>
                   {comboInfo && (
                     <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-extrabold text-[10px] border border-purple-500/30 flex items-center gap-1">
@@ -2007,10 +2080,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   e.stopPropagation();
                   handleToggleExerciseExpand(ex.id);
                 }}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold flex items-center gap-1 transition active:scale-95"
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition active:scale-95"
+                title="Expandir detalhes deste exercício"
+                aria-label="Expandir detalhes deste exercício"
               >
-                <span>Expandir</span>
-                <ChevronDown className="w-3.5 h-3.5 text-cyan-400" />
+                <ChevronDown className="w-4 h-4 text-cyan-400" />
               </button>
 
               <button
@@ -2054,15 +2128,6 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   <GripVertical className="w-4 h-4" />
                 </div>
 
-                <span
-                  className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isMovingThis
-                      ? 'bg-cyan-400 text-slate-950 border border-cyan-300 ring-2 ring-cyan-400/50'
-                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  }`}
-                >
-                  {comboInfo ? `${exIndex + 1}.${comboInfo.comboOrder}` : exIndex + 1}
-                </span>
                 <div className="relative flex-1 flex items-center gap-1.5 min-w-0">
                   <div className="relative flex-1 min-w-0">
                     <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -2276,11 +2341,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => handleToggleExerciseExpand(ex.id)}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold flex items-center gap-1 transition"
+                  className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition active:scale-95"
                   title="Recolher detalhes deste exercício"
+                  aria-label="Recolher detalhes deste exercício"
                 >
-                  <ChevronUp className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Recolher</span>
+                  <ChevronUp className="w-4 h-4 text-cyan-400" />
                 </button>
 
                 <button
@@ -2453,59 +2518,63 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   ))}
               </select>
 
-              <button
-                type="button"
-                onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, false)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition active:scale-95 cursor-pointer"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                <span>Buscar no Banco</span>
-              </button>
+              <div className="inline-flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, false)}
+                  className="flex items-center justify-center p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                  title="Buscar no Banco"
+                  aria-label="Buscar no Banco"
+                >
+                  <BookOpen className="w-4 h-4 text-purple-400" />
+                </button>
 
-              {/* Botão Exercício Substituto (Desktop/Tablet: ícone + descrição | Mobile: somente o símbolo) */}
-              <button
-                type="button"
-                onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, true)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border ${
-                  ex.substituteExerciseName
-                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
-                    : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
-                }`}
-                title={
-                  ex.substituteExerciseName
-                    ? `Exercício substituto: ${ex.substituteExerciseName} (Clique para alterar)`
-                    : 'Exercício substituto (mesmo grupo muscular)'
-                }
-              >
-                <ArrowLeftRight
-                  className={`w-3.5 h-3.5 shrink-0 ${
-                    ex.substituteExerciseName ? 'text-amber-400' : 'text-cyan-400'
+                {/* Botão Exercício Substituto (Somente Ícone) */}
+                <button
+                  type="button"
+                  onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, true)}
+                  className={`flex items-center justify-center p-2 rounded-xl transition active:scale-95 cursor-pointer border ${
+                    ex.substituteExerciseName
+                      ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                      : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
                   }`}
-                />
-                <span className="hidden sm:inline">Exercício substituto</span>
-              </button>
+                  title={
+                    ex.substituteExerciseName
+                      ? `Exercício substituto: ${ex.substituteExerciseName} (Clique para alterar)`
+                      : 'Exercício substituto (mesmo grupo muscular)'
+                  }
+                  aria-label="Exercício substituto"
+                >
+                  <ArrowLeftRight
+                    className={`w-4 h-4 shrink-0 ${
+                      ex.substituteExerciseName ? 'text-amber-400' : 'text-cyan-400'
+                    }`}
+                  />
+                </button>
 
-              {/* Ações de Combinação Rápida */}
-              {comboInfo ? (
-                <button
-                  type="button"
-                  onClick={() => handleUncombineGroup(comboInfo.comboGroupId)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 text-xs font-bold transition ml-auto"
-                >
-                  <Unlink className="w-3 h-3" />
-                  <span>Descombinar deste grupo</span>
-                </button>
-              ) : exIndex < (activeSplit?.exercises.length || 0) - 1 ? (
-                <button
-                  type="button"
-                  onClick={() => handleQuickCombineWithNext(exIndex)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold transition ml-auto"
-                  title="Combinar este exercício com o próximo em sequência (Bi-Set)"
-                >
-                  <Link2 className="w-3 h-3 text-purple-400" />
-                  <span>Combinar com o próximo (Bi-Set)</span>
-                </button>
-              ) : null}
+                {/* Ações de Combinação Rápida (Somente Ícone) */}
+                {comboInfo ? (
+                  <button
+                    type="button"
+                    onClick={() => handleUncombineGroup(comboInfo.comboGroupId)}
+                    className="flex items-center justify-center p-2 rounded-xl bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                    title="Descombinar deste grupo"
+                    aria-label="Descombinar deste grupo"
+                  >
+                    <Unlink className="w-4 h-4" />
+                  </button>
+                ) : exIndex < (activeSplit?.exercises.length || 0) - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCombineWithNext(exIndex)}
+                    className="flex items-center justify-center p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                    title="Combinar este exercício com o próximo em sequência (Bi-Set)"
+                    aria-label="Combinar com o próximo (Bi-Set)"
+                  >
+                    <Link2 className="w-4 h-4 text-purple-400" />
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             {/* Row 2.5: Anatomical Badges, Execution Modal Button & Collapsible Exercise Media (Collapsed by Default inside open card) */}
@@ -2522,13 +2591,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 ? ex.instructions
                 : resolvedMeta?.instructions || [];
               const images = ex.images?.length ? ex.images : resolvedMeta?.images || [];
-              const isMediaOpen = !!expandedCardMediaIds[ex.id];
+              const videoUrl = ex.videoUrl || resolvedMeta?.videoUrl;
+              const gifUrl = ex.gifUrl || resolvedMeta?.gifUrl;
+              const hasAnyMedia = images.length > 0 || !!videoUrl || !!gifUrl;
 
               if (
                 primaryMuscles.length === 0 &&
                 secondaryMuscles.length === 0 &&
                 !equipment &&
-                images.length === 0 &&
+                !hasAnyMedia &&
                 instructions.length === 0
               ) {
                 return null;
@@ -2587,44 +2658,27 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                         </button>
                       )}
 
-                      {images.length > 0 && (
+                      {hasAnyMedia && (
                         <button
                           type="button"
                           onClick={() =>
-                            setExpandedCardMediaIds((prev) => ({
-                              ...prev,
-                              [ex.id]: !prev[ex.id],
-                            }))
+                            setMediaModalExercise({
+                              name: ex.name,
+                              muscleGroup: ex.muscleGroup,
+                              images,
+                              videoUrl,
+                              gifUrl,
+                            })
                           }
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border transition cursor-pointer ${
-                            isMediaOpen
-                              ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
-                              : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
-                          }`}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-extrabold border bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30 transition cursor-pointer"
+                          title="Abrir vídeo ou mídia do exercício em janela separada"
                         >
                           <Film className="w-3.5 h-3.5" />
-                          <span>{isMediaOpen ? 'Ocultar Mídia' : 'Ver Mídia do Exercício'}</span>
-                          {isMediaOpen ? (
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          ) : (
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          )}
+                          <span>Ver Vídeo</span>
                         </button>
                       )}
                     </div>
                   </div>
-
-                  {/* Expanded Animated Media Player inside the Exercise Card */}
-                  {isMediaOpen && images.length > 0 && (
-                    <div className="pt-1 animate-in fade-in duration-200">
-                      <ExerciseMediaPlayer
-                        images={images}
-                        exerciseName={ex.name}
-                        autoPlay={true}
-                        compact={true}
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })()}
@@ -2705,7 +2759,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 </div>
 
                 {setDetails.map((set, sIdx) => {
-                  const hasSubsets = isMethodWithSubsets(set.method);
+                  const hasSubsets = isMethodWithSubsets(set.method, customMethods);
 
                   return (
                     <div
@@ -2764,7 +2818,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                           />
                         </div>
 
-                        {/* Col 4: Método Avançado da Série (Dropdown com todos os métodos) */}
+                        {/* Col 4: Método Avançado da Série (Dropdown com todos os métodos + personalizados) */}
                         <div className="col-span-4">
                           <select
                             value={set.method || 'Normal'}
@@ -2784,6 +2838,15 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                                 {m}
                               </option>
                             ))}
+                            {customMethods.length > 0 && (
+                              <optgroup label="Métodos Personalizados do Treinador">
+                                {customMethods.map((cm) => (
+                                  <option key={cm.id} value={cm.name}>
+                                    {cm.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
                         </div>
 
@@ -2992,10 +3055,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               <button
                 type="button"
                 onClick={() => handleToggleExerciseExpand(ex.id)}
-                className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 active:scale-95"
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 flex items-center justify-center active:scale-95 transition"
+                title="Recolher detalhes deste exercício"
+                aria-label="Recolher detalhes deste exercício"
               >
-                <ChevronUp className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Concluir e Recolher</span>
+                <ChevronUp className="w-4 h-4 text-cyan-400" />
               </button>
             </div>
           </div>
@@ -3216,12 +3280,14 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     <span>
                       {splitsCount} treino{splitsCount === 1 ? '' : 's'} • {totalExercises} ex.
                     </span>
-                    <div className="flex items-center gap-1 text-cyan-400 font-semibold">
-                      <span>{isExpanded ? 'Recolher' : 'Expandir Treino'}</span>
+                    <div
+                      className="p-1.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-center text-cyan-400"
+                      title={isExpanded ? 'Recolher' : 'Expandir Treino'}
+                    >
                       {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
+                        <ChevronUp className="w-4 h-4" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        <ChevronDown className="w-4 h-4" />
                       )}
                     </div>
                   </div>
@@ -3286,15 +3352,6 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 >
                   <Trash2 className="w-3 h-3" />
                   <span>Excluir Programa</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExpandedProgramId(null)}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 active:scale-95 transition bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800"
-                  title="Recolher visualização do treino"
-                >
-                  <ChevronUp className="w-3.5 h-3.5" />
-                  <span>Recolher</span>
                 </button>
               </div>
             </div>
@@ -3598,19 +3655,21 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     <button
                       type="button"
                       onClick={handleExpandAllExercises}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
                       title="Expandir todos os exercícios para ver e editar detalhes"
+                      aria-label="Expandir todos os exercícios"
                     >
-                      Expandir
+                      <ChevronDown className="w-4 h-4 text-cyan-400" />
                     </button>
                     <span className="text-slate-700">|</span>
                     <button
                       type="button"
                       onClick={handleCollapseAllExercises}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
                       title="Recolher todos os exercícios para visão limpa e compacta"
+                      aria-label="Recolher todos os exercícios"
                     >
-                      Recolher
+                      <ChevronUp className="w-4 h-4 text-cyan-400" />
                     </button>
                   </div>
 
@@ -4635,8 +4694,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     </div>
                   ) : (
                     filteredDbExercises.slice(0, 120).map((dbEx) => {
-                      const isDbMediaExpanded = !!expandedDbMediaIds[dbEx.id];
-                      const hasImages = dbEx.images && dbEx.images.length > 0;
+                      const hasImages =
+                        (dbEx.images && dbEx.images.length > 0) ||
+                        !!dbEx.videoUrl ||
+                        !!dbEx.gifUrl;
                       return (
                         <div
                           key={dbEx.id}
@@ -4684,22 +4745,19 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    setExpandedDbMediaIds((prev) => ({
-                                      ...prev,
-                                      [dbEx.id]: !prev[dbEx.id],
-                                    }))
+                                    setMediaModalExercise({
+                                      name: dbEx.name,
+                                      muscleGroup: dbEx.muscleGroup,
+                                      images: dbEx.images,
+                                      videoUrl: dbEx.videoUrl,
+                                      gifUrl: dbEx.gifUrl,
+                                    })
                                   }
-                                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                                    isDbMediaExpanded
-                                      ? 'bg-cyan-500 text-slate-950 border-cyan-400'
-                                      : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-slate-700'
-                                  }`}
-                                  title="Expandir/Recolher mídia do exercício"
+                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border bg-slate-900 hover:bg-slate-800 text-cyan-300 border-slate-700 transition cursor-pointer"
+                                  title="Ver vídeo ou mídia do exercício em janela separada"
                                 >
                                   <Film className="w-3.5 h-3.5" />
-                                  <span className="hidden sm:inline">
-                                    {isDbMediaExpanded ? 'Ocultar' : 'Mídia'}
-                                  </span>
+                                  <span className="hidden sm:inline">Ver Vídeo</span>
                                 </button>
                               )}
 
@@ -4752,17 +4810,6 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                               </button>
                             </div>
                           </div>
-
-                          {isDbMediaExpanded && dbEx.images && dbEx.images.length > 0 && (
-                            <div className="pt-1 border-t border-slate-800/80">
-                              <ExerciseMediaPlayer
-                                images={dbEx.images}
-                                exerciseName={dbEx.name}
-                                autoPlay={true}
-                                compact={true}
-                              />
-                            </div>
-                          )}
                         </div>
                       );
                     })
@@ -5186,6 +5233,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         isOpen={!!instructionsModalExercise}
         onClose={() => setInstructionsModalExercise(null)}
         exercise={instructionsModalExercise}
+      />
+
+      {/* EXERCISE VIDEO / GIF / MEDIA SEPARATE WINDOW MODAL */}
+      <ExerciseMediaModal
+        isOpen={!!mediaModalExercise}
+        exercise={mediaModalExercise}
+        onClose={() => setMediaModalExercise(null)}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação para o novo fluxo da Aba Cliente e Página de Perfil do Aluno, com cards simplificados na listagem, menu de cards grandes no perfil do aluno, edição de medidas físicas e estruturação dos planos em categorias Presencial (Mensal, Semanal, Avulsa) e Online (Mensal, Trimestral, Semestral, Anual).",
-  "updatedAt":  "2026-10-24T17:34:52.415480359Z",
+  "summary":  "Plano de implementacao para transformar o Perfil do Treinador em uma Central de Configuracao do Sistema com Editar Perfil, Banco de Exercicios (Criar e Editar com video de ate 30s, link ou GIF) e Criacao de Metodos Avancados com subseries configuraveis.",
+  "updatedAt":  "2026-10-24T22:58:08.364860751Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

@@ -1,106 +1,111 @@
-# Reformulação da Aba Cliente e Página Dedicada de Perfil do Aluno
+# Central de Configuração do Sistema do Treinador
 
-Reestruturação da experiência de gestão de alunos no IronCoach para tornar os cards da listagem mais enxutos e focar os detalhes físicos, financeiros e operacionais em uma nova **Página de Perfil do Aluno** interativa com menu de cards grandes.
+Transformação do acesso ao Perfil do Treinador em uma **Central de Configuração do Sistema** completa, reunindo **Editar Perfil** (Nome, Senha, Logo e Sair da conta) e **Configurações de Treino** (**Criar Exercício no Banco**, **Editar Exercício do Banco** com suporte a vídeo de até 30s, Link ou GIF, e **Criar Método Avançado** com subséries personalizadas).
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> As decisões abaixo refletem suas escolhas confirmadas e orientam a construção da nova experiência:
+> Decisões confirmadas para a arquitetura e experiência de uso da Central de Configuração:
 
-- **Decisão Confirmada 1 — Navegação no Perfil do Aluno**: A página do Perfil do Aluno exibirá um **menu de 4 cards grandes e táteis** levando para: **Informações** (dados físicos e plano), **Histórico de Treinos**, **Criar Treino** e **Execução do Treino**.
-- **Decisão Confirmada 2 — Filtro de Planos Detalhado**: Os planos passam a ser estruturados em duas modalidades com seus respectivos subplanos:
-  - **Presencial**: Mensal, Semanal, Avulsa.
-  - **Online**: Mensal, Trimestral, Semestral, Anual.
-  O filtro da Aba Clientes permitirá filtrar tanto por modalidade quanto pelos subplanos detalhados, mantendo compatibilidade automática com os alunos já cadastrados.
-- **Decisão Confirmada 3 — Botão de Editar no Card da Lista**: O botão de edição rápida direto no card da listagem abrirá o modal rápido focado nos dados cadastrais e de contato (Nome, Data de nascimento `DD/MM/AAAA`, E-mail, Telefone e Gênero), enquanto o toque no card do aluno abrirá a página completa do **Perfil do Aluno**.
+- **Navegação Responsiva Adaptativa**:
+  - **Desktop**: Modal amplo com abas superiores para alternar rapidamente entre **Editar Perfil** e **Configurações de Treino** (com sub-abas para *Criar Exercício*, *Editar Exercício do Banco* e *Método Avançado*).
+  - **Tablet & Mobile**: Menu inicial com cards grandes e táteis para escolher entre **Editar Perfil** e **Configurações de Treino**, com navegação interna fluida e botão de retorno.
+- **Comportamento dos Métodos Avançados com Subséries**: Ao criar um Método Avançado habilitando subséries, o treinador define a quantidade padrão de subséries e os textos pré-preenchidos para **Zona de Repetição** e **Descrição/Método**, que são aplicados automaticamente ao selecionar o método na prescrição.
+- **Reprodução de Vídeos (até 30s), Links e GIFs**: Os vídeos, links e GIFs cadastrados nos exercícios abrem em uma **janela modal separada e dedicada** sempre que o usuário clicar no botão de visualizar vídeo/mídia durante a criação ou execução do treino.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **O Que Faz**:
-  1. **Simplificação do Card na Aba Clientes**: Exibe apenas Nome, Data de nascimento (`DD/MM/AAAA`), E-mail, Número de telefone, botão de Editar cadastro rápido e botão de Excluir. Todo o card funciona como área clicável para abrir o Perfil do Aluno.
-  2. **Nova Página de Perfil do Aluno**: Ao tocar no card de um aluno, abre-se a visão dedicada daquele aluno com cabeçalho de identificação, botão de retorno para a lista e um **Menu Principal em Cards Grandes** para acessar:
-     - **Informações**: Painel completo para editar **Peso (kg)**, **Altura (cm)**, **Data de Nascimento (`DIA/MÊS/ANO`)**, observações e configurar o **Tipo de Plano** dividido entre **Presencial** (`Mensal`, `Semanal`, `Avulsa`) e **Online** (`Mensal`, `Trimestral`, `Semestral`, `Anual`) com seu respectivo valor em R$.
-     - **Histórico de Treinos**: Abre a visualização de histórico exclusiva do aluno.
-     - **Criar Treino**: Direciona para o construtor de programas e divisões já vinculado ao aluno.
-     - **Execução do Treino**: Inicia ou retoma a sessão de treino em tempo real para o aluno selecionado.
-- **Público-Alvo**: Personal trainers utilizando tablet em orientação vertical ou smartphone na sala de musculação.
-- **Valor Principal**: Leitura imediata dos contatos na lista de alunos e acesso centralizado, com alvos de toque amplos ($\ge 48\text{px}$), a todas as operações do aluno dentro de seu perfil.
+- **O Que Faz**: Centraliza toda a personalização da conta do treinador e da metodologia de prescrição em um único painel acessível pelo cabeçalho superior ou pelo card do treinador na aba de clientes.
+- **Público-Alvo / Contexto**: Personal trainers e consultores esportivos que precisam cadastrar novos exercícios com vídeos demonstrativos curtos (até 30s) ou GIFs/links, atualizar mídias de exercícios existentes do catálogo e criar seus próprios métodos avançados de intensidade com subséries padronizadas.
+- **Valor Principal**: Elimina limitações de catálogo fixo, permitindo que o treinador personalize 100% dos exercícios, vídeos demonstrativos e métodos avançados utilizados no dia a dia.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-- **Fluxo do Usuário (Passo a Passo)**:
-  1. **Listagem de Clientes**: O treinador visualiza os cards limpos contendo avatar/inicial, nome, data de nascimento, e-mail e telefone, além dos ícones de editar cadastro básico e excluir no canto superior direito.
-  2. **Acesso ao Perfil do Aluno**: Ao clicar sobre o card do aluno, a tela transiciona suavemente para a **Página de Perfil do Aluno**.
-  3. **Menu de Cards Grandes no Perfil**: Quatro cards amplos em grid responsivo (`grid-cols-1 sm:grid-cols-2`) apresentam ícones claros, descrição direta e indicadores contextuais:
-     - Card **Informações** (exibe resumo atual de Peso, Altura e Plano ativo).
-     - Card **Histórico de Treinos** (exibe total de sessões concluídas).
-     - Card **Criar Treino** (acesso direto à prescrição do aluno).
-     - Card **Execução do Treino** (ação imediata para iniciar o treino do dia).
-  4. **Subpágina / Painel de Informações do Aluno**: Ao acessar *Informações*, o treinador edita com máscara automática `DD/MM/AAAA` a data de nascimento, Peso (`kg`), Altura (`cm`), seleciona a modalidade (**Presencial** ou **Online**), escolhe o subplano correspondente e define o valor em R$, salvando com sincronização imediata no Firebase e armazenamento local.
+- **Fluxos de Uso**:
+  1. **Acesso à Central**: Ao clicar na identificação do treinador (topo ou aba Clientes), abre-se a Central de Configuração do Sistema (ou vai direto para a etapa de boas-vindas no primeiro acesso).
+  2. **Editar Perfil**:
+     - Permite alterar **Nome do Treinador**, **Nova Senha**, **Mudar Logo** (com enquadramento interativo 1:1) e **Sair da Conta (Logout)**.
+  3. **Configurações de Treino → Banco de Exercícios (Criar Exercício)**:
+     - Campos para Nome do Exercício, Grupo Muscular principal, Músculo Primário, Músculo Secundário e Equipamento.
+     - Seletor de Mídia:
+       - **Upload de Vídeo (até 30 segundos)**: Valida automaticamente a duração do arquivo de vídeo selecionado ($\le 30\text{s}$) usando metadados HTML5 e gera pré-visualização imediata.
+       - **Link de Vídeo ou GIF**: Campo para colar URL de vídeo (MP4, WebM, YouTube/embed) ou link/upload de GIF animado.
+  4. **Configurações de Treino → Editar Exercício do Banco de Exercícios**:
+     - Barra de busca e filtro por grupo muscular listando todos os exercícios do banco (nativos e personalizados).
+     - Ao selecionar qualquer exercício, permite editar seus dados anatômicos/equipamento e anexar ou substituir a mídia (**carregar vídeo de até 30 segundos** ou **colocar vídeo com Link ou GIF**), salvando as customizações de forma persistente.
+  5. **Configurações de Treino → Método Avançado (Criar Método Avançado)**:
+     - Formulário para informar o **Nome do Método**.
+     - Chave seletora **"Habilitar Subséries"**: quando ativada, exibe a configuração das subséries padrão do método com os campos de escrita para **Zona de Repetição** (ex: `"Até a falha"`, `"4-6 reps"`) e **Método / Observação da Subsérie** (ex: `"Drop -20% sem descanso"`, `"Pausa 15s"`).
+     - Lista dos métodos avançados personalizados criados, permitindo editar ou excluir cada método.
+  6. **Visualização em Janela Separada**:
+     - Nos cards de exercício em **Criar Treino** e **Execução do Treino**, o botão de mídia abre uma janela modal dedicada para reproduzir o vídeo de até 30s, link, GIF ou demonstração visual do exercício.
+
 - **Identidade Visual & Tema**:
-  - *Direção Estética*: Utilitário esportivo de alto contraste em tema escuro (`slate-950` / `slate-900`), otimizado para legibilidade em ambiente de academia.
-  - *Paleta de Cores*: Superfícies neutras em `slate-900/90` com bordas sutis `slate-800`, acentos primários em `emerald-500` (ações de confirmação e treinos presenciais) e `cyan-400` (modalidade online e navegação).
-  - *Tipografia & Hierarquia*: Números tabulares (`tabular-nums`) para peso, altura, datas e valores financeiros; metadados de contato alinhados sem excesso de cápsulas decorativas.
+  - *Direção Estética*: Dark Slate esportivo de alta precisão (`slate-950` / `slate-900`) com acentos semânticos em `emerald-400` (perfil e criação), `cyan-400` (banco de exercícios e mídia) e `purple-400` / `amber-400` (métodos avançados e subséries).
+  - *Ergonomia e Layout*: Cards de seleção amplos no mobile/tablet ($\ge 48\text{px}$ de área de toque) e navegação em abas horizontais no desktop.
 
 ---
 
 ## 3. Key Product Decisions & Trade-Offs
 
-- **Decisão 1 — Separação entre Edição Rápida de Contato e Informações Físicas/Plano**:
-  - *Abordagem Escolhida*: O botão de lápis no card da lista abre o modal rápido de cadastro/contato, enquanto medidas corporais (`Peso`, `Altura em cm`) e `Tipo de Plano` ficam concentrados na seção **Informações** dentro do Perfil do Aluno.
-  - *Por Quê*: Mantém a listagem principal limpa e rápida de escanear, conforme solicitado, delegando a configuração detalhada para a página do perfil.
-- **Decisão 2 — Modelagem Flexível de Planos Presenciais e Online**:
-  - *Abordagem Escolhida*: Suportar a categoria do plano (`Presencial` | `Online`) combinada aos subplanos (`Mensal`, `Semanal`, `Avulsa` para Presencial; `Mensal`, `Trimestral`, `Semestral`, `Anual` para Online), preservando retrocompatibilidade com registros anteriores (`Mensal`, `Semanal`, `Avulsa`, `Online`).
-  - *Por Quê*: Garante que nenhum dado já salvo no Firestore seja perdido e permite relatórios financeiros e filtros precisos na Aba Clientes e na Agenda.
+- **Decisão 1: Validação Client-Side de Vídeo de até 30 Segundos**
+  - *Abordagem Escolhida*: Validar a duração exata do vídeo via elemento `<video preload="metadata">` no momento da seleção do arquivo, rejeitando vídeos acima de 30 segundos com mensagem clara e armazenando vídeos válidos para reprodução instantânea.
+  - *Por Quê*: Garante cumprimento estrito do limite de 30 segundos sem travar a interface e permite pré-visualização imediata pelo treinador.
+- **Decisão 2: Sobrescrita Não-Destrutiva ao Editar Exercícios Nativos do Banco**
+  - *Abordagem Escolhida*: Quando o treinador edita um exercício original do catálogo (por exemplo, adicionando um vídeo de 30s ou GIF), a customização é salva com o mesmo identificador do exercício e mesclada prioritariamente sobre o catálogo base.
+  - *Por Quê*: Preserva todos os exercícios nativos e garante que qualquer treino já criado com aquele exercício passe a exibir automaticamente o novo vídeo ou GIF configurado pelo treinador.
+- **Decisão 3: Janela Modal Dedicada para Reprodução de Vídeo / GIF**
+  - *Abordagem Escolhida*: Criar um modal dedicado de reprodução de mídia acionado pelo botão de ver vídeo/mídia tanto na prescrição quanto na execução.
+  - *Por Quê*: Mantém os cards de série compactos e oferece uma visualização limpa e ampliada do vídeo de até 30s, link ou GIF.
 
 ---
 
 ## 4. Technical Architecture & Data Strategy
 
-### Diagrama de Arquitetura e Fluxo de Navegação
+### Diagrama de Arquitetura e Fluxo de Dados
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              ABA CLIENTES                               │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │ Filtro Detalhado: Todos | Presencial (3) | Online (4)             │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-│                                                                         │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │ Card do Aluno (Enxuto)                                            │  │
-│  │ • Nome, Nascimento (DD/MM/AAAA), E-mail, Telefone                 │  │
-│  │ • [Botão Editar Cadastro Rápido]   [Botão Excluir]                │  │
-│  └───────────────────────────────┬───────────────────────────────────┘  │
-└──────────────────────────────────┼──────────────────────────────────────┘
-                                   │ Clique no Card
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       PÁGINA DE PERFIL DO ALUNO                         │
-│  [← Voltar para Clientes]   Resumo: Nome • Nascimento • Contato         │
-│                                                                         │
-│  ┌─────────────────────────────────┐ ┌────────────────────────────────┐ │
-│  │ 1. INFORMAÇÕES                  │ │ 2. HISTÓRICO DE TREINOS        │ │
-│  │ • Editar Peso (kg), Altura (cm) │ │ • Acessar sessões concluídas   │ │
-│  │ • Nascimento (DIA/MÊS/ANO)      │ │   e evolução de cargas         │ │
-│  │ • Plano Presencial / Online     │ │                                │ │
-│  └─────────────────────────────────┘ └────────────────────────────────┘ │
-│  ┌─────────────────────────────────┐ ┌────────────────────────────────┐ │
-│  │ 3. CRIAR TREINO                 │ │ 4. EXECUÇÃO DO TREINO          │ │
-│  │ • Prescrever ou editar fichas   │ │ • Iniciar treino agora na      │ │
-│  │   deste aluno                   │ │   sala de musculação           │ │
-│  └─────────────────────────────────┘ └────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Cabeçalho Superior / Aba Clientes (Acesso ao Perfil do Treinador)        │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Central de Configuração do Sistema (TrainerProfileModal)                 │
+│  ├── [Desktop: Abas no Topo] / [Mobile & Tablet: Menu de Cards Grandes]  │
+│  │                                                                       │
+│  ├── 1. Editar Perfil                                                    │
+│  │      └── Nome, Nova Senha, Mudar Logo (Crop 1:1), Sair da Conta       │
+│  │                                                                       │
+│  └── 2. Configurações de Treino                                          │
+│         ├── A. Criar Exercício no Banco                                  │
+│         │      └── Nome, Músculo Primário/Secundário, Equipamento,       │
+│         │          Vídeo <= 30s (Upload) ou Link / GIF                   │
+│         ├── B. Editar Exercício do Banco                                 │
+│         │      └── Busca no catálogo + Upload Vídeo <= 30s / Link / GIF  │
+│         └── C. Método Avançado                                           │
+│                └── Nome do Método + Toggle Habilitar Subséries           │
+│                    (Escritas de Zona de Repetição e Método/Descrição)    │
+└───────────────┬──────────────────────────────────────────┬───────────────┘
+                ▼                                          ▼
+┌───────────────────────────────────────┐  ┌───────────────────────────────┐
+│ Persistência Local & Sincronização    │  │ Criar Treino & Execução       │
+│  ├── Catálogo Mesclado de Exercícios  │  │  ├── Seletor de Métodos       │
+│  │   (Criados + Editados c/ Mídia)    │─►│  │   (Nativos + Criados)      │
+│  └── Métodos Avançados Personalizados │  │  ├── Geração Automática de    │
+│      (com Template de Subséries)      │  │  │   Subséries Personalizadas │
+└───────────────────────────────────────┘  │  └── Botão "Ver Vídeo/Mídia"  │
+                                           │      ──► Abre Modal Separado  │
+                                           └───────────────────────────────┘
 ```
 
 ### Modelo de Dados e Estado
-- **Entidade `Client`**:
-  - Campos básicos exibidos no card: `name`, `birthDate` (formato `DD/MM/AAAA`), `email`, `phone`.
-  - Campos gerenciados em **Perfil > Informações**: `weight` (kg), `height` (cm), `birthDate` (`DD/MM/AAAA`), `contractCategory` (`'Presencial' | 'Online'`), `contractSubType` / `contractType` (`'Presencial - Mensal'`, `'Presencial - Semanal'`, `'Presencial - Avulsa'`, `'Online - Mensal'`, `'Online - Trimestral'`, `'Online - Semestral'`, `'Online - Anual'`), `contractValue` (R$).
-- **Mapeamento de Interações**:
-  - `selectedProfileClient`: controla qual aluno está aberto na Página de Perfil do Aluno.
-  - `profileSubView`: alterna entre o menu de 4 cards grandes (`'menu'`), a tela de edição de `'informacoes'` e a visualização de `'historico'`.
-  - Os cards `'Criar Treino'` e `'Execução do Treino'` acionam os handlers globais `onCreateWorkoutForClient(client)` e `onStartWorkoutForClient(client)`, levando diretamente às respectivas seções com o aluno ativo.
+- **Exercícios do Banco (`DatabaseExercise`)**:
+  - Suporte aos campos opcionais `videoUrl` (DataURL de vídeo de até 30s ou link externo MP4/WebM/YouTube), `gifUrl` (URL ou DataURL de GIF) e `mediaType` (`'video_upload' | 'video_link' | 'gif' | 'images'`).
+  - Edições feitas em exercícios existentes do catálogo são salvas no armazenamento local e sincronizadas com a nuvem, sobrepondo os metadados originais do exercício.
+- **Métodos Avançados Personalizados (`CustomWorkoutMethod`)**:
+  - Estrutura contendo `id`, `name`, `hasSubSets` (booleano), `defaultSubSetsCount` (número de subséries geradas automaticamente), `subSetRepZone` (escrita padrão na Zona de Repetição da subsérie) e `subSetMethodNote` (escrita padrão de método/instrução da subsérie).
+  - Integrado dinamicamente à lista de métodos disponíveis em toda a prescrição e execução de treinos.

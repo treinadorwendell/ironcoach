@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   AlertCircle,
   User as UserIcon,
+  X,
 } from 'lucide-react';
 import { auth, logoutUser, cloudSync } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -131,23 +132,34 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
               onClick={() => setIsOpen(false)}
             />
             <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-slate-900 border border-slate-700/80 p-4 shadow-2xl z-50 text-slate-100 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm ring-1 ring-emerald-500/40">
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm ring-1 ring-emerald-500/40 shrink-0">
                     {user.email?.charAt(0).toUpperCase() || 'U'}
                   </div>
-                  <div>
-                    <div className="font-bold text-xs text-white truncate max-w-[170px]">
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs text-white truncate max-w-[140px]">
                       {user.displayName || user.email}
                     </div>
-                    <div className="text-[10px] text-slate-400 truncate max-w-[170px]">
+                    <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
                       {user.email}
                     </div>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  Firebase Ativo
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Firebase Ativo
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95 cursor-pointer"
+                    title="Fechar modal"
+                    aria-label="Fechar modal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="py-3 space-y-2 text-xs">

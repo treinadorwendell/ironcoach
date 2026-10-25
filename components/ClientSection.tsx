@@ -1384,7 +1384,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Data de Nascimento (DIA/MÊS/ANO) *
+                    Data de Nascimento
                   </label>
                   <input
                     type="text"

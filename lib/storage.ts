@@ -14,6 +14,7 @@ import {
   WorkoutFeedbackReport,
   ExerciseImprovementItem,
   TrainerProfile,
+  CustomWorkoutMethod,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 
@@ -29,6 +30,7 @@ const STORAGE_KEYS = {
   EXERCISE_FINISHED_SNAPSHOTS: 'ironcoach_exercise_finished_snapshots_v1',
   EXERCISE_COMMENTS: 'ironcoach_exercise_comments_v1',
   TRAINER_PROFILE: 'ironcoach_trainer_profile_v1',
+  CUSTOM_METHODS: 'ironcoach_custom_methods_v1',
 };
 
 // Clean initial state (no dummy clients, workouts, calendar events, or histories)
@@ -721,25 +723,43 @@ export const storage = {
       const deletedRaw = localStorage.getItem('ironcoach_deleted_exercise_ids_v3');
       const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
 
-      let customList: DatabaseExercise[] = [];
+      let storedList: DatabaseExercise[] = [];
       if (customRaw) {
         const parsed: DatabaseExercise[] = JSON.parse(customRaw);
-        customList = parsed.filter((ex) => ex && ex.isCustom);
+        storedList = parsed.filter(
+          (ex) => ex && (ex.isCustom || ex.isModified || ex.videoUrl || ex.gifUrl)
+        );
       } else {
         const legacyRaw = localStorage.getItem(STORAGE_KEYS.LEGACY_EXERCISE_DATABASE);
         if (legacyRaw) {
           const legacyParsed: DatabaseExercise[] = JSON.parse(legacyRaw);
-          customList = legacyParsed.filter((ex) => ex && ex.isCustom);
-          localStorage.setItem(STORAGE_KEYS.EXERCISE_DATABASE, JSON.stringify(customList));
+          storedList = legacyParsed.filter(
+            (ex) => ex && (ex.isCustom || ex.isModified || ex.videoUrl || ex.gifUrl)
+          );
+          localStorage.setItem(STORAGE_KEYS.EXERCISE_DATABASE, JSON.stringify(storedList));
         }
       }
 
-      const customIds = new Set(customList.map((c) => c.id));
-      const baseCatalog = INITIAL_EXERCISE_DATABASE.filter(
-        (ex) => !deletedIds.has(ex.id) && !customIds.has(ex.id)
+      const storedById = new Map<string, DatabaseExercise>();
+      storedList.forEach((item) => {
+        if (!deletedIds.has(item.id)) {
+          storedById.set(item.id, item);
+        }
+      });
+
+      const baseCatalogIds = new Set(INITIAL_EXERCISE_DATABASE.map((ex) => ex.id));
+      const pureCustom = storedList.filter(
+        (ex) => !deletedIds.has(ex.id) && !baseCatalogIds.has(ex.id)
       );
 
-      return [...customList.filter((ex) => !deletedIds.has(ex.id)), ...baseCatalog];
+      const mergedCatalog = INITIAL_EXERCISE_DATABASE.filter(
+        (ex) => !deletedIds.has(ex.id)
+      ).map((ex) => {
+        const override = storedById.get(ex.id);
+        return override ? { ...ex, ...override, isModified: true } : ex;
+      });
+
+      return [...pureCustom, ...mergedCatalog];
     } catch {
       return INITIAL_EXERCISE_DATABASE;
     }
@@ -748,11 +768,14 @@ export const storage = {
   saveExerciseDatabase(exercises: DatabaseExercise[]) {
     if (typeof window === 'undefined') return;
     try {
-      const customOnly = exercises.filter((ex) => ex && ex.isCustom);
+      const toPersist = exercises.filter(
+        (ex) => ex && (ex.isCustom || ex.isModified || ex.videoUrl || ex.gifUrl)
+      );
       localStorage.setItem(
         STORAGE_KEYS.EXERCISE_DATABASE,
-        JSON.stringify(customOnly)
+        JSON.stringify(toPersist)
       );
+      window.dispatchEvent(new CustomEvent('ironcoach:exercise-db-updated'));
     } catch (e) {
       console.error('Error saving exercise database:', e);
     }
@@ -777,12 +800,29 @@ export const storage = {
       category: extra?.category || 'forca',
       instructions: extra?.instructions || [],
       images: extra?.images || [],
+      videoUrl: extra?.videoUrl,
+      gifUrl: extra?.gifUrl,
+      mediaType: extra?.mediaType,
       isCustom: true,
       createdAt: new Date().toISOString(),
     };
     const updated = [newEx, ...currentAll];
     this.saveExerciseDatabase(updated);
     return newEx;
+  },
+
+  updateExerciseInDatabase(updatedExercise: DatabaseExercise): DatabaseExercise[] {
+    const currentAll = this.getExerciseDatabase();
+    const exists = currentAll.some((ex) => ex.id === updatedExercise.id);
+    const nextItem: DatabaseExercise = {
+      ...updatedExercise,
+      isModified: true,
+    };
+    const updatedList = exists
+      ? currentAll.map((ex) => (ex.id === updatedExercise.id ? nextItem : ex))
+      : [ { ...nextItem, isCustom: true }, ...currentAll ];
+    this.saveExerciseDatabase(updatedList);
+    return this.getExerciseDatabase();
   },
 
   deleteExerciseFromDatabase(exerciseId: string): DatabaseExercise[] {
@@ -807,8 +847,61 @@ export const storage = {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('ironcoach_deleted_exercise_ids_v3');
       localStorage.removeItem(STORAGE_KEYS.EXERCISE_DATABASE);
+      window.dispatchEvent(new CustomEvent('ironcoach:exercise-db-updated'));
     }
     return INITIAL_EXERCISE_DATABASE;
+  },
+
+  // CUSTOM WORKOUT METHODS (MÉTODOS AVANÇADOS PERSONALIZADOS)
+  getCustomMethods(): CustomWorkoutMethod[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_METHODS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveCustomMethods(methods: CustomWorkoutMethod[]): CustomWorkoutMethod[] {
+    if (typeof window === 'undefined') return methods;
+    try {
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_METHODS, JSON.stringify(methods));
+      window.dispatchEvent(new CustomEvent('ironcoach:custom-methods-updated'));
+    } catch (e) {
+      console.error('Error saving custom methods:', e);
+    }
+    return methods;
+  },
+
+  addCustomMethod(
+    methodData: Omit<CustomWorkoutMethod, 'id' | 'createdAt'>
+  ): CustomWorkoutMethod {
+    const current = this.getCustomMethods();
+    const cleanName = methodData.name.trim();
+    const existingIdx = current.findIndex(
+      (m) => m.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+    const newMethod: CustomWorkoutMethod = {
+      id: existingIdx >= 0 ? current[existingIdx].id : `method-${Date.now()}`,
+      name: cleanName,
+      hasSubSets: methodData.hasSubSets,
+      subSetsTemplate: methodData.hasSubSets ? methodData.subSetsTemplate || [] : [],
+      createdAt: new Date().toISOString(),
+    };
+    const updated =
+      existingIdx >= 0
+        ? current.map((m, idx) => (idx === existingIdx ? newMethod : m))
+        : [newMethod, ...current];
+    this.saveCustomMethods(updated);
+    return newMethod;
+  },
+
+  deleteCustomMethod(methodId: string): CustomWorkoutMethod[] {
+    const current = this.getCustomMethods().filter((m) => m.id !== methodId);
+    return this.saveCustomMethods(current);
   },
 
   // COMPLETED WORKOUTS HISTORY METHODS

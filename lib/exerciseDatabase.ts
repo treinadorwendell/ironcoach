@@ -222,16 +222,39 @@ export function findExerciseMetadata(
   const clean = nameOrId.trim().toLowerCase();
   if (!clean) return undefined;
 
-  if (customList && customList.length > 0) {
-    const fromCustom = customList.find(
+  let listToSearch = customList;
+  if ((!listToSearch || listToSearch.length === 0) && typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('ironcoach_exercise_db_v3_json');
+      if (raw) {
+        listToSearch = JSON.parse(raw);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (listToSearch && listToSearch.length > 0) {
+    const fromCustom = listToSearch.find(
       (item) =>
-        item.name.trim().toLowerCase() === clean ||
-        item.id.trim().toLowerCase() === clean
+        item &&
+        (item.name.trim().toLowerCase() === clean ||
+          item.id.trim().toLowerCase() === clean)
     );
-    if (fromCustom && (fromCustom.images?.length || fromCustom.instructions?.length || fromCustom.primaryMuscles?.length)) {
+    if (
+      fromCustom &&
+      (fromCustom.isCustom ||
+        fromCustom.isModified ||
+        fromCustom.videoUrl ||
+        fromCustom.gifUrl ||
+        fromCustom.images?.length ||
+        fromCustom.instructions?.length ||
+        fromCustom.primaryMuscles?.length)
+    ) {
       return fromCustom;
     }
   }
 
   return exerciseByNameMap.get(clean) || exerciseByIdMap.get(clean);
 }
+

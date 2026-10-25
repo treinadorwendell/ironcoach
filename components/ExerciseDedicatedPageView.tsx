@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { ExerciseCommentsHistoryModal } from './ExerciseCommentsHistoryModal';
 import { findExerciseMetadata } from '@/lib/exerciseDatabase';
-import { ExerciseMediaPlayer } from './ExerciseMediaPlayer';
+import { ExerciseMediaModal } from './ExerciseMediaPlayer';
 import { ExerciseInstructionsModal } from './ExerciseInstructionsModal';
 
 interface ExerciseDedicatedPageViewProps {
@@ -120,6 +120,10 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
     focusedExercise.images && focusedExercise.images.length > 0
       ? focusedExercise.images
       : resolvedMeta?.images || [];
+  const exerciseVideoUrl = focusedExercise.videoUrl || resolvedMeta?.videoUrl;
+  const exerciseGifUrl = focusedExercise.gifUrl || resolvedMeta?.gifUrl;
+  const hasAnyMedia =
+    exerciseImages.length > 0 || !!exerciseVideoUrl || !!exerciseGifUrl;
   const exerciseInstructions =
     focusedExercise.instructions && focusedExercise.instructions.length > 0
       ? focusedExercise.instructions
@@ -334,25 +338,16 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                 <span>Descanso: {focusedExercise.restSeconds}s</span>
               </button>
 
-              {/* Botão para Visualizar a Mídia / Vídeo do Exercício (caso tenha) */}
-              {exerciseImages.length > 0 && (
+              {/* Botão para Visualizar a Mídia / Vídeo do Exercício em Janela Separada */}
+              {hasAnyMedia && (
                 <button
                   type="button"
-                  onClick={() => setIsMediaExpanded((prev) => !prev)}
-                  className={`px-3 py-1 rounded-lg border font-extrabold flex items-center gap-1.5 active:scale-95 transition cursor-pointer ${
-                    isMediaExpanded
-                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
-                      : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
-                  }`}
-                  title="Expandir e exibir mídia/vídeo do exercício"
+                  onClick={() => setIsMediaExpanded(true)}
+                  className="px-3 py-1 rounded-lg border font-extrabold flex items-center gap-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30 active:scale-95 transition cursor-pointer"
+                  title="Abrir mídia/vídeo do exercício em janela separada"
                 >
                   <Film className="w-3.5 h-3.5" />
-                  <span>{isMediaExpanded ? 'Ocultar Vídeo' : 'Ver Mídia / Vídeo'}</span>
-                  {isMediaExpanded ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
+                  <span>Ver Vídeo</span>
                 </button>
               )}
 
@@ -392,17 +387,6 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             </div>
           </div>
         </div>
-
-        {/* MÍDIA / VÍDEO DO EXERCÍCIO EXPANDIDO */}
-        {isMediaExpanded && exerciseImages.length > 0 && (
-          <div className="animate-in fade-in duration-200">
-            <ExerciseMediaPlayer
-              images={exerciseImages}
-              exerciseName={focusedExercise.exerciseName}
-              autoPlay={true}
-            />
-          </div>
-        )}
 
         {/* COMBINAÇÃO (BI-SET / TRI-SET) SE HOUVER */}
         {focusedExercise.combinationGroupId && (
@@ -1090,6 +1074,19 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           category: focusedExercise.category || resolvedMeta?.category,
           instructions: exerciseInstructions,
           images: exerciseImages,
+        }}
+      />
+
+      {/* JANELA SEPARADA DE VÍDEO / GIF / MÍDIA */}
+      <ExerciseMediaModal
+        isOpen={isMediaExpanded}
+        onClose={() => setIsMediaExpanded(false)}
+        exercise={{
+          name: focusedExercise.exerciseName,
+          muscleGroup: focusedExercise.muscleGroup,
+          images: exerciseImages,
+          videoUrl: exerciseVideoUrl,
+          gifUrl: exerciseGifUrl,
         }}
       />
     </motion.div>

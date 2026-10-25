@@ -96,8 +96,26 @@ export interface DatabaseExercise {
   category?: string;
   instructions?: string[];
   images?: string[];
+  videoUrl?: string;
+  gifUrl?: string;
+  mediaType?: 'video_upload' | 'video_link' | 'gif' | 'images';
   isCustom?: boolean;
+  isModified?: boolean;
   createdAt?: string;
+}
+
+export interface CustomWorkoutMethodSubSetTemplate {
+  subSetNumber: number;
+  repZone: string;
+  note: string;
+}
+
+export interface CustomWorkoutMethod {
+  id: string;
+  name: string;
+  hasSubSets: boolean;
+  subSetsTemplate?: CustomWorkoutMethodSubSetTemplate[];
+  createdAt: string;
 }
 
 export const WORKOUT_METHODS = [
@@ -181,6 +199,9 @@ export interface ExerciseItem {
   category?: string;
   instructions?: string[];
   images?: string[];
+  videoUrl?: string;
+  gifUrl?: string;
+  mediaType?: 'video_upload' | 'video_link' | 'gif' | 'images';
 }
 
 export interface WorkoutSplit {
@@ -253,6 +274,9 @@ export interface ExecutionExerciseState {
   category?: string;
   instructions?: string[];
   images?: string[];
+  videoUrl?: string;
+  gifUrl?: string;
+  mediaType?: 'video_upload' | 'video_link' | 'gif' | 'images';
 }
 
 export interface ActiveWorkoutSession {

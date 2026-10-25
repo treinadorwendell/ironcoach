@@ -75,7 +75,11 @@ import { PsePickerModal, getPseInfo } from './PsePickerModal';
 import { ExerciseDedicatedPageView } from './ExerciseDedicatedPageView';
 import { CalendarEvent, DatabaseExercise } from '@/types';
 import { findExerciseMetadata } from '@/lib/exerciseDatabase';
-import { ExerciseMediaPlayer } from './ExerciseMediaPlayer';
+import {
+  ExerciseMediaPlayer,
+  ExerciseMediaModal,
+  ExerciseMediaModalData,
+} from './ExerciseMediaPlayer';
 import { ExerciseInstructionsModal } from './ExerciseInstructionsModal';
 
 interface WorkoutExecutionSectionProps {
@@ -378,6 +382,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           category: ex.category || meta?.category,
           instructions: ex.instructions?.length ? ex.instructions : meta?.instructions,
           images: ex.images?.length ? ex.images : meta?.images,
+          videoUrl: ex.videoUrl || meta?.videoUrl,
+          gifUrl: ex.gifUrl || meta?.gifUrl,
+          mediaType: ex.mediaType || meta?.mediaType,
         };
       });
 
@@ -505,10 +512,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Individual exercise expansion states (default: collapsed on workout selection)
   const [expandedExerciseIds, setExpandedExerciseIds] = useState<Record<string, boolean>>({});
-  // Exercise media/video expansion state inside execution cards
-  const [expandedExecutionMediaIds, setExpandedExecutionMediaIds] = useState<
-    Record<string, boolean>
-  >({});
+  // Exercise media/video modal state (separate window)
+  const [executionMediaModalEx, setExecutionMediaModalEx] =
+    useState<ExerciseMediaModalData | null>(null);
   // Exercise execution instructions modal state
   const [executionInstructionsModalEx, setExecutionInstructionsModalEx] = useState<
     (Partial<DatabaseExercise> & { name: string }) | null
@@ -2723,7 +2729,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
               </button>
-              <Dumbbell className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-black text-slate-200 uppercase tracking-wider">
                 Exercícios do Treino ({session.exercises.length})
               </span>
@@ -2736,18 +2741,20 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               <button
                 type="button"
                 onClick={handleExpandAllExercises}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-300 hover:text-white transition active:scale-95"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition active:scale-95 flex items-center justify-center cursor-pointer"
                 title="Expandir todos os exercícios"
+                aria-label="Expandir todos os exercícios"
               >
-                Expandir Todos
+                <ChevronDown className="w-4 h-4 text-cyan-400" />
               </button>
               <button
                 type="button"
                 onClick={handleCollapseAllExercises}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-300 hover:text-white transition active:scale-95"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition active:scale-95 flex items-center justify-center cursor-pointer"
                 title="Recolher todos os exercícios"
+                aria-label="Recolher todos os exercícios"
               >
-                Recolher Todos
+                <ChevronUp className="w-4 h-4 text-cyan-400" />
               </button>
             </div>
           </div>
@@ -2983,8 +2990,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                 ex.images && ex.images.length > 0
                                   ? ex.images
                                   : resolvedMeta?.images || [];
-                              const isMediaExpanded = !!expandedExecutionMediaIds[ex.exerciseId];
-                              const hasMedia = mediaImages.length > 0;
+                              const videoUrl = ex.videoUrl || resolvedMeta?.videoUrl;
+                              const gifUrl = ex.gifUrl || resolvedMeta?.gifUrl;
+                              const hasMedia =
+                                mediaImages.length > 0 || !!videoUrl || !!gifUrl;
 
                               return (
                                 <ExecutionIconButtonWithTooltip
@@ -2992,22 +3001,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   tooltipText={
                                     !hasMedia
                                       ? 'Nenhuma mídia disponível'
-                                      : isMediaExpanded
-                                      ? 'Ocultar mídia demonstrativa'
-                                      : 'Expandir mídia demonstrativa'
+                                      : 'Ver vídeo ou mídia em janela separada'
                                   }
                                   tooltipAlign="left"
                                   tooltipPosition="top"
                                   variant="cyan"
-                                  active={isMediaExpanded}
                                   disabled={!hasMedia}
-                                  ariaLabel={isMediaExpanded ? 'Ocultar mídia demonstrativa' : 'Expandir mídia demonstrativa'}
+                                  ariaLabel="Ver vídeo ou mídia demonstrativa"
                                   onClick={() => {
                                     if (hasMedia) {
-                                      setExpandedExecutionMediaIds((prev) => ({
-                                        ...prev,
-                                        [ex.exerciseId]: !prev[ex.exerciseId],
-                                      }));
+                                      setExecutionMediaModalEx({
+                                        name: ex.exerciseName,
+                                        muscleGroup: ex.muscleGroup,
+                                        images: mediaImages,
+                                        videoUrl,
+                                        gifUrl,
+                                      });
                                     }
                                   }}
                                 />
@@ -3082,28 +3091,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             />
                           </div>
                         </div>
-
-                        {/* Player de Mídia / Vídeo Expandido ao clicar em "Ver Mídia" */}
-                        {(() => {
-                          const resolvedMeta = findExerciseMetadata(ex.exerciseName);
-                          const mediaImages =
-                            ex.images && ex.images.length > 0
-                              ? ex.images
-                              : resolvedMeta?.images || [];
-                          const isMediaExpanded = !!expandedExecutionMediaIds[ex.exerciseId];
-
-                          if (!isMediaExpanded || mediaImages.length === 0) return null;
-
-                          return (
-                            <div className="pt-2 animate-in fade-in duration-200">
-                              <ExerciseMediaPlayer
-                                images={mediaImages}
-                                exerciseName={ex.exerciseName}
-                                autoPlay={true}
-                              />
-                            </div>
-                          );
-                        })()}
                       </div>
 
                       {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES (LOGO ABAIXO DO CABEÇALHO) */}
@@ -4484,6 +4471,13 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         isOpen={!!executionInstructionsModalEx}
         onClose={() => setExecutionInstructionsModalEx(null)}
         exercise={executionInstructionsModalEx}
+      />
+
+      {/* JANELA SEPARADA DE REPRODUÇÃO DE VÍDEO / GIF / MÍDIA */}
+      <ExerciseMediaModal
+        isOpen={!!executionMediaModalEx}
+        exercise={executionMediaModalEx}
+        onClose={() => setExecutionMediaModalEx(null)}
       />
     </div>
   );
