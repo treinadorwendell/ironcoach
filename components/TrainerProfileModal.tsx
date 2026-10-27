@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Play,
+  Utensils,
 } from 'lucide-react';
 import {
   TrainerProfile,
@@ -40,6 +41,8 @@ import {
   DatabaseExercise,
   CustomWorkoutMethod,
   CustomWorkoutMethodSubSetTemplate,
+  NutritionFoodItem,
+  NutritionProfessionalLibrary,
 } from '@/types';
 import {
   updateTrainerPassword,
@@ -55,6 +58,8 @@ import {
   formatEquipment,
 } from '@/lib/exerciseDatabase';
 import { ExerciseMediaModal, ExerciseMediaModalData } from '@/components/ExerciseMediaPlayer';
+import { ProfessionalNutritionPanel } from '@/components/ProfessionalNutritionPanel';
+import { loadOfficialNutritionDatabase } from '@/lib/nutritionEngine';
 import { User } from 'firebase/auth';
 
 interface TrainerProfileModalProps {
@@ -71,7 +76,7 @@ const CROP_VIEWPORT_SIZE = 180; // px on screen for interactive framing
 const OUTPUT_CANVAS_SIZE = 256; // 256x256 square thumbnail output
 const MAX_VIDEO_DURATION_SECONDS = 30;
 
-type MainSettingsTab = 'perfil' | 'treino';
+type MainSettingsTab = 'perfil' | 'treino' | 'dieta';
 type WorkoutSubTab = 'criar-exercicio' | 'editar-exercicio' | 'metodo-avancado';
 type MobileNavView =
   | 'main-cards'
@@ -79,7 +84,8 @@ type MobileNavView =
   | 'treino-cards'
   | 'criar-exercicio'
   | 'editar-exercicio'
-  | 'metodo-avancado';
+  | 'metodo-avancado'
+  | 'dieta';
 
 type MediaInputMode = 'none' | 'video_upload' | 'video_link' | 'gif';
 
@@ -98,6 +104,12 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
     useState<WorkoutSubTab>('criar-exercicio');
   const [mobileNavView, setMobileNavView] = useState<MobileNavView>('main-cards');
 
+  // Nutrition Library State (Configurações da Dieta)
+  const [nutritionLibrary, setNutritionLibrary] = useState<NutritionProfessionalLibrary>(() =>
+    storage.getNutritionLibrary()
+  );
+  const [allNutritionFoods, setAllNutritionFoods] = useState<NutritionFoodItem[]>([]);
+
   // Profile State
   const [name, setName] = useState(
     () => initialProfile?.name || currentUser?.displayName || ''
@@ -108,17 +120,27 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
     () => initialProfile?.logoDataUrl
   );
 
-  // Sync profile fields when reopened
+  // Sync profile fields and nutrition database when reopened
   useEffect(() => {
     if (isOpen) {
       setName(initialProfile?.name || currentUser?.displayName || '');
       setLogoDataUrl(initialProfile?.logoDataUrl);
+      setNutritionLibrary(storage.getNutritionLibrary());
+      loadOfficialNutritionDatabase().then((foods) => {
+        setAllNutritionFoods(foods);
+      });
       if (isFirstLoginMandatory) {
         setActiveMainTab('perfil');
         setMobileNavView('perfil');
       }
     }
   }, [isOpen, initialProfile, currentUser, isFirstLoginMandatory]);
+
+  const handleSaveNutritionLibrary = (updated: NutritionProfessionalLibrary) => {
+    setNutritionLibrary(updated);
+    storage.saveNutritionLibrary(updated);
+    cloudSync.syncNutritionLibrary(updated);
+  };
 
   // Image Cropper State
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
@@ -2185,7 +2207,11 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200">
         <div
           className={`w-full ${
-            isFirstLoginMandatory ? 'max-w-lg' : 'max-w-4xl'
+            isFirstLoginMandatory
+              ? 'max-w-lg'
+              : activeMainTab === 'dieta'
+              ? 'max-w-6xl'
+              : 'max-w-4xl'
           } rounded-3xl bg-slate-900 border border-emerald-500/30 shadow-2xl shadow-emerald-950/50 overflow-hidden my-auto max-h-[92vh] flex flex-col`}
         >
           {/* Modal Header */}
@@ -2219,7 +2245,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isFirstLoginMandatory
                     ? 'Informe seu nome para personalizar o IronCoach (senha e logo são opcionais).'
-                    : 'Gerencie seu perfil, banco de exercícios (vídeos de até 30s, links e GIFs) e métodos avançados.'}
+                    : 'Gerencie seu perfil, banco de exercícios, métodos avançados e configurações da dieta (alimentos, receitas e medidas POF/IBGE).'}
                 </p>
               </div>
             </div>
@@ -2270,6 +2296,22 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 >
                   <Settings className="w-4 h-4" />
                   <span>Configurações de Treino</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMainTab('dieta');
+                    setMobileNavView('dieta');
+                  }}
+                  className={`px-4 py-2.5 rounded-t-2xl text-xs font-extrabold flex items-center gap-2 border-t border-x transition cursor-pointer ${
+                    activeMainTab === 'dieta'
+                      ? 'bg-slate-900 text-amber-400 border-slate-800'
+                      : 'bg-transparent text-slate-400 border-transparent hover:text-white'
+                  }`}
+                >
+                  <Utensils className="w-4 h-4" />
+                  <span>Configurações da Dieta</span>
                 </button>
               </div>
 
@@ -2345,12 +2387,19 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   {activeMainTab === 'treino' &&
                     activeWorkoutSubTab === 'metodo-avancado' &&
                     renderAdvancedMethodSection()}
+                  {activeMainTab === 'dieta' && (
+                    <ProfessionalNutritionPanel
+                      library={nutritionLibrary}
+                      allFoods={allNutritionFoods}
+                      onSaveLibrary={handleSaveNutritionLibrary}
+                    />
+                  )}
                 </div>
 
                 {/* TABLET & MOBILE CONTENT (< lg: Menu de Cards Grandes) */}
                 <div className="lg:hidden space-y-4">
                   {mobileNavView === 'main-cards' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                       {/* Card 1: Editar Perfil */}
                       <button
                         type="button"
@@ -2396,7 +2445,32 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                             Configurações de Treino
                           </h3>
                           <p className="text-xs text-slate-400 mt-1">
-                            Banco de Exercícios, Editar Exercício do Banco e Método Avançado.
+                            Banco de Exercícios, Editar Exercício e Método Avançado.
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Card 3: Configurações da Dieta */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMainTab('dieta');
+                          setMobileNavView('dieta');
+                        }}
+                        className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-amber-500/40 hover:border-amber-400 text-left space-y-3 shadow-lg transition active:scale-[0.99] cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                            <Utensils className="w-6 h-6" />
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-white">
+                            Configurações da Dieta
+                          </h3>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Alimentos, receitas, refeições pré-definidas e porções POF/IBGE.
                           </p>
                         </div>
                       </button>
@@ -2543,6 +2617,24 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                         <span>Voltar para Configurações de Treino</span>
                       </button>
                       {renderAdvancedMethodSection()}
+                    </div>
+                  )}
+
+                  {mobileNavView === 'dieta' && (
+                    <div className="space-y-3">
+                      <button
+                        type="button"
+                        onClick={() => setMobileNavView('main-cards')}
+                        className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-amber-400" />
+                        <span>Voltar à Central de Configuração</span>
+                      </button>
+                      <ProfessionalNutritionPanel
+                        library={nutritionLibrary}
+                        allFoods={allNutritionFoods}
+                        onSaveLibrary={handleSaveNutritionLibrary}
+                      />
                     </div>
                   )}
                 </div>

@@ -14,6 +14,7 @@ import {
 } from '@/types';
 import { storage } from '@/lib/storage';
 import { WorkoutHistoryPage } from './WorkoutHistoryPage';
+import { ClientNutritionWorkspace } from './ClientNutritionWorkspace';
 import {
   UserPlus,
   Search,
@@ -41,6 +42,7 @@ import {
   Globe,
   MapPin,
   SlidersHorizontal,
+  Utensils,
 } from 'lucide-react';
 
 interface ClientSectionProps {
@@ -131,7 +133,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
 
   // Selected Student Profile Page State
   const [selectedProfileClientId, setSelectedProfileClientId] = useState<string | null>(null);
-  const [profileSubView, setProfileSubView] = useState<'menu' | 'informacoes' | 'historico'>('menu');
+  const [profileSubView, setProfileSubView] = useState<'menu' | 'informacoes' | 'historico' | 'nutricao'>('menu');
 
   // Completed workouts history state
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkoutRecord[]>(() => {
@@ -210,7 +212,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   const selectedProfileClient = clients.find((c) => c.id === selectedProfileClientId) || null;
 
   // Populate Info form whenever opening a student's Informações view
-  const openStudentProfile = (client: Client, initialView: 'menu' | 'informacoes' | 'historico' = 'menu') => {
+  const openStudentProfile = (client: Client, initialView: 'menu' | 'informacoes' | 'historico' | 'nutricao' = 'menu') => {
     const parsed = parseContractCategoryAndSub(client.contractType);
     setSelectedProfileClientId(client.id);
     setProfileSubView(initialView);
@@ -402,6 +404,17 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   // PÁGINA DO PERFIL DO ALUNO (QUANDO UM ALUNO ESTÁ SELECIONADO)
   // ============================================================================
   if (selectedProfileClient) {
+    // Sub-visão Nutrição & Prescrição de Dieta
+    if (profileSubView === 'nutricao') {
+      return (
+        <ClientNutritionWorkspace
+          client={selectedProfileClient}
+          onBack={() => setProfileSubView('menu')}
+          onUpdateClient={onUpdateClient}
+        />
+      );
+    }
+
     // Sub-visão 1: Histórico de Treinos do Aluno
     if (profileSubView === 'historico') {
       return (
@@ -920,6 +933,37 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               </p>
             </div>
           </button>
+
+          {/* Card 5: NUTRIÇÃO & PRESCRIÇÃO DE DIETA */}
+          <button
+            type="button"
+            onClick={() => setProfileSubView('nutricao')}
+            className="sm:col-span-2 w-full p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 hover:to-emerald-950/60 border border-emerald-500/40 hover:border-emerald-400 shadow-lg text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          >
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                <Utensils className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base sm:text-lg font-extrabold text-white group-hover:text-emerald-300 transition">
+                    Nutrição & Prescrição Inteligente de Dieta
+                  </h3>
+                  <span className="text-xs text-emerald-400 font-semibold">
+                    · TMB / GET · TACO + POF · IDR · Substituições
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
+                  Cálculos metabólicos (Harris-Benedict, Mifflin-St Jeor, Cunningham, Katch-McArdle, FAO/OMS e Tinsley), cardápios com horários e medidas caseiras, análise de macro e micronutrientes vs. IDR, substituições dinâmicas por receitas e Painel do Profissional.
+                </p>
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold shrink-0 self-start sm:self-center shadow-md">
+              <span>Abrir Nutrição</span>
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </button>
         </div>
       </div>
     );
@@ -1296,8 +1340,21 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   </div>
                 </div>
 
-                {/* Botão de Editar Cadastro do Cliente e Botão de Excluir */}
+                {/* Botões de Ação Rápida: Nutrição, Editar Cadastro e Excluir */}
                 <div className="flex items-center gap-1.5 shrink-0 self-start">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openStudentProfile(client, 'nutricao');
+                    }}
+                    className="w-10 h-10 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation"
+                    title="Abrir Nutrição e Prescrição de Dieta"
+                    aria-label={`Abrir nutrição de ${client.name}`}
+                  >
+                    <Utensils className="w-4 h-4" />
+                  </button>
+
                   <button
                     type="button"
                     onClick={(e) => {

@@ -35,6 +35,8 @@ import {
   ActiveWorkoutSession,
   ExerciseFinishedSnapshot,
   TrainerProfile,
+  ClientDietPlan,
+  NutritionProfessionalLibrary,
 } from '@/types';
 import { storage } from './storage';
 
@@ -753,6 +755,53 @@ class FirestoreSyncService {
         doc(db, 'users', targetUid, 'settings', 'trainerProfile'),
         sanitizeForFirestore({
           profile,
+          userId: targetUid,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  }
+
+  public async syncDietPlan(plan: ClientDietPlan) {
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid) return;
+    const path = `users/${targetUid}/dietPlans/${plan.id}`;
+    try {
+      await setDoc(
+        doc(db, 'users', targetUid, 'dietPlans', plan.id),
+        sanitizeForFirestore({
+          ...plan,
+          userId: targetUid,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  }
+
+  public async removeDietPlan(planId: string) {
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid) return;
+    const path = `users/${targetUid}/dietPlans/${planId}`;
+    try {
+      await deleteDoc(doc(db, 'users', targetUid, 'dietPlans', planId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  }
+
+  public async syncNutritionLibrary(library: NutritionProfessionalLibrary) {
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid) return;
+    const path = `users/${targetUid}/settings/nutritionLibrary`;
+    try {
+      await setDoc(
+        doc(db, 'users', targetUid, 'settings', 'nutritionLibrary'),
+        sanitizeForFirestore({
+          library,
           userId: targetUid,
           updatedAt: new Date().toISOString(),
         })

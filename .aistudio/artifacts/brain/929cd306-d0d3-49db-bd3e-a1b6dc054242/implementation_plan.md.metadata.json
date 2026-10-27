@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementacao para transformar o Perfil do Treinador em uma Central de Configuracao do Sistema com Editar Perfil, Banco de Exercicios (Criar e Editar com video de ate 30s, link ou GIF) e Criacao de Metodos Avancados com subseries configuraveis.",
-  "updatedAt":  "2026-10-24T22:58:08.364860751Z",
+  "summary":  "Plano de atualização e correlação semântica completa do banco de medidas caseiras POF/IBGE com a tabela TACO, incluindo priorização por modo de preparo, cadastro de alimentos e preparações exclusivas da POF no banco selecionável e exibição detalhada da fonte, preparo e medida de referência.",
+  "updatedAt":  "2026-10-26T23:18:48.003228541Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

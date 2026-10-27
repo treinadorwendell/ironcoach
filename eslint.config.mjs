@@ -1,11 +1,32 @@
-import { defineConfig } from "eslint/config";
-import next from "eslint-config-next";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import tsParser from "@typescript-eslint/parser";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+export default [
+  {
+    ignores: [".next/**", "node_modules/**", "public/**"],
+  },
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: {
+      "@next/next": {
+        rules: {
+          "no-img-element": {
+            create() {
+              return {};
+            },
+          },
+        },
+      },
+    },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    rules: {},
+  },
+];
 
-export default defineConfig([{
-    extends: [...next],
-}]);
+

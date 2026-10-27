@@ -15,8 +15,11 @@ import {
   ExerciseImprovementItem,
   TrainerProfile,
   CustomWorkoutMethod,
+  ClientDietPlan,
+  NutritionProfessionalLibrary,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
+import { getInitialProfessionalLibrary } from './nutritionEngine';
 
 const STORAGE_KEYS = {
   CLIENTS: 'ironcoach_clients_v1',
@@ -31,6 +34,8 @@ const STORAGE_KEYS = {
   EXERCISE_COMMENTS: 'ironcoach_exercise_comments_v1',
   TRAINER_PROFILE: 'ironcoach_trainer_profile_v1',
   CUSTOM_METHODS: 'ironcoach_custom_methods_v1',
+  DIET_PLANS: 'ironcoach_diet_plans_v1',
+  NUTRITION_LIBRARY: 'ironcoach_nutrition_library_v1',
 };
 
 // Clean initial state (no dummy clients, workouts, calendar events, or histories)
@@ -1414,6 +1419,103 @@ export const storage = {
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch {
       return [];
+    }
+  },
+
+  // ============================================================================
+  // NUTRITION & DIET PLANS STORAGE
+  // ============================================================================
+  getDietPlans(): ClientDietPlan[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DIET_PLANS);
+      if (!raw) return [];
+      return JSON.parse(raw) as ClientDietPlan[];
+    } catch (e) {
+      console.error('Error reading diet plans:', e);
+      return [];
+    }
+  },
+
+  saveDietPlans(plans: ClientDietPlan[]) {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.DIET_PLANS, JSON.stringify(plans));
+    } catch (e) {
+      console.error('Error saving diet plans:', e);
+    }
+  },
+
+  getClientDietPlan(clientId: string): ClientDietPlan | null {
+    const plans = this.getDietPlans();
+    return plans.find((p) => p.clientId === clientId) || null;
+  },
+
+  saveClientDietPlan(plan: ClientDietPlan): ClientDietPlan[] {
+    const plans = this.getDietPlans();
+    const idx = plans.findIndex((p) => p.clientId === plan.clientId || p.id === plan.id);
+    const updatedPlan: ClientDietPlan = {
+      ...plan,
+      updatedAt: new Date().toISOString(),
+    };
+    let updatedList: ClientDietPlan[];
+    if (idx >= 0) {
+      updatedList = [...plans];
+      updatedList[idx] = updatedPlan;
+    } else {
+      updatedList = [updatedPlan, ...plans];
+    }
+    this.saveDietPlans(updatedList);
+    return updatedList;
+  },
+
+  deleteClientDietPlan(clientId: string): ClientDietPlan[] {
+    const plans = this.getDietPlans().filter((p) => p.clientId !== clientId);
+    this.saveDietPlans(plans);
+    return plans;
+  },
+
+  getNutritionLibrary(): NutritionProfessionalLibrary {
+    const defaults = getInitialProfessionalLibrary();
+    if (typeof window === 'undefined') return defaults;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.NUTRITION_LIBRARY);
+      if (!raw) {
+        localStorage.setItem(STORAGE_KEYS.NUTRITION_LIBRARY, JSON.stringify(defaults));
+        return defaults;
+      }
+      const parsed = JSON.parse(raw) as Partial<NutritionProfessionalLibrary>;
+      return {
+        customFoods: Array.isArray(parsed.customFoods)
+          ? parsed.customFoods
+          : defaults.customFoods,
+        recipes: Array.isArray(parsed.recipes) && parsed.recipes.length > 0
+          ? parsed.recipes
+          : defaults.recipes,
+        mealTemplates: Array.isArray(parsed.mealTemplates) && parsed.mealTemplates.length > 0
+          ? parsed.mealTemplates
+          : defaults.mealTemplates,
+        customPortions: Array.isArray(parsed.customPortions)
+          ? parsed.customPortions
+          : defaults.customPortions,
+        updatedAt: parsed.updatedAt || defaults.updatedAt,
+      };
+    } catch (e) {
+      console.error('Error reading nutrition library:', e);
+      return defaults;
+    }
+  },
+
+  saveNutritionLibrary(library: NutritionProfessionalLibrary) {
+    if (typeof window === 'undefined') return;
+    try {
+      const updated: NutritionProfessionalLibrary = {
+        ...library,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(STORAGE_KEYS.NUTRITION_LIBRARY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error saving nutrition library:', e);
     }
   },
 };

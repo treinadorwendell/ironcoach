@@ -30,6 +30,7 @@ export interface Client {
   gender: Gender;
   weight: number; // KG
   height: number; // CM
+  bodyFatPercent?: number; // % BF opcional
   email: string;
   contractType: ContractType;
   contractValue: number; // R$
@@ -451,4 +452,233 @@ export interface ExerciseCommentRecord {
   date: string; // e.g. "04/10/2026"
   timestamp: string; // ISO
 }
+
+// ============================================================================
+// NUTRITION & DIET PRESCRIPTION MODULE TYPES
+// ============================================================================
+
+export type MetabolicFormulaId =
+  | 'mifflin'
+  | 'harris'
+  | 'cunningham'
+  | 'katch'
+  | 'fao'
+  | 'tinsley_weight'
+  | 'tinsley_lbm';
+
+export type ActivityLevelId =
+  | 'sedentario'
+  | 'leve'
+  | 'moderado'
+  | 'intenso'
+  | 'atleta';
+
+export type DietGoalType = 'deficit' | 'manutencao' | 'superavit';
+
+export interface ClientMetabolicConfig {
+  formula: MetabolicFormulaId;
+  bodyFatPercent?: number; // % de gordura corporal para Cunningham, Katch-McArdle e Tinsley MLG
+  activityLevel: ActivityLevelId;
+  activityFactor: number; // ex: 1.2, 1.375, 1.55, 1.725, 1.9
+  workoutCalories: number; // kcal extras do treino no dia
+  goalType: DietGoalType;
+  goalDeltaKcal: number; // ex: -400, 0, +350
+  proteinGPerKg: number; // ex: 2.0 g/kg
+  fatGPerKg: number; // ex: 0.9 g/kg
+  fiberTargetG: number; // ex: 30 g
+}
+
+export interface NutrientProfile {
+  energyKcal: number;
+  proteinG: number;
+  carbohydrateG: number;
+  lipidG: number;
+  fiberG: number;
+  cholesterolMg: number;
+  saturatedG: number;
+  monounsaturatedG: number;
+  polyunsaturatedG: number;
+  calciumMg: number;
+  magnesiumMg: number;
+  manganeseMg: number;
+  phosphorusMg: number;
+  ironMg: number;
+  sodiumMg: number;
+  potassiumMg: number;
+  copperMg: number;
+  zincMg: number;
+  retinolMcg: number;
+  thiamineMg: number;
+  riboflavinMg: number;
+  pyridoxineMg: number;
+  niacinMg: number;
+  vitaminCMg: number;
+}
+
+export interface HouseholdMeasureOption {
+  id: string;
+  label: string; // ex: "★ Colher de arroz/servir · Cozido(a) — 45g (Arroz cozido - colher de arroz cheia)"
+  unitName: string; // ex: "Colher de arroz/servir", "Colher de sopa", "g", "ml", "L"
+  grams: number; // Peso equivalente em gramas para 1 unidade desta medida
+  source: 'universal' | 'pof' | 'custom';
+  preparation?: string; // ex: "Cozido(a)", "Grelhado(a)/Brasa", "Cru(a)"
+  sourceDescription?: string; // descricao_fonte oficial da POF, ex: "Arroz cozido - colher de arroz cheia"
+  pofFoodCode?: string; // codigo_alimento da POF, ex: "6300101"
+  pofFoodDescription?: string; // descricao_alimento da POF, ex: "ARROZ (POLIDO, PARBOILIZADO)"
+  pofMeasureCode?: string; // codigo_medida da POF, ex: "12"
+  isReferenceMeasure?: boolean; // true se codigo_medida === codigo_medida_referencia
+  isPreparationMatch?: boolean; // true se o preparo da medida coincide com o preparo do alimento
+}
+
+export interface NutritionFoodItem {
+  id: string;
+  name: string;
+  category: string;
+  isCustom?: boolean;
+  origin?: 'taco' | 'pof' | 'custom';
+  pofCode?: string;
+  pofDescription?: string;
+  preparationMethod?: string;
+  baseUnit: '100g' | '100ml';
+  nutrientsPer100: NutrientProfile;
+  measures: HouseholdMeasureOption[];
+  createdAt?: string;
+}
+
+export type RecipeCategory =
+  | 'Café da Manhã'
+  | 'Almoço & Jantar'
+  | 'Lanches & Pré/Pós-Treino'
+  | 'Sobremesas Fit'
+  | 'Bebidas & Smoothies'
+  | 'Outros';
+
+export const RECIPE_CATEGORIES: RecipeCategory[] = [
+  'Café da Manhã',
+  'Almoço & Jantar',
+  'Lanches & Pré/Pós-Treino',
+  'Sobremesas Fit',
+  'Bebidas & Smoothies',
+  'Outros',
+];
+
+export interface NutritionRecipeIngredient {
+  id: string;
+  foodId: string;
+  foodName: string;
+  measureId: string;
+  measureLabel: string;
+  quantity: number;
+  gramsEquivalent: number;
+  nutrients: NutrientProfile;
+}
+
+export interface NutritionRecipe {
+  id: string;
+  name: string;
+  category: RecipeCategory;
+  servings: number;
+  servingWeightG: number;
+  prepTimeMinutes: number;
+  instructions: string;
+  ingredients: NutritionRecipeIngredient[];
+  nutrientsPerServing: NutrientProfile;
+  nutrientsTotal: NutrientProfile;
+  isSystemDefault?: boolean;
+  createdAt: string;
+}
+
+export type SubstitutionEquivalenceMode =
+  | 'auto_kcal'
+  | 'auto_carb'
+  | 'auto_protein'
+  | 'auto_fat'
+  | 'fixed_portion';
+
+export interface DietItemSubstitution {
+  id: string;
+  targetType: 'food' | 'recipe';
+  targetId: string;
+  targetName: string;
+  category: string;
+  measureId: string;
+  measureLabel: string;
+  quantity: number;
+  gramsEquivalent: number;
+  equivalenceMode: SubstitutionEquivalenceMode;
+  nutrients: NutrientProfile;
+}
+
+export interface DietMealItem {
+  id: string;
+  sourceType: 'food' | 'recipe';
+  sourceId: string;
+  name: string;
+  category: string;
+  measureId: string;
+  measureLabel: string;
+  quantity: number;
+  gramsEquivalent: number;
+  nutrients: NutrientProfile;
+  notes?: string;
+  substitutions: DietItemSubstitution[];
+}
+
+export interface DietMeal {
+  id: string;
+  time: string; // ex: "07:30"
+  name: string; // ex: "Café da Manhã"
+  notes?: string;
+  items: DietMealItem[];
+  mealSubstitutions: DietItemSubstitution[]; // Troca da refeição inteira por receitas do sistema/profissional
+}
+
+export interface DietDaySchedule {
+  id: string;
+  name: string; // ex: "Dias de Treino (Seg a Sex)"
+  weekDays: number[]; // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+  meals: DietMeal[];
+}
+
+export interface PredefinedMealTemplate {
+  id: string;
+  name: string;
+  category: string;
+  defaultTime: string;
+  notes?: string;
+  items: DietMealItem[];
+  nutrientsTotal: NutrientProfile;
+  createdAt: string;
+}
+
+export interface CustomPortionRecord {
+  id: string;
+  name: string; // ex: "1 Scoop Whey Padrão"
+  unitName: string; // ex: "Scoop"
+  grams: number; // ex: 30
+  applicableCategory?: string; // ex: "Suplementos" ou "Todos"
+  foodId?: string; // Opcional: vinculado a um alimento específico
+  createdAt: string;
+}
+
+export interface NutritionProfessionalLibrary {
+  customFoods: NutritionFoodItem[];
+  recipes: NutritionRecipe[];
+  mealTemplates: PredefinedMealTemplate[];
+  customPortions: CustomPortionRecord[];
+  updatedAt: string;
+}
+
+export interface ClientDietPlan {
+  id: string;
+  clientId: string;
+  clientName: string;
+  name: string;
+  metabolicConfig: ClientMetabolicConfig;
+  schedules: DietDaySchedule[];
+  activeScheduleId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
