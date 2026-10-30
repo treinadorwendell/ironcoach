@@ -25,10 +25,10 @@ export const PWAInstallButton: React.FC = () => {
     return (
       <button
         onClick={install}
-        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 hover:from-emerald-500 hover:to-teal-500 active:scale-95 transition-all"
+        className="flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-10 lg:h-[42px] rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 hover:from-emerald-500 hover:to-teal-500 active:scale-95 transition-all whitespace-nowrap shrink-0 cursor-pointer"
         title="Instalar App no Tablet para uso 100% Offline"
       >
-        <Download className="w-4 h-4 text-emerald-200" />
+        <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-200" />
         <span className="hidden sm:inline">Instalar PWA</span>
         <span className="sm:hidden">Instalar</span>
       </button>
@@ -41,10 +41,10 @@ export const PWAInstallButton: React.FC = () => {
       <>
         <button
           onClick={() => setShowIOSGuide(true)}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition active:scale-95"
+          className="flex items-center justify-center gap-1.5 h-9 sm:h-10 lg:h-[42px] rounded-xl border border-slate-700 bg-slate-800/80 px-3 sm:px-4 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-700 transition active:scale-95 whitespace-nowrap shrink-0 cursor-pointer"
           title="Instalar no iPad / iPhone"
         >
-          <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+          <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />
           <span>Instalar no iPad</span>
         </button>
 
@@ -60,7 +60,7 @@ export const PWAInstallButton: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowIOSGuide(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                  className="w-9 h-9 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -83,7 +83,7 @@ export const PWAInstallButton: React.FC = () => {
 
               <button
                 onClick={() => setShowIOSGuide(false)}
-                className="mt-5 w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 py-2.5 text-sm font-semibold text-white shadow-lg active:scale-95 transition"
+                className="mt-5 w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold text-white shadow-lg active:scale-95 transition flex items-center justify-center cursor-pointer"
               >
                 Entendido
               </button>

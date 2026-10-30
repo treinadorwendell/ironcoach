@@ -64,6 +64,8 @@ interface WorkoutHistoryPageProps {
   initialClientId?: string | null;
   onBack: () => void;
   onStartWorkoutForClient?: (client: Client) => void;
+  readOnly?: boolean;
+  hideBackButton?: boolean;
 }
 
 export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
@@ -71,6 +73,8 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
   initialClientId,
   onBack,
   onStartWorkoutForClient,
+  readOnly = false,
+  hideBackButton = false,
 }) => {
   const [workouts, setWorkouts] = useState<CompletedWorkoutRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -233,21 +237,24 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
       {/* Top Navigation & Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white border border-slate-700 transition flex-shrink-0 group shadow-md"
-            title="Voltar para a Lista de Alunos"
-          >
-            <ArrowLeft className="w-5 h-5 text-amber-400 group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-bold hidden xs:inline">Voltar</span>
-          </button>
+          {!hideBackButton && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white border border-slate-700 transition flex-shrink-0 group shadow-md"
+              title="Voltar para a Lista de Alunos"
+            >
+              <ArrowLeft className="w-5 h-5 text-amber-400 group-hover:-translate-x-0.5 transition-transform" />
+              <span className="text-xs font-bold hidden xs:inline">Voltar</span>
+            </button>
+          )}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
                 <History className="w-5 h-5 text-amber-400" />
                 <span>
-                  Histórico do Perfil{currentClient ? ` • ${currentClient.name}` : ''}
+                  {readOnly ? 'Meu Progresso & Histórico' : 'Histórico do Perfil'}
+                  {currentClient ? ` • ${currentClient.name}` : ''}
                 </span>
               </h2>
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-[11px] border border-amber-500/30">
@@ -255,7 +262,9 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {currentClient
+              {readOnly
+                ? 'Acompanhe seus treinos concluídos, evolução de cargas e séries realizadas.'
+                : currentClient
                 ? `Histórico exclusivo de treinos, cargas e métricas de ${currentClient.name}.`
                 : 'Histórico exclusivo de treinos deste perfil.'}
             </p>
@@ -375,10 +384,20 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
             <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-center">
               <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
-                <DollarSign className="w-3 h-3 text-amber-400" /> Plano
+                {readOnly ? (
+                  <>
+                    <Dumbbell className="w-3 h-3 text-amber-400" /> Modalidade
+                  </>
+                ) : (
+                  <>
+                    <DollarSign className="w-3 h-3 text-amber-400" /> Plano
+                  </>
+                )}
               </span>
               <span className="text-xs font-bold text-amber-300 mt-0.5 block truncate">
-                {currentClient.contractType} (R$ {currentClient.contractValue})
+                {readOnly
+                  ? currentClient.contractType
+                  : `${currentClient.contractType} (R$ ${currentClient.contractValue})`}
               </span>
             </div>
           </div>
@@ -584,17 +603,19 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
                   {/* Actions & Expand Toggle */}
                   <div className="flex items-center gap-2 self-end sm:self-auto">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setWorkoutToDelete(workout);
-                      }}
-                      className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                      title="Excluir este registro de treino"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setWorkoutToDelete(workout);
+                        }}
+                        className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                        title="Excluir este registro de treino"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
 
                     <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 flex items-center gap-1 text-xs font-bold">
                       <span className="hidden sm:inline">
@@ -702,7 +723,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                                       }`}
                                     >
                                       <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 border-b border-slate-800/80 mb-1">
-                                        <span className="font-bold">Série #{set.setNumber}</span>
+                                        <span className="font-bold">Série {set.setNumber}</span>
                                         {set.completed && (
                                           <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                         )}

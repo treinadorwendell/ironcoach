@@ -231,7 +231,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             </div>
             <div className="min-w-0">
               <h4 className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
-                <span>Descanso: Série #{setNumber}</span>
+                <span>Descanso: Série {setNumber}</span>
                 {isFinished && (
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black uppercase">
                     TEMPO ESGOTADO!

@@ -1303,7 +1303,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
 
-      logWorkoutChange('set', 'add', 'Série Adicionada', `Série #${newSetNumber} adicionada em "${targetEx.name}"`, currentSplit.name);
+      logWorkoutChange('set', 'add', 'Série Adicionada', `Série ${newSetNumber} adicionada em "${targetEx.name}"`, currentSplit.name);
       return { ...prev, splits: updatedSplits };
     });
   };
@@ -1337,7 +1337,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
         s.id === currentSplit.id ? { ...s, exercises: updatedExercises } : s
       );
 
-      logWorkoutChange('set', 'remove', 'Série Removida', `Série #${setIndex + 1} removida de "${targetEx.name}"`, currentSplit.name);
+      logWorkoutChange('set', 'remove', 'Série Removida', `Série ${setIndex + 1} removida de "${targetEx.name}"`, currentSplit.name);
       return { ...prev, splits: updatedSplits };
     });
   };
@@ -1405,11 +1405,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
       );
 
       if (field === 'suggestedWeightKg') {
-        logWorkoutChange('set', 'edit', 'Carga Sugerida Alterada', `"${targetEx.name}" Série #${setIndex + 1}: carga ${value != null && value !== '' ? `${value} kg` : 'sem numeração'}`, currentSplit.name);
+        logWorkoutChange('set', 'edit', 'Carga Sugerida Alterada', `"${targetEx.name}" Série ${setIndex + 1}: carga ${value != null && value !== '' ? `${value} kg` : 'sem numeração'}`, currentSplit.name);
       } else if (field === 'repZone') {
-        logWorkoutChange('set', 'edit', 'Repetições Alteradas', `"${targetEx.name}" Série #${setIndex + 1}: ${value} reps`, currentSplit.name);
+        logWorkoutChange('set', 'edit', 'Repetições Alteradas', `"${targetEx.name}" Série ${setIndex + 1}: ${value} reps`, currentSplit.name);
       } else if (field === 'method') {
-        logWorkoutChange('method', 'edit', 'Método Alterado', `"${targetEx.name}" Série #${setIndex + 1}: método ${value}`, currentSplit.name);
+        logWorkoutChange('method', 'edit', 'Método Alterado', `"${targetEx.name}" Série ${setIndex + 1}: método ${value}`, currentSplit.name);
       }
 
       return { ...prev, splits: updatedSplits };
@@ -2080,11 +2080,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   e.stopPropagation();
                   handleToggleExerciseExpand(ex.id);
                 }}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition active:scale-95"
+                className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition active:scale-95 shrink-0"
                 title="Expandir detalhes deste exercício"
                 aria-label="Expandir detalhes deste exercício"
               >
-                <ChevronDown className="w-4 h-4 text-cyan-400" />
+                <ChevronDown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
               </button>
 
               <button
@@ -2093,10 +2093,10 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   e.stopPropagation();
                   removeExercise(exIndex);
                 }}
-                className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition shrink-0"
                 title="Remover exercício deste treino"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </button>
             </div>
           </div>
@@ -2341,20 +2341,20 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => handleToggleExerciseExpand(ex.id)}
-                  className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition active:scale-95"
+                  className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 flex items-center justify-center transition active:scale-95 shrink-0"
                   title="Recolher detalhes deste exercício"
                   aria-label="Recolher detalhes deste exercício"
                 >
-                  <ChevronUp className="w-4 h-4 text-cyan-400" />
+                  <ChevronUp className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => removeExercise(exIndex)}
-                  className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                  className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition shrink-0"
                   title="Remover exercício"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                 </button>
               </div>
             </div>
@@ -2522,18 +2522,18 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, false)}
-                  className="flex items-center justify-center p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                  className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer shrink-0"
                   title="Buscar no Banco"
                   aria-label="Buscar no Banco"
                 >
-                  <BookOpen className="w-4 h-4 text-purple-400" />
+                  <BookOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-purple-400" />
                 </button>
 
                 {/* Botão Exercício Substituto (Somente Ícone) */}
                 <button
                   type="button"
                   onClick={() => openExerciseDbModal(exIndex, ex.muscleGroup, true)}
-                  className={`flex items-center justify-center p-2 rounded-xl transition active:scale-95 cursor-pointer border ${
+                  className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl transition active:scale-95 cursor-pointer border shrink-0 ${
                     ex.substituteExerciseName
                       ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
                       : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
@@ -2546,7 +2546,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   aria-label="Exercício substituto"
                 >
                   <ArrowLeftRight
-                    className={`w-4 h-4 shrink-0 ${
+                    className={`w-4 h-4 sm:w-4.5 sm:h-4.5 shrink-0 ${
                       ex.substituteExerciseName ? 'text-amber-400' : 'text-cyan-400'
                     }`}
                   />
@@ -2557,21 +2557,21 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   <button
                     type="button"
                     onClick={() => handleUncombineGroup(comboInfo.comboGroupId)}
-                    className="flex items-center justify-center p-2 rounded-xl bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                    className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer shrink-0"
                     title="Descombinar deste grupo"
                     aria-label="Descombinar deste grupo"
                   >
-                    <Unlink className="w-4 h-4" />
+                    <Unlink className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   </button>
                 ) : exIndex < (activeSplit?.exercises.length || 0) - 1 ? (
                   <button
                     type="button"
                     onClick={() => handleQuickCombineWithNext(exIndex)}
-                    className="flex items-center justify-center p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                    className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition active:scale-95 cursor-pointer shrink-0"
                     title="Combinar este exercício com o próximo em sequência (Bi-Set)"
                     aria-label="Combinar com o próximo (Bi-Set)"
                   >
-                    <Link2 className="w-4 h-4 text-purple-400" />
+                    <Link2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-purple-400" />
                   </button>
                 ) : null}
               </div>
@@ -2736,13 +2736,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
                   <button
                     type="button"
                     onClick={() => handleAddSetToExercise(exIndex)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow active:scale-95 transition"
+                    className="flex items-center gap-1.5 h-8 sm:h-9 lg:h-10 px-3 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow active:scale-95 transition whitespace-nowrap shrink-0"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                     <span>Adicionar Série</span>
                   </button>
                 </div>
@@ -2750,11 +2750,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
               {/* Tabela / Lista de Séries */}
               <div className="space-y-2">
-                <div className="grid grid-cols-12 gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                  <span className="col-span-2 text-center">Série</span>
+                <div className="grid grid-cols-12 gap-1.5 sm:gap-2.5 lg:gap-3 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider px-1 sm:px-2">
+                  <span className="col-span-1 lg:col-span-2 text-left lg:text-center">Série</span>
                   <span className="col-span-3 text-center">Zona de Reps</span>
                   <span className="col-span-2 text-center">Carga (kg)</span>
-                  <span className="col-span-4 text-center">Método Avançado da Série</span>
+                  <span className="col-span-5 lg:col-span-4 text-center">Método Avançado da Série</span>
                   <span className="col-span-1 text-center">Excluir</span>
                 </div>
 
@@ -2764,24 +2764,24 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   return (
                     <div
                       key={set.id || sIdx}
-                      className={`p-2.5 rounded-xl bg-slate-950 border transition-all ${
+                      className={`p-2.5 sm:p-3 lg:p-3.5 rounded-xl bg-slate-950 border transition-all ${
                         hasSubsets
                           ? 'border-purple-500/50 ring-1 ring-purple-500/30 space-y-2'
                           : 'border-slate-800/90 hover:border-slate-700'
                       }`}
                     >
                       {/* Linha Principal da Série */}
-                      <div className="grid grid-cols-12 gap-1.5 items-center">
+                      <div className="grid grid-cols-12 gap-1.5 sm:gap-2.5 lg:gap-3 items-center">
                         {/* Col 1: Set Number */}
-                        <div className="col-span-2 flex items-center justify-center">
+                        <div className="col-span-1 lg:col-span-2 flex items-center justify-start lg:justify-center pl-0.5 lg:pl-0">
                           <span
-                            className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center border ${
+                            className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-lg lg:rounded-xl font-black text-[11px] sm:text-xs lg:text-sm tabular-nums flex items-center justify-center border shrink-0 ${
                               hasSubsets
                                 ? 'bg-purple-600/30 text-purple-200 border-purple-500/50'
                                 : 'bg-slate-800 text-white border-slate-700'
                             }`}
                           >
-                            #{sIdx + 1}
+                            {sIdx + 1}
                           </span>
                         </div>
 
@@ -2794,7 +2794,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                               handleUpdateSetDetail(exIndex, sIdx, 'repZone', e.target.value)
                             }
                             placeholder="8-12"
-                            className="w-full py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-cyan-500"
+                            className="w-full h-9 sm:h-10 lg:h-[42px] px-2 sm:px-3 rounded-lg bg-slate-900 border border-slate-700 text-xs sm:text-sm font-mono tabular-nums font-bold text-white text-center focus:outline-none focus:border-cyan-500"
                           />
                         </div>
 
@@ -2814,18 +2814,18 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                               )
                             }
                             placeholder="kg"
-                            className="w-full py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-cyan-500"
+                            className="w-full h-9 sm:h-10 lg:h-[42px] px-2 sm:px-3 rounded-lg bg-slate-900 border border-slate-700 text-xs sm:text-sm font-mono tabular-nums font-bold text-white text-center focus:outline-none focus:border-cyan-500"
                           />
                         </div>
 
                         {/* Col 4: Método Avançado da Série (Dropdown com todos os métodos + personalizados) */}
-                        <div className="col-span-4">
+                        <div className="col-span-5 lg:col-span-4">
                           <select
                             value={set.method || 'Normal'}
                             onChange={(e) =>
                               handleUpdateSetDetail(exIndex, sIdx, 'method', e.target.value)
                             }
-                            className={`w-full py-1.5 px-2 rounded-lg bg-slate-900 border text-xs font-bold transition focus:outline-none ${
+                            className={`w-full h-9 sm:h-10 lg:h-[42px] px-2 sm:px-3 rounded-lg bg-slate-900 border text-xs sm:text-sm font-bold transition focus:outline-none ${
                               hasSubsets
                                 ? 'border-purple-500/80 text-purple-200 ring-1 ring-purple-500/40 bg-purple-950/40 font-extrabold'
                                 : set.method && set.method !== 'Normal'
@@ -2856,56 +2856,56 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                             type="button"
                             disabled={setDetails.length <= 1}
                             onClick={() => handleRemoveSetFromExercise(exIndex, sIdx)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                            className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition shrink-0"
                             title={
                               setDetails.length <= 1
                                 ? 'O exercício deve ter pelo menos 1 série'
                                 : 'Excluir esta série'
                             }
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       </div>
 
                       {/* SUBSÉRIES ABAIXO DA SÉRIE PRINCIPAL (3/7, CLUSTER-SET, DROP-SET TRADICIONAL/ADAPTADO, FST-7, PARCIAL) */}
                       {hasSubsets && (
-                        <div className="mt-2 pt-2 border-t border-purple-500/20 pl-2 sm:pl-4 space-y-2 bg-purple-950/15 p-2 rounded-lg">
+                        <div className="mt-2 pt-2 border-t border-purple-500/20 pl-2 sm:pl-4 space-y-2 bg-purple-950/15 p-2 sm:p-2.5 rounded-lg">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex items-center gap-1.5">
                               <Layers className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
                               <span className="text-[11px] font-bold text-purple-300">
-                                Subséries do {set.method} (Série #{sIdx + 1}):
+                                Subséries do {set.method} (Série {sIdx + 1}):
                               </span>
                             </div>
 
                             <button
                               type="button"
                               onClick={() => handleAddSubSetToSet(exIndex, sIdx)}
-                              className="px-2.5 py-1 rounded-lg bg-purple-600/40 hover:bg-purple-600/60 border border-purple-500/40 text-purple-200 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition"
+                              className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-lg bg-purple-600/40 hover:bg-purple-600/60 border border-purple-500/40 text-purple-200 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition whitespace-nowrap shrink-0"
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                               <span>Adicionar Subsérie</span>
                             </button>
                           </div>
 
                           {/* Lista de Subséries */}
-                          <div className="space-y-1.5">
+                          <div className="space-y-1.5 sm:space-y-2">
                             {(set.subSets || []).map((sub, subIdx) => (
                               <div
                                 key={sub.id || subIdx}
-                                className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/30 grid grid-cols-12 gap-1.5 items-center text-xs"
+                                className="p-2 sm:p-2.5 rounded-lg bg-slate-900/90 border border-purple-500/30 grid grid-cols-12 gap-1.5 sm:gap-2.5 items-center text-xs"
                               >
                                 {/* Subsérie Badge */}
-                                <div className="col-span-3 sm:col-span-2 flex items-center gap-1">
-                                  <span className="text-purple-400 font-bold font-mono">↳</span>
-                                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 font-extrabold text-[10px] border border-purple-500/40 whitespace-nowrap">
-                                    Sub #{sub.subSetNumber || subIdx + 1}
+                                <div className="col-span-2 flex items-center justify-start gap-1">
+                                  <span className="text-purple-400 font-bold font-mono text-[10px]">↳</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 font-extrabold text-[10px] sm:text-xs tabular-nums border border-purple-500/40 whitespace-nowrap">
+                                    Sub {sub.subSetNumber || subIdx + 1}
                                   </span>
                                 </div>
 
                                 {/* Reps */}
-                                <div className="col-span-3 sm:col-span-3">
+                                <div className="col-span-4 sm:col-span-3">
                                   <input
                                     type="text"
                                     value={sub.repZone}
@@ -2919,7 +2919,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                                       )
                                     }
                                     placeholder="Reps"
-                                    className="w-full py-1 px-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-purple-400"
+                                    className="w-full h-8 sm:h-9 px-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono tabular-nums font-bold text-white text-center focus:outline-none focus:border-purple-400"
                                   />
                                 </div>
 
@@ -2940,7 +2940,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                                       )
                                     }
                                     placeholder="kg"
-                                    className="w-full py-1 px-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-white text-center focus:outline-none focus:border-purple-400"
+                                    className="w-full h-8 sm:h-9 px-2 rounded bg-slate-950 border border-slate-700 text-xs font-mono tabular-nums font-bold text-white text-center focus:outline-none focus:border-purple-400"
                                   />
                                 </div>
 
@@ -2959,7 +2959,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                                       )
                                     }
                                     placeholder="Ex: -20% carga / 15s descanso"
-                                    className="w-full py-1 px-2 rounded bg-slate-950 border border-slate-700 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-purple-400"
+                                    className="w-full h-8 sm:h-9 px-2 rounded bg-slate-950 border border-slate-700 text-[11px] sm:text-xs text-slate-300 placeholder-slate-600 focus:outline-none focus:border-purple-400"
                                   />
                                 </div>
 
@@ -2970,7 +2970,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                                     onClick={() =>
                                       handleRemoveSubSetFromSet(exIndex, sIdx, subIdx)
                                     }
-                                    className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition shrink-0"
                                     title="Excluir subsérie"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -3145,9 +3145,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               setIsCreatingNewProgram(!isCreatingNewProgram);
               setNewProgName(`Periodização de ${selectedClient?.name || 'Treino'}`);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md active:scale-95 transition"
+            className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm shadow-md active:scale-95 transition whitespace-nowrap shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>Novo Programa</span>
           </button>
         </div>
@@ -3372,23 +3372,23 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
               </div>
 
               {/* Quick Actions Buttons */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap shrink-0">
                 <button
                   type="button"
                   onClick={handleAddSplit}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs active:scale-95 shadow transition"
+                  className="flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs active:scale-95 shadow transition whitespace-nowrap shrink-0"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                   <span>Adicionar Treino</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleGenerateDailyWorkouts}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs active:scale-95 transition"
+                  className="flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs active:scale-95 transition whitespace-nowrap shrink-0"
                   title="Cria 5 treinos independentes de Segunda a Sexta"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
                   <span>1 Treino por Dia (Seg-Sex)</span>
                 </button>
               </div>
@@ -3631,7 +3631,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                           key={day.id}
                           type="button"
                           onClick={() => handleToggleSplitWeekDay(day.id)}
-                          className={`py-2 rounded-xl text-xs font-extrabold transition-all active:scale-90 ${
+                          className={`h-9 sm:h-10 lg:h-[42px] rounded-xl text-xs font-extrabold transition-all active:scale-90 flex items-center justify-center ${
                             isSelected
                               ? 'bg-gradient-to-b from-emerald-500 to-teal-600 text-slate-950 shadow-md ring-2 ring-emerald-400'
                               : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'
@@ -3649,27 +3649,27 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
 
             {/* EXERCISE BUILDER FOR THIS SPLIT */}
             <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-end gap-2 flex-wrap">
+              <div className="flex items-center justify-end gap-1.5 sm:gap-2 flex-wrap">
                 {/* Botões de Expandir/Recolher Todos */}
                 <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
                     <button
                       type="button"
                       onClick={handleExpandAllExercises}
-                      className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center justify-center shrink-0"
                       title="Expandir todos os exercícios para ver e editar detalhes"
                       aria-label="Expandir todos os exercícios"
                     >
-                      <ChevronDown className="w-4 h-4 text-cyan-400" />
+                      <ChevronDown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
                     </button>
                     <span className="text-slate-700">|</span>
                     <button
                       type="button"
                       onClick={handleCollapseAllExercises}
-                      className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center justify-center shrink-0"
                       title="Recolher todos os exercícios para visão limpa e compacta"
                       aria-label="Recolher todos os exercícios"
                     >
-                      <ChevronUp className="w-4 h-4 text-cyan-400" />
+                      <ChevronUp className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
                     </button>
                   </div>
 
@@ -3677,11 +3677,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   <button
                     type="button"
                     onClick={handleOpenCombineModal}
-                    className="p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer shrink-0"
                     title="Combinar Exercícios (Bi-Set / Tri-Set)"
                     aria-label="Combinar Exercícios (Bi-Set / Tri-Set)"
                   >
-                    <Link2 className="w-4 h-4 text-purple-400" />
+                    <Link2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-purple-400" />
                   </button>
 
                   {/* Botão Acompanhar Alterações */}
@@ -3691,13 +3691,13 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                       setIsChangesDrawerOpen(true);
                       setChangesDrawerTab('log');
                     }}
-                    className="relative p-2 rounded-xl bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 text-cyan-200 border border-cyan-500/40 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer"
+                    className="relative w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 text-cyan-200 border border-cyan-500/40 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer shrink-0"
                     title="Acompanhar Alterações"
                     aria-label="Acompanhar Alterações"
                   >
-                    <History className="w-4 h-4 text-cyan-400" />
+                    <History className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
                     {changesLog.length > 0 && (
-                      <span className="absolute -top-1 -right-1 px-1 min-w-[16px] h-4 rounded-full bg-cyan-500 text-slate-950 text-[9px] font-mono font-black flex items-center justify-center shadow-sm">
+                      <span className="absolute -top-1 -right-1 px-1 min-w-[16px] h-4 rounded-full bg-cyan-500 text-slate-950 text-[9px] font-mono tabular-nums font-black flex items-center justify-center shadow-sm">
                         {changesLog.length}
                       </span>
                     )}
@@ -3707,11 +3707,11 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   <button
                     type="button"
                     onClick={() => openExerciseDbModal(null)}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer shrink-0"
                     title={`Banco de Exercícios (${exerciseDatabase.length})`}
                     aria-label={`Banco de Exercícios (${exerciseDatabase.length})`}
                   >
-                    <BookOpen className="w-4 h-4 text-purple-400" />
+                    <BookOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-purple-400" />
                   </button>
 
                   {/* Botão Mover / Reordenar Ordem */}
@@ -3729,7 +3729,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                         setDraggingIndex(0);
                       }
                     }}
-                    className={`p-2 rounded-xl border shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer ${
+                    className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] rounded-xl border shadow-sm active:scale-95 transition flex items-center justify-center cursor-pointer shrink-0 ${
                       isReorderMode
                         ? 'bg-cyan-400 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/60 font-black shadow-lg shadow-cyan-500/20'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -3737,7 +3737,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                     title={isReorderMode ? 'Concluir Ordem' : 'Mover / Reordenar'}
                     aria-label={isReorderMode ? 'Concluir Ordem' : 'Mover / Reordenar'}
                   >
-                    <ArrowUpDown className={`w-4 h-4 ${isReorderMode ? 'text-slate-950 font-black' : 'text-cyan-400'}`} />
+                    <ArrowUpDown className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${isReorderMode ? 'text-slate-950 font-black' : 'text-cyan-400'}`} />
                   </button>
                 </div>
 
@@ -3944,19 +3944,19 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => openExerciseDbModal(null)}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 active:scale-95 transition"
+                  className="w-full sm:w-auto h-11 sm:h-12 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 active:scale-95 transition whitespace-nowrap shrink-0"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 sm:w-4.5 sm:h-4.5 shrink-0" />
                   <span>Adicionar Exercício (Abaixo do Último)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleAddQuickBlankExercise}
-                  className="w-full sm:w-auto px-4 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition"
+                  className="w-full sm:w-auto h-11 sm:h-12 px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition whitespace-nowrap shrink-0"
                   title="Adiciona um novo exercício em branco para você preencher rapidamente"
                 >
-                  <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
                   <span>Exercício Rápido em Branco</span>
                 </button>
               </div>
@@ -3981,9 +3981,9 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                 <button
                   type="button"
                   onClick={handleSaveAll}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs border border-slate-700 shadow active:scale-95 transition"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 h-10 sm:h-11 px-4 sm:px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs sm:text-sm border border-slate-700 shadow active:scale-95 transition whitespace-nowrap shrink-0"
                 >
-                  <Save className="w-4 h-4 text-cyan-400" />
+                  <Save className="w-4 h-4 text-cyan-400 shrink-0" />
                   <span>Salvar Programa Completo</span>
                 </button>
 
@@ -3991,7 +3991,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                   type="button"
                   disabled={!activeSplit || (activeSplit.exercises?.length || 0) === 0}
                   onClick={handleExecuteCurrentSplit}
-                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-lg transition ${
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 h-10 sm:h-11 px-5 sm:px-6 rounded-xl font-extrabold text-xs sm:text-sm shadow-lg transition whitespace-nowrap shrink-0 ${
                     !activeSplit || (activeSplit.exercises?.length || 0) === 0
                       ? 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
                       : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/50 active:scale-95'
@@ -4002,7 +4002,7 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
                       : 'Iniciar execução deste treino'
                   }
                 >
-                  <Play className="w-4 h-4 fill-white" />
+                  <Play className="w-4 h-4 fill-white shrink-0" />
                   <span>Iniciar Treino na Sala Agora</span>
                 </button>
               </div>

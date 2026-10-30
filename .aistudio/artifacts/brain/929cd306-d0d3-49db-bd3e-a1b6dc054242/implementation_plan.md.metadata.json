@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de atualização e correlação semântica completa do banco de medidas caseiras POF/IBGE com a tabela TACO, incluindo priorização por modo de preparo, cadastro de alimentos e preparações exclusivas da POF no banco selecionável e exibição detalhada da fonte, preparo e medida de referência.",
-  "updatedAt":  "2026-10-26T23:18:48.003228541Z",
+  "summary":  "Plano de implementação para o Sistema de Perfis (Treinador vs. Aluno) e Alternador de Desenvolvimento no IronCoach, incluindo seletor rápido no cabeçalho, opção de perfil no login e portal exclusivo do aluno com as abas Meu Treino, Minha Dieta e Meu Progresso.",
+  "updatedAt":  "2026-10-29T22:53:40.585151417Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

@@ -17,6 +17,7 @@ import {
   CustomWorkoutMethod,
   ClientDietPlan,
   NutritionProfessionalLibrary,
+  AppUserRole,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 import { getInitialProfessionalLibrary } from './nutritionEngine';
@@ -36,6 +37,8 @@ const STORAGE_KEYS = {
   CUSTOM_METHODS: 'ironcoach_custom_methods_v1',
   DIET_PLANS: 'ironcoach_diet_plans_v1',
   NUTRITION_LIBRARY: 'ironcoach_nutrition_library_v1',
+  APP_ROLE: 'ironcoach_app_role_v1',
+  ACTIVE_STUDENT_ID: 'ironcoach_active_student_id_v1',
 };
 
 // Clean initial state (no dummy clients, workouts, calendar events, or histories)
@@ -211,6 +214,50 @@ export function expandLegacyRecurringEvents(rawEvents: CalendarEvent[]): {
 export const storage = {
   purgeAllSampleData() {
     purgeAllSampleData();
+  },
+
+  getAppRole(): AppUserRole {
+    if (typeof window === 'undefined') return 'trainer';
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.APP_ROLE);
+      if (saved === 'student' || saved === 'trainer') {
+        return saved;
+      }
+      return 'trainer';
+    } catch {
+      return 'trainer';
+    }
+  },
+
+  saveAppRole(role: AppUserRole) {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.APP_ROLE, role);
+    } catch (e) {
+      console.error('Error saving app role:', e);
+    }
+  },
+
+  getActiveStudentId(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem(STORAGE_KEYS.ACTIVE_STUDENT_ID);
+    } catch {
+      return null;
+    }
+  },
+
+  saveActiveStudentId(studentId: string | null) {
+    if (typeof window === 'undefined') return;
+    try {
+      if (studentId) {
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_STUDENT_ID, studentId);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_STUDENT_ID);
+      }
+    } catch (e) {
+      console.error('Error saving active student id:', e);
+    }
   },
 
   getTrainerProfile(userId?: string): TrainerProfile | null {

@@ -13,6 +13,7 @@ import {
   TrainerProfile,
 } from '@/types';
 import { storage } from '@/lib/storage';
+import { calculateHydrationTarget } from '@/lib/nutritionEngine';
 import { WorkoutHistoryPage } from './WorkoutHistoryPage';
 import { ClientNutritionWorkspace } from './ClientNutritionWorkspace';
 import {
@@ -43,6 +44,7 @@ import {
   MapPin,
   SlidersHorizontal,
   Utensils,
+  Droplet,
 } from 'lucide-react';
 
 interface ClientSectionProps {
@@ -432,6 +434,12 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     ).length;
     const parsedPlan = parseContractCategoryAndSub(selectedProfileClient.contractType);
     const studentAge = calculateAge(selectedProfileClient.birthDate);
+    const clientDietPlan = storage.getClientDietPlan(selectedProfileClient.id);
+    const clientHydration = calculateHydrationTarget(
+      selectedProfileClient.weight,
+      clientDietPlan?.metabolicConfig?.activityLevel || 'moderado',
+      clientDietPlan?.hydrationConfig
+    );
 
     // Sub-visão 2: Página "Informações" (Editar Peso, Altura, Cm, Data de nascimento DIA/MÊS/ANO e Tipo de Plano Presencial/Online)
     if (profileSubView === 'informacoes') {
@@ -442,9 +450,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             <button
               type="button"
               onClick={() => setProfileSubView('menu')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 text-xs font-bold transition active:scale-95 cursor-pointer touch-manipulation"
+              className="inline-flex items-center gap-2 h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 text-xs sm:text-sm font-bold transition active:scale-95 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 text-emerald-400" />
+              <ArrowLeft className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Voltar ao Perfil do Aluno</span>
             </button>
 
@@ -725,9 +733,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 <div className="flex sm:justify-end pt-2 sm:pt-5">
                   <button
                     type="submit"
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-950/60 active:scale-95 transition cursor-pointer touch-manipulation"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 h-11 sm:h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-950/60 active:scale-95 transition cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
                   >
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 shrink-0" />
                     <span>Salvar Informações do Aluno</span>
                   </button>
                 </div>
@@ -746,9 +754,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           <button
             type="button"
             onClick={() => setSelectedProfileClientId(null)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 text-xs font-bold transition active:scale-95 cursor-pointer touch-manipulation"
+            className="inline-flex items-center gap-2 h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 text-xs sm:text-sm font-bold transition active:scale-95 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 text-emerald-400" />
+            <ArrowLeft className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Voltar para Clientes</span>
           </button>
 
@@ -756,9 +764,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             <button
               type="button"
               onClick={() => openEditModal(selectedProfileClient)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-bold transition active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs sm:text-sm font-bold transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
             >
-              <Edit2 className="w-3.5 h-3.5 text-emerald-400" />
+              <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
               <span>Editar Contato</span>
             </button>
           </div>
@@ -814,8 +822,8 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               </div>
             </div>
 
-            {/* Resumo Rápido de Medidas e Plano */}
-            <div className="flex items-center gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 text-xs text-slate-300 tabular-nums shrink-0">
+            {/* Resumo Rápido de Medidas, Plano e Hidratação */}
+            <div className="flex items-center gap-2.5 sm:gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 text-xs text-slate-300 tabular-nums shrink-0 flex-wrap sm:flex-nowrap">
               <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
                 <span className="text-[10px] text-slate-400 block uppercase font-bold">Medidas</span>
                 <span className="font-extrabold text-white">
@@ -826,6 +834,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 <span className="text-[10px] text-slate-400 block uppercase font-bold">Plano Ativo</span>
                 <span className="font-extrabold text-emerald-400">
                   {parsedPlan.normalized} (R$ {selectedProfileClient.contractValue})
+                </span>
+              </div>
+              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-blue-500/30">
+                <span className="text-[10px] text-blue-400 block uppercase font-bold flex items-center gap-1">
+                  <Droplet className="w-3 h-3 text-blue-400" /> Hidratação
+                </span>
+                <span className="font-extrabold text-blue-200">
+                  {clientHydration.recommendedLiters} L / dia
                 </span>
               </div>
             </div>
@@ -944,7 +960,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
                 <Utensils className="w-7 h-7" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-base sm:text-lg font-extrabold text-white group-hover:text-emerald-300 transition">
                     Nutrição & Prescrição Inteligente de Dieta
@@ -956,11 +972,24 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
                   Cálculos metabólicos (Harris-Benedict, Mifflin-St Jeor, Cunningham, Katch-McArdle, FAO/OMS e Tinsley), cardápios com horários e medidas caseiras, análise de macro e micronutrientes vs. IDR, substituições dinâmicas por receitas e Painel do Profissional.
                 </p>
+
+                {/* Badge de Destaque da Meta de Hidratação Diária */}
+                <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                  <div className="px-3 py-1.5 rounded-xl bg-blue-950/70 border border-blue-500/40 text-xs font-bold text-blue-300 flex items-center gap-2">
+                    <Droplet className="w-4 h-4 text-blue-400" />
+                    <span>
+                      Meta de Hidratação: <strong className="text-white">{clientHydration.recommendedMl} ml</strong> ({clientHydration.recommendedLiters} L/dia)
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 tabular-nums">
+                    · {clientHydration.breakdownText}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold shrink-0 self-start sm:self-center shadow-md">
-              <span>Abrir Nutrição</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shrink-0 self-start sm:self-center shadow-md">
+              <span>Abrir Nutrição & Hidratação</span>
               <ChevronRight className="w-4 h-4" />
             </div>
           </button>
@@ -1038,15 +1067,15 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             placeholder="Buscar por nome, e-mail ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            className="w-full h-11 sm:h-12 pl-10 pr-4 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
           />
         </div>
 
         <button
           onClick={openNewClientModal}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm shadow-lg shadow-emerald-950/50 transition touch-manipulation cursor-pointer"
+          className="flex items-center justify-center gap-2 h-11 sm:h-12 px-5 sm:px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition touch-manipulation cursor-pointer whitespace-nowrap shrink-0"
         >
-          <UserPlus className="w-5 h-5 text-emerald-100" />
+          <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-100 shrink-0" />
           <span>Cadastrar Novo Aluno</span>
         </button>
       </div>
@@ -1341,18 +1370,18 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 </div>
 
                 {/* Botões de Ação Rápida: Nutrição, Editar Cadastro e Excluir */}
-                <div className="flex items-center gap-1.5 shrink-0 self-start">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-start">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       openStudentProfile(client, 'nutricao');
                     }}
-                    className="w-10 h-10 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
                     title="Abrir Nutrição e Prescrição de Dieta"
                     aria-label={`Abrir nutrição de ${client.name}`}
                   >
-                    <Utensils className="w-4 h-4" />
+                    <Utensils className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   </button>
 
                   <button
@@ -1361,11 +1390,11 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       e.stopPropagation();
                       openEditModal(client);
                     }}
-                    className="w-10 h-10 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
                     title="Editar Cadastro do Cliente"
                     aria-label={`Editar cadastro de ${client.name}`}
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   </button>
 
                   <button
@@ -1374,11 +1403,11 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       e.stopPropagation();
                       setClientToDelete(client);
                     }}
-                    className="w-10 h-10 rounded-xl bg-slate-800/90 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/40 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/40 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
                     title="Excluir Cliente"
                     aria-label={`Excluir ${client.name}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   </button>
                 </div>
               </div>
@@ -1626,15 +1655,15 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  className="h-10 sm:h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs sm:text-sm font-semibold cursor-pointer whitespace-nowrap shrink-0"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/40 active:scale-95 transition cursor-pointer"
+                  className="flex items-center gap-2 h-10 sm:h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-950/40 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>{editingClient ? 'Salvar Alterações' : 'Concluir Cadastro'}</span>
                 </button>
               </div>

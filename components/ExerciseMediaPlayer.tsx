@@ -230,7 +230,6 @@ export const ExerciseMediaPlayer: React.FC<ExerciseMediaPlayerProps> = ({
             compact ? 'h-56 sm:h-64' : 'h-64 sm:h-80 md:h-96'
           } bg-slate-950 flex items-center justify-center overflow-hidden`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={cleanGifUrl}
             alt={`${exerciseName} - GIF`}
@@ -255,7 +254,6 @@ export const ExerciseMediaPlayer: React.FC<ExerciseMediaPlayerProps> = ({
           } bg-slate-950 flex items-center justify-center overflow-hidden cursor-pointer select-none group`}
         >
           {!hasError && activeUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={activeUrl}
               alt={`${exerciseName} - Pose ${safeFrameIndex + 1}`}

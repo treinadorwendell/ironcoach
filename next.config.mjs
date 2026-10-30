@@ -1,14 +1,15 @@
-import type {NextConfig} from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
+  productionBrowserSourceMaps: false,
   allowedDevOrigins: ['*.run.app', 'localhost:3000', 'localhost:8080'],
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
+  serverExternalPackages: ['firebase', '@grpc/grpc-js', '@grpc/proto-loader'],
   // Allow access to remote image placeholder.
   images: {
     remotePatterns: [

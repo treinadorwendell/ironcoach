@@ -329,6 +329,10 @@ export type AgendaViewMode = 'dia' | 'semana' | 'mes' | 'ano' | 'programacao';
 
 export type MainNavSection = 'cliente' | 'agenda' | 'criar-treino' | 'execucao';
 
+export type AppUserRole = 'trainer' | 'student';
+
+export type StudentNavSection = 'meu-treino' | 'minha-dieta' | 'meu-progresso';
+
 export interface CompletedSubSetRecord {
   subSetNumber: number;
   completedReps: number;
@@ -669,16 +673,27 @@ export interface NutritionProfessionalLibrary {
   updatedAt: string;
 }
 
+export interface ClientHydrationConfig {
+  mlPerKg: number; // ex: 35, 40, 45 ml/kg
+  extraWorkoutMl: number; // ex: 500 ml extras no treino
+  customTargetMl?: number; // override manual opcional
+  dailyWaterLog?: {
+    [dateString: string]: number; // ml consumidos em YYYY-MM-DD
+  };
+}
+
 export interface ClientDietPlan {
   id: string;
   clientId: string;
   clientName: string;
   name: string;
   metabolicConfig: ClientMetabolicConfig;
+  hydrationConfig: ClientHydrationConfig;
   schedules: DietDaySchedule[];
   activeScheduleId: string;
   createdAt: string;
   updatedAt: string;
 }
+
 
 

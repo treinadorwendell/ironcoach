@@ -101,24 +101,24 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
         {user ? (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center justify-center px-2.5 py-1 min-h-[32px] rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition active:scale-95 shadow-sm cursor-pointer"
+            className="flex items-center justify-center h-9 sm:h-10 lg:h-[42px] px-2.5 sm:px-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition active:scale-95 shadow-sm cursor-pointer shrink-0"
             title={`${user.displayName || user.email || 'Conta conectada'} • Sincronização em nuvem ativa`}
             aria-label="Sincronização em nuvem"
           >
-            <span className="relative flex h-2 w-2 mr-1">
+            <span className="relative flex h-2 w-2 mr-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <Cloud className="w-[18px] h-[18px] text-emerald-400" />
+            <Cloud className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-emerald-400" />
           </button>
         ) : (
           <button
             onClick={handleOpenAuth}
             disabled={isBusy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/80 to-teal-950/80 hover:from-emerald-900/90 hover:to-teal-900/90 text-emerald-200 text-xs font-extrabold transition active:scale-95 shadow-md shadow-emerald-950/40"
+            className="flex items-center justify-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3 sm:px-4 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/80 to-teal-950/80 hover:from-emerald-900/90 hover:to-teal-900/90 text-emerald-200 text-xs sm:text-sm font-extrabold transition active:scale-95 shadow-md shadow-emerald-950/40 whitespace-nowrap shrink-0 cursor-pointer"
             title="Entrar ou Cadastrar com E-mail e Senha para sincronizar dados no Firebase"
           >
-            <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+            <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
             <span className="hidden sm:inline">Entrar / Cadastrar</span>
             <span className="sm:hidden">Entrar</span>
           </button>
@@ -153,7 +153,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95 cursor-pointer"
+                    className="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition active:scale-95 cursor-pointer"
                     title="Fechar modal"
                     aria-label="Fechar modal"
                   >
@@ -183,7 +183,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   type="button"
                   onClick={handleForceSyncFromCloud}
                   disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition active:scale-95 shadow-sm"
+                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isBusy ? 'animate-spin' : ''}`} />
                   <span>Atualizar Histórico e PSE da Nuvem</span>
@@ -193,7 +193,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   type="button"
                   onClick={handleForceSeed}
                   disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition active:scale-95"
+                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition active:scale-95 cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isBusy ? 'animate-spin' : ''}`} />
                   <span>Enviar dados deste tablet para a nuvem</span>
@@ -203,7 +203,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   type="button"
                   onClick={handleLogout}
                   disabled={isBusy}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 text-xs font-semibold transition active:scale-95"
+                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 text-xs font-semibold transition active:scale-95 cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-400" />
                   <span>Sair da Conta (Logout)</span>

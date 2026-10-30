@@ -108,6 +108,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   const [isCurrentCommentModalOpen, setIsCurrentCommentModalOpen] = React.useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = React.useState(false);
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = React.useState(false);
+  const [isViewModeModalOpen, setIsViewModeModalOpen] = React.useState(false);
   const totalExercises = session.exercises.length;
   const isFirst = focusedExerciseIndex === 0;
   const isLast = focusedExerciseIndex === totalExercises - 1;
@@ -175,14 +176,14 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           <button
             type="button"
             onClick={onBackToList}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
+            className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition flex items-center justify-center cursor-pointer shrink-0 shadow-sm"
             title="Voltar para a visão geral e lista de todos os exercícios"
+            aria-label="Voltar para a lista de exercícios"
           >
-            <ArrowLeft className="w-4 h-4 text-emerald-400" />
-            <span>Voltar à Lista</span>
+            <ArrowLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-400" />
           </button>
 
-          <span className="text-[11px] text-slate-400 font-medium hidden md:inline">
+          <span className="text-[11px] sm:text-xs text-slate-400 font-medium hidden md:inline truncate">
             {session.programName}
           </span>
         </div>
@@ -193,87 +194,72 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">
               Exercício {focusedExerciseIndex + 1} de {totalExercises}
             </span>
-            <span className="text-xs font-bold text-emerald-400">
+            <span className="text-xs font-bold text-emerald-400 tabular-nums">
               {completedSetsCount}/{totalSetsCount} séries concluídas
             </span>
           </div>
 
           {/* Active Workout Timer Widget (Runs continuously until workout is finished) */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {!isSessionStarted ? (
-              <button
-                type="button"
-                onClick={onStartWorkout}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 active:scale-95 transition shadow-md shadow-emerald-950/50 cursor-pointer"
-                title="Iniciar contagem de tempo do treino e liberar edições"
-              >
-                <Play className="w-3.5 h-3.5 fill-slate-950" />
-                <span>Iniciar Treino</span>
-              </button>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Botão Somente Ícone que abre o modal de Modo Visualização */}
+                <button
+                  type="button"
+                  onClick={() => setIsViewModeModalOpen(true)}
+                  className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 border border-amber-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
+                  title="Modo Visualização: Clique para abrir instruções e regras do treino"
+                  aria-label="Informações sobre o Modo Visualização"
+                >
+                  <Info className="w-4 h-4 text-amber-400" />
+                </button>
+
+                {/* Botão com a escrita Iniciar alinhado com o ícone */}
+                <button
+                  type="button"
+                  onClick={onStartWorkout}
+                  className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 active:scale-95 transition shadow-md shadow-emerald-950/50 cursor-pointer whitespace-nowrap shrink-0"
+                  title="Iniciar contagem de tempo do treino e liberar edições"
+                >
+                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-slate-950" />
+                  <span>Iniciar</span>
+                </button>
+              </div>
             ) : (
               <div
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-bold text-emerald-400 shadow-inner"
+                className="flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono tabular-nums text-xs sm:text-sm font-bold text-emerald-400 shadow-inner shrink-0"
                 title="Cronômetro em andamento contínuo até concluir e finalizar o treino"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
                 <span>{formatElapsed(elapsedSeconds)}</span>
               </div>
             )}
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <button
               type="button"
               disabled={isFirst}
               onClick={() => onSelectExercise(session.exercises[focusedExerciseIndex - 1].exerciseId)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95 cursor-pointer"
+              className="w-9 h-9 sm:w-10 sm:h-10 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
               title="Exercício Anterior"
             >
-              <ChevronLeft className="w-4 h-4 text-cyan-400" />
+              <ChevronLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
             </button>
             <button
               type="button"
               disabled={isLast}
               onClick={() => onSelectExercise(session.exercises[focusedExerciseIndex + 1].exerciseId)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95 cursor-pointer"
+              className="w-9 h-9 sm:w-10 sm:h-10 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
               title="Próximo Exercício"
             >
-              <ChevronRight className="w-4 h-4 text-cyan-400" />
+              <ChevronRight className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
             </button>
           </div>
         </div>
       </div>
-
-      {/* AVISO DE MODO VISUALIZAÇÃO ANTES DE INICIAR O TREINO */}
-      {!isSessionStarted && (
-        <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-black text-amber-300 block">
-                Modo Visualização (Treino ainda não iniciado)
-              </span>
-              <p className="text-[11px] text-slate-300">
-                Consulte séries, cargas anteriores e observações livremente. Para alterar cargas, repetições, PSE ou marcar séries, clique em <strong>Iniciar Treino</strong>.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onStartWorkout}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer shrink-0"
-          >
-            <Play className="w-3.5 h-3.5 fill-slate-950" />
-            <span>Iniciar Treino Agora</span>
-          </button>
-        </div>
-      )}
-
-      {/* 2. HERO CABEÇALHO + SÉRIES DO EXERCÍCIO */}
       <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-4">
         {/* Header com Nome, Grupo Muscular, Método e Descanso */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-800/80 pb-4">
@@ -331,7 +317,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                     1
                   )
                 }
-                className="px-2.5 py-1 rounded-lg bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/50 border border-cyan-500/30 font-mono font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+                className="h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/50 border border-cyan-500/30 font-mono tabular-nums font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                 title="Clique para iniciar o cronômetro com o tempo de descanso planejado"
               >
                 <Clock className="w-3.5 h-3.5 text-cyan-400" />
@@ -343,7 +329,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                 <button
                   type="button"
                   onClick={() => setIsMediaExpanded(true)}
-                  className="px-3 py-1 rounded-lg border font-extrabold flex items-center gap-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30 active:scale-95 transition cursor-pointer"
+                  className="h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                   title="Abrir mídia/vídeo do exercício em janela separada"
                 >
                   <Film className="w-3.5 h-3.5" />
@@ -355,7 +341,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               <button
                 type="button"
                 onClick={() => setIsInstructionsModalOpen(true)}
-                className="px-3 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+                className="h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                 title="Abrir modal com a descrição passo a passo da execução do exercício"
               >
                 <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
@@ -437,12 +423,12 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
 
           {/* Tabela de Séries */}
           <div className="space-y-2.5">
-            <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider items-center">
-              <span className="col-span-2 text-center">Série</span>
-              <span className="col-span-3 text-center">Reps (Alvo)</span>
+            <div className="grid grid-cols-12 gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-400 px-2 sm:px-3 uppercase tracking-wider items-center">
+              <span className="col-span-2 text-left lg:text-center w-[43.83px] sm:w-auto h-[16.5px] sm:h-auto -ml-[24px] sm:ml-0 mr-0 my-0 p-0 flex items-center justify-start lg:justify-center">Série</span>
+              <span className="col-span-3 text-center w-[67.25px] sm:w-auto h-[34px] sm:h-auto -ml-[13px] sm:ml-0 p-0 flex items-center justify-center">Reps (Alvo)</span>
               <span className="col-span-3 text-center">Carga (KG)</span>
               <span className="col-span-2 text-center text-amber-400">PSE</span>
-              <span className="col-span-2 text-center">Check</span>
+              <span className="col-span-2 text-center pl-0 ml-[5px] sm:ml-0 -mr-[10px] sm:mr-0">Check</span>
             </div>
 
             {focusedExercise.sets.map((set, setIndex) => {
@@ -451,19 +437,19 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
 
               return (
                 <div key={set.setNumber} className="space-y-1.5">
-                  {/* Linha Principal da Série */}
+                  {/* Linha Principal da Série (Proporções Mobile de referência + Expansão Fluida Tablet/Desktop) */}
                   <div
-                    className={`grid grid-cols-12 gap-1.5 items-center p-2.5 sm:p-3 rounded-2xl transition-all duration-150 ${
+                    className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center w-[336px] max-w-[336px] sm:w-full sm:max-w-none h-[66px] sm:h-auto sm:min-h-[68px] lg:min-h-[72px] -ml-[17px] sm:ml-0 mr-0 my-0 p-[10px] sm:p-3 lg:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-150 ${
                       set.completed
                         ? 'bg-emerald-950/30 border border-emerald-500/40 shadow-sm'
                         : 'bg-slate-950/80 border border-slate-800/80 hover:border-slate-700'
                     }`}
                   >
-                    {/* Col 1: Número da Série */}
-                    <div className="col-span-2 flex flex-col items-center justify-center">
-                      <div className="w-full flex items-center justify-center">
+                    {/* Col 1: Número da Série + Botão Evolução (Compacto e mais à esquerda no mobile/tablet) */}
+                    <div className="col-span-2 flex flex-col items-start lg:items-center justify-center -ml-1 sm:ml-0">
+                      <div className="w-full sm:w-auto flex items-center justify-start lg:justify-center gap-1 sm:gap-1.5">
                         <span
-                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 ${
+                          className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 pb-0 pr-0 mr-0 rounded-md sm:rounded-lg lg:rounded-xl font-black text-[10px] sm:text-xs lg:text-sm tabular-nums flex items-center justify-center shrink-0 ${
                             set.completed
                               ? 'bg-emerald-500 text-slate-950 shadow-md'
                               : 'bg-slate-800 text-slate-200'
@@ -472,18 +458,32 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                         >
                           {set.setNumber}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenSeriesHistory(
+                              focusedExercise.exerciseName,
+                              set.setNumber,
+                              focusedExercise.sets.length
+                            )
+                          }
+                          className="w-[22px] h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 px-0 shrink-0 rounded-md sm:rounded-lg lg:rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90 cursor-pointer touch-manipulation"
+                          title={`Ver página de evolução da Série ${set.setNumber}`}
+                        >
+                          <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+                        </button>
                       </div>
 
                       {set.extraVariation ? (
                         <span
-                          className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[70px]"
+                          className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px] sm:max-w-[90px]"
                           title={set.extraVariation}
                         >
                           {set.extraVariation.split(' • ')[0]}
                         </span>
                       ) : set.method && set.method !== 'Normal' ? (
                         <span
-                          className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[70px]"
+                          className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px] sm:max-w-[90px]"
                           title={set.method}
                         >
                           {set.method}
@@ -491,30 +491,30 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       ) : null}
                     </div>
 
-                    {/* Col 2: Reps Target & Stepper */}
-                    <div className="col-span-3 flex items-center justify-center gap-1">
+                    {/* Col 2: Reps Target & Stepper (Botões - e + maiores no mobile) */}
+                    <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 pr-0">
                       <button
                         type="button"
                         onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, -1)}
-                        className={`w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer ${
+                        className={`w-8 h-[38px] sm:w-8 sm:h-9 lg:w-9 lg:h-10 px-0 py-0 m-0 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
                           !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
                         }`}
                         title={isSessionStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
                       >
                         -
                       </button>
-                      <div className="text-center min-w-[36px]">
-                        <span className="text-sm sm:text-base font-black text-white font-mono block">
+                      <div className="text-center min-w-[28px] sm:min-w-[38px] lg:min-w-[44px]">
+                        <span className="text-sm sm:text-base font-black text-white font-mono tabular-nums block">
                           {set.completedReps}
                         </span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold block">
                           {set.repZone}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, +1)}
-                        className={`w-8 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer ${
+                        className={`w-8 h-[38px] sm:w-8 sm:h-9 lg:w-9 lg:h-10 px-0 py-0 m-0 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
                           !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
                         }`}
                         title={isSessionStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
@@ -563,7 +563,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                               );
                             }
                           }}
-                          className={`h-[40px] w-[56px] text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                          className={`h-[38px] w-[50px] sm:h-10 sm:w-16 lg:h-[42px] lg:w-[76px] mx-0 text-center p-0 font-mono tabular-nums font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
                             !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
                           }`}
                         />
@@ -583,7 +583,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                             set.setNumber
                           )
                         }
-                        className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer ${
+                        className={`w-[44px] sm:w-12 lg:w-[52px] h-10 sm:h-[42px] lg:h-11 -ml-[8px] sm:ml-0 mb-0 pt-0 px-0 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer shrink-0 ${
                           !isSessionStarted ? 'opacity-60 cursor-not-allowed ' : ''
                         }${
                           pseInfo
@@ -600,17 +600,17 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       >
                         {pseInfo ? (
                           <>
-                            <span className="font-mono font-black text-sm leading-none">
+                            <span className="font-mono tabular-nums font-black text-sm sm:text-base leading-none">
                               {set.pse}
                             </span>
-                            <span className="text-[8px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
+                            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
                               PSE
                             </span>
                           </>
                         ) : (
                           <>
                             <Gauge className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
-                            <span className="text-[8px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
+                            <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
                               PSE
                             </span>
                           </>
@@ -623,7 +623,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       <button
                         type="button"
                         onClick={() => onToggleSetCheck(focusedExerciseIndex, setIndex)}
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer ${
+                        className={`w-10 h-10 sm:w-11 sm:h-11 lg:w-[46px] lg:h-[46px] rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer shrink-0 ${
                           !isSessionStarted ? 'opacity-60 cursor-not-allowed ' : ''
                         }${
                           set.completed
@@ -639,7 +639,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                         }
                       >
                         <Check
-                          className={`w-5 h-5 stroke-[3] transition-transform ${
+                          className={`w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[3] transition-transform ${
                             set.completed ? 'scale-110' : 'opacity-40'
                           }`}
                         />
@@ -649,23 +649,23 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
 
                   {/* SUBSÉRIES (SE MÉTODO AVANÇADO COMO DROP-SET OU 3/7) */}
                   {hasSubsets && (
-                    <div className="ml-3 sm:ml-5 pl-2.5 border-l-2 border-purple-500/50 space-y-1.5 my-1">
+                    <div className="ml-3 sm:ml-5 pl-2.5 sm:pl-3 border-l-2 border-purple-500/50 space-y-1.5 my-1">
                       {set.subSets!.map((sub, subIdx) => (
                         <div
                           key={sub.id || subIdx}
-                          className={`grid grid-cols-12 gap-1.5 items-center p-2 rounded-xl transition-all ${
+                          className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center p-2 sm:p-2.5 lg:p-3 rounded-xl transition-all ${
                             sub.completed
                               ? 'bg-purple-950/40 border border-purple-500/50 shadow-sm'
                               : 'bg-slate-950/70 border border-purple-500/30'
                           }`}
                         >
-                          <div className="col-span-2 flex flex-col items-center justify-center">
-                            <span className="text-[10px] font-black text-purple-300">
-                              ↳ Sub #{sub.subSetNumber}
+                          <div className="col-span-2 flex flex-col items-start lg:items-center justify-center">
+                            <span className="text-[10px] sm:text-xs font-black text-purple-300 tabular-nums">
+                              ↳ Sub {sub.subSetNumber}
                             </span>
                             {sub.note && (
                               <span
-                                className="text-[8px] text-slate-400 block truncate max-w-[65px]"
+                                className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[65px] sm:max-w-[90px]"
                                 title={sub.note}
                               >
                                 {sub.note}
@@ -673,23 +673,23 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                             )}
                           </div>
 
-                          <div className="col-span-3 flex items-center justify-center gap-1">
+                          <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
                             <button
                               type="button"
                               onClick={() =>
                                 onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, -1)
                               }
-                              className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                              className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                 !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
                               }`}
                             >
                               -
                             </button>
-                            <div className="text-center min-w-[28px]">
-                              <span className="text-xs font-black text-white font-mono block">
+                            <div className="text-center min-w-[26px] sm:min-w-[34px]">
+                              <span className="text-xs sm:text-sm font-black text-white font-mono tabular-nums block">
                                 {sub.completedReps}
                               </span>
-                              <span className="text-[8px] text-slate-400 block truncate max-w-[40px]">
+                              <span className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[40px] sm:max-w-[54px]">
                                 {sub.repZone}
                               </span>
                             </div>
@@ -698,7 +698,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                               onClick={() =>
                                 onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, +1)
                               }
-                              className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                              className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                 !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
                               }`}
                             >
@@ -735,7 +735,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                                   parsed == null || isNaN(parsed) ? null : Math.max(0, parsed)
                                 );
                               }}
-                              className={`h-[34px] w-[50px] text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
+                              className={`h-[34px] w-[50px] sm:h-9 sm:w-16 lg:h-10 lg:w-[72px] text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
                                 !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
                               }`}
                             />
@@ -751,7 +751,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                               onClick={() =>
                                 onToggleSubSetCheck(focusedExerciseIndex, setIndex, subIdx)
                               }
-                              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer ${
+                              className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                 !isSessionStarted ? 'opacity-60 cursor-not-allowed ' : ''
                               }${
                                 sub.completed
@@ -920,7 +920,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           <button
             type="button"
             onClick={onBackToList}
-            className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition cursor-pointer text-center"
+            className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-4 sm:px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs sm:text-sm border border-slate-700 active:scale-95 transition flex items-center justify-center cursor-pointer whitespace-nowrap shrink-0"
           >
             Lista de Exercícios
           </button>
@@ -933,7 +933,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                   onClick={() =>
                     onSelectExercise(session.exercises[focusedExerciseIndex + 1].exerciseId)
                   }
-                  className="flex-1 sm:flex-none px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-cyan-500/30 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-4 sm:px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs sm:text-sm border border-cyan-500/30 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <span>Próximo Exercício</span>
                   <ChevronRight className="w-4 h-4" />
@@ -942,7 +942,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               <button
                 type="button"
                 onClick={onStartWorkout}
-                className="flex-1 sm:flex-none px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+                className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-5 sm:px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
               >
                 <Play className="w-4 h-4 fill-slate-950" />
                 <span>Iniciar Treino</span>
@@ -954,7 +954,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               onClick={() => {
                 onFinishWorkout(focusedExerciseIndex);
               }}
-              className="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation animate-in fade-in zoom-in-95 duration-200"
+              className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-5 sm:px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0 animate-in fade-in zoom-in-95 duration-200"
             >
               <CheckCircle2 className="w-4 h-4 stroke-[3]" />
               <span>Concluir e Finalizar</span>
@@ -963,7 +963,7 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
             <button
               type="button"
               onClick={() => onFinishAndAdvance(focusedExerciseIndex)}
-              className="flex-1 sm:flex-none px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+              className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-5 sm:px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
             >
               <Check className="w-4 h-4 stroke-[3]" />
               <span>Concluir e Avançar</span>
@@ -1089,6 +1089,76 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
           gifUrl: exerciseGifUrl,
         }}
       />
+
+      {/* MODAL EXPLICATIVO: MODO VISUALIZAÇÃO DO TREINO */}
+      {isViewModeModalOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsViewModeModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+                  <Info className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Modo Visualização
+                  </h3>
+                  <span className="text-[11px] text-amber-300 font-medium">
+                    Treino aguardando início
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsViewModeModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <p>
+                Você está no <strong>Modo de Consulta Pré-Treino</strong>. Pode navegar entre exercícios, consultar o histórico de cargas e repetições de sessões anteriores, vídeos demonstrativos e instruções biomecânicas.
+              </p>
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+                <Play className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 fill-amber-400" />
+                <span>
+                  O cronômetro e as alterações de cargas, repetições, PSE e marcação de séries serão liberados imediatamente ao clicar em <strong>Iniciar</strong>.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsViewModeModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs active:scale-95 transition cursor-pointer"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsViewModeModalOpen(false);
+                  onStartWorkout();
+                }}
+                className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-md active:scale-95 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <Play className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Iniciar Treino Agora</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

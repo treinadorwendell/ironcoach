@@ -19,6 +19,7 @@ import {
 } from '@/types';
 import {
   ACTIVITY_LEVELS_META,
+  calculateHydrationTarget,
   calculateMetabolicMetrics,
   createInitialClientDietPlan,
   EMPTY_NUTRIENT_PROFILE,
@@ -45,6 +46,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Droplet,
   Flame,
   Pencil,
   Plus,
@@ -55,6 +57,7 @@ import {
   Utensils,
   X,
 } from 'lucide-react';
+
 
 interface ClientNutritionWorkspaceProps {
   client: Client;
@@ -68,13 +71,22 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
   onUpdateClient,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'prescricao' | 'metabolico' | 'idr'
+    'prescricao' | 'metabolico' | 'idr' | 'hidratacao'
   >('prescricao');
 
   // Plan & Library State
   const [dietPlan, setDietPlan] = useState<ClientDietPlan>(() => {
     const existing = storage.getClientDietPlan(client.id);
-    if (existing) return existing;
+    if (existing) {
+      if (!existing.hydrationConfig) {
+        existing.hydrationConfig = {
+          mlPerKg: 40,
+          extraWorkoutMl: 500,
+          dailyWaterLog: {},
+        };
+      }
+      return existing;
+    }
     const initial = createInitialClientDietPlan(client);
     storage.saveClientDietPlan(initial);
     return initial;
@@ -243,6 +255,45 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
     () => calculateMetabolicMetrics(client, dietPlan.metabolicConfig),
     [client, dietPlan.metabolicConfig]
   );
+
+  // Hydration Metrics & Helpers
+  const hydrationMetrics = useMemo(
+    () =>
+      calculateHydrationTarget(
+        client.weight,
+        dietPlan.metabolicConfig.activityLevel,
+        dietPlan.hydrationConfig
+      ),
+    [client.weight, dietPlan.metabolicConfig.activityLevel, dietPlan.hydrationConfig]
+  );
+
+  const updateHydrationConfig = (
+    patch: Partial<ClientDietPlan['hydrationConfig']>
+  ) => {
+    const updatedConfig = {
+      ...(dietPlan.hydrationConfig || { mlPerKg: 40, extraWorkoutMl: 500, dailyWaterLog: {} }),
+      ...patch,
+    };
+    const updatedPlan: ClientDietPlan = {
+      ...dietPlan,
+      hydrationConfig: updatedConfig,
+      updatedAt: new Date().toISOString(),
+    };
+    persistPlan(updatedPlan, 'Metas de hidratação atualizadas!');
+  };
+
+  const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const currentWaterMl = dietPlan.hydrationConfig?.dailyWaterLog?.[todayDateStr] || 0;
+
+  const handleAddWaterMl = (deltaMl: number) => {
+    const nextVal = Math.max(0, currentWaterMl + deltaMl);
+    const updatedLog = {
+      ...(dietPlan.hydrationConfig?.dailyWaterLog || {}),
+      [todayDateStr]: nextVal,
+    };
+    updateHydrationConfig({ dailyWaterLog: updatedLog });
+  };
+
 
   // Real-time Nutrient Totals for Active Day Schedule
   const dayTotals: NutrientProfile = useMemo(() => {
@@ -1001,6 +1052,26 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
           </div>
         </button>
 
+        <button
+          type="button"
+          onClick={() => setActiveTab('hidratacao')}
+          className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
+            activeTab === 'hidratacao'
+              ? 'bg-blue-600/20 border-blue-500 text-white shadow-md'
+              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+          }`}
+        >
+          <Droplet className="w-5 h-5 text-blue-400 shrink-0" />
+          <div className="min-w-0">
+            <span className="text-xs font-extrabold block truncate">
+              Hidratação & Meta Diária
+            </span>
+            <span className="text-[10px] text-slate-400 block truncate">
+              Calculadora por Peso & Atividade
+            </span>
+          </div>
+        </button>
+
       </div>
 
       {/* ====================================================================
@@ -1153,7 +1224,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
 
           {/* Lista de Refeições do Dia */}
           <div className="space-y-4">
-            {activeSchedule?.meals.map((meal) => {
+            {activeSchedule?.meals.map((meal, mealIndex) => {
               const mealNutrients = sumNutrientProfiles(
                 meal.items.map((it) => it.nutrients)
               );
@@ -1162,10 +1233,18 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
               return (
                 <div
                   key={meal.id}
-                  className="rounded-3xl bg-slate-900 border border-slate-800 shadow-lg overflow-hidden"
+                  className={`rounded-3xl bg-slate-900 border shadow-lg overflow-hidden ${
+                    mealIndex === 1 ? 'border-[#ffffff]' : 'border-slate-800'
+                  }`}
+                  style={mealIndex === 1 ? { borderColor: '#ffffff' } : undefined}
                 >
                   {/* Cabeçalho da Refeição */}
-                  <div className="p-4 sm:p-5 bg-slate-950/70 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div
+                    className={`p-4 sm:p-5 bg-slate-950/70 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      mealIndex === 1 ? 'border-[#ffffff]' : 'border-slate-800'
+                    }`}
+                    style={mealIndex === 1 ? { borderColor: '#ffffff' } : undefined}
+                  >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-extrabold text-xs tabular-nums flex items-center gap-1.5">
@@ -2138,6 +2217,214 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                 </div>
               )
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          VISÃO 4: HIDRATAÇÃO & CALCULADORA DE META DIÁRIA DE ÁGUA
+      ==================================================================== */}
+      {activeTab === 'hidratacao' && (
+        <div className="space-y-5 animate-in fade-in duration-200">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Coluna Esquerda: Calculadora e Parâmetros de Hidratação */}
+            <div className="lg:col-span-6 p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-5">
+              <div className="border-b border-slate-800 pb-3">
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <Droplet className="w-5 h-5 text-blue-400" />
+                  <span>Calculadora de Meta de Hidratação</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Baseada no peso corporal ({client.weight} kg) e nível de atividade física ({dietPlan.metabolicConfig.activityLevel}).
+                </p>
+              </div>
+
+              {/* Destaque da Meta Calculada */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-950/60 to-slate-950 border border-blue-500/30 flex items-center justify-between gap-3 tabular-nums">
+                <div>
+                  <span className="text-xs font-bold text-blue-300 uppercase tracking-wider block">
+                    Meta Diária Recomendada
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl font-black text-white">
+                      {hydrationMetrics.recommendedMl} ml
+                    </span>
+                    <span className="text-base font-extrabold text-blue-400">
+                      ({hydrationMetrics.recommendedLiters} Litros)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {hydrationMetrics.breakdownText}
+                  </p>
+                </div>
+                <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                  <Droplet className="w-8 h-8 text-blue-400 animate-pulse" />
+                </div>
+              </div>
+
+              {/* Ajustes da Calculadora */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Fator Base por Kg (ml/kg)
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[35, 40, 45, 50].map((val) => {
+                      const active = (dietPlan.hydrationConfig?.mlPerKg ?? 40) === val;
+                      return (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => updateHydrationConfig({ mlPerKg: val })}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                            active
+                              ? 'bg-blue-600 text-white border-blue-400 shadow-md'
+                              : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          {val} ml/kg
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Adicional para Dias de Treino (ml)
+                  </label>
+                  <input
+                    type="number"
+                    step="50"
+                    min="0"
+                    max="1500"
+                    value={dietPlan.hydrationConfig?.extraWorkoutMl ?? 500}
+                    onChange={(e) =>
+                      updateHydrationConfig({
+                        extraWorkoutMl: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-extrabold text-white tabular-nums"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Meta Manual Personalizada (Opcional - ml)
+                  </label>
+                  <input
+                    type="number"
+                    step="100"
+                    min="0"
+                    max="10000"
+                    placeholder="Ex: 3500 (deixe 0 para usar o cálculo automático)"
+                    value={dietPlan.hydrationConfig?.customTargetMl || ''}
+                    onChange={(e) =>
+                      updateHydrationConfig({
+                        customTargetMl: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-extrabold text-white tabular-nums"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Coluna Direita: Registro Diário e Progresso de Água */}
+            <div className="lg:col-span-6 p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-5">
+              <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-white">
+                    Registro Diário de Hidratação ({todayDateStr.split('-').reverse().join('/')})
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Acompanhe o consumo de água do aluno em tempo real.
+                  </p>
+                </div>
+                <span className="text-xs font-extrabold text-blue-400 tabular-nums">
+                  {Math.round((currentWaterMl / hydrationMetrics.recommendedMl) * 100)}% da Meta
+                </span>
+              </div>
+
+              {/* Barra de Progresso do Dia */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 tabular-nums">
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-slate-300 font-bold">Consumido hoje:</span>
+                  <span className="text-lg font-black text-white">
+                    {currentWaterMl} ml / {hydrationMetrics.recommendedMl} ml
+                  </span>
+                </div>
+                <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round((currentWaterMl / hydrationMetrics.recommendedMl) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] text-slate-400">
+                  <span>0 ml</span>
+                  <span>{Math.round(hydrationMetrics.recommendedMl / 2)} ml</span>
+                  <span>{hydrationMetrics.recommendedMl} ml</span>
+                </div>
+              </div>
+
+              {/* Botões de Ação Rápida para Adicionar Água */}
+              <div className="space-y-2.5">
+                <label className="block text-xs font-bold text-slate-300">
+                  Adição Rápida de Água:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAddWaterMl(250)}
+                    className="p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 text-blue-300 border border-slate-800 text-xs font-extrabold flex flex-col items-center gap-1 transition cursor-pointer active:scale-95"
+                  >
+                    <Droplet className="w-4 h-4 text-blue-400" />
+                    <span>+250 ml (Copo)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddWaterMl(500)}
+                    className="p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 text-blue-300 border border-slate-800 text-xs font-extrabold flex flex-col items-center gap-1 transition cursor-pointer active:scale-95"
+                  >
+                    <Droplet className="w-4 h-4 text-blue-400" />
+                    <span>+500 ml (Garrafa)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddWaterMl(1000)}
+                    className="p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 text-blue-300 border border-slate-800 text-xs font-extrabold flex flex-col items-center gap-1 transition cursor-pointer active:scale-95"
+                  >
+                    <Droplet className="w-4 h-4 text-blue-400" />
+                    <span>+1000 ml (1 Litro)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddWaterMl(-250)}
+                    className="p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 text-rose-400 border border-slate-800 text-xs font-extrabold flex flex-col items-center gap-1 transition cursor-pointer active:scale-95"
+                  >
+                    <span>-250 ml (Remover)</span>
+                  </button>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAddWaterMl(-currentWaterMl)}
+                    className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800 text-xs font-bold cursor-pointer"
+                  >
+                    Zerar Consumo do Dia
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -2062,7 +2062,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   >
                     <div className="sm:col-span-2 flex items-center justify-between sm:justify-start gap-1.5">
                       <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 font-extrabold text-[10px] border border-purple-500/40">
-                        Sub #{idx + 1}
+                        Sub {idx + 1}
                       </span>
                       {methodSubSetsTemplate.length > 1 && (
                         <button
@@ -2170,7 +2170,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                       {m.subSetsTemplate
                         .map(
                           (s, idx) =>
-                            `Sub #${idx + 1}: ${s.repZone}${s.note ? ` (${s.note})` : ''}`
+                            `Sub ${idx + 1}: ${s.repZone}${s.note ? ` (${s.note})` : ''}`
                         )
                         .join(' • ')}
                     </p>

@@ -2528,10 +2528,51 @@ export function createInitialClientDietPlan(client: Client): ClientDietPlan {
       fatGPerKg: 0.9,
       fiberTargetG: 30,
     },
+    hydrationConfig: {
+      mlPerKg: 40,
+      extraWorkoutMl: 500,
+      dailyWaterLog: {},
+    },
     schedules: [mainSchedule, restSchedule],
     activeScheduleId: scheduleId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+export function calculateHydrationTarget(
+  weightKg: number,
+  activityLevel: ActivityLevelId,
+  config?: { mlPerKg?: number; extraWorkoutMl?: number; customTargetMl?: number }
+): {
+  recommendedMl: number;
+  recommendedLiters: string;
+  mlPerKgUsed: number;
+  breakdownText: string;
+} {
+  const baseMlPerKg = config?.mlPerKg ?? (
+    activityLevel === 'sedentario' ? 35 :
+    activityLevel === 'leve' ? 38 :
+    activityLevel === 'moderado' ? 40 :
+    activityLevel === 'intenso' ? 45 : 50
+  );
+
+  const extraWorkout = config?.extraWorkoutMl ?? (
+    activityLevel === 'sedentario' ? 250 :
+    activityLevel === 'leve' ? 400 :
+    activityLevel === 'moderado' ? 500 :
+    activityLevel === 'intenso' ? 650 : 800
+  );
+
+  const calculated = Math.round(weightKg * baseMlPerKg + extraWorkout);
+  const finalTarget = config?.customTargetMl && config.customTargetMl > 0 ? config.customTargetMl : calculated;
+  const liters = (finalTarget / 1000).toFixed(2);
+
+  return {
+    recommendedMl: finalTarget,
+    recommendedLiters: liters,
+    mlPerKgUsed: baseMlPerKg,
+    breakdownText: `${weightKg} kg × ${baseMlPerKg} ml/kg + ${extraWorkout} ml (Atividade: ${activityLevel})`,
   };
 }
 
@@ -2544,3 +2585,4 @@ export function getInitialProfessionalLibrary(): NutritionProfessionalLibrary {
     updatedAt: new Date().toISOString(),
   };
 }
+

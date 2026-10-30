@@ -7,6 +7,8 @@ import {
   WorkoutProgram,
   CalendarEvent,
   TrainerProfile,
+  AppUserRole,
+  StudentNavSection,
 } from '@/types';
 import {
   storage,
@@ -21,17 +23,24 @@ import { ClientSection } from '@/components/ClientSection';
 import { AgendaSection } from '@/components/AgendaSection';
 import { CreateWorkoutSection } from '@/components/CreateWorkoutSection';
 import { WorkoutExecutionSection } from '@/components/WorkoutExecutionSection';
+import { StudentDietView } from '@/components/StudentDietView';
+import { WorkoutHistoryPage } from '@/components/WorkoutHistoryPage';
 import { AuthScreen } from '@/components/AuthScreen';
 import { TrainerProfileModal } from '@/components/TrainerProfileModal';
 import { testConnection, cloudSync, auth, logoutUser } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { LogIn, X, RefreshCw } from 'lucide-react';
+import { RefreshCw, GraduationCap, ShieldCheck } from 'lucide-react';
 import { useInactivitySync } from '@/hooks/useInactivitySync';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('agenda');
   const [isTabletFramed, setIsTabletFramed] = useState(false);
+
+  // Role & Student Portal states
+  const [appRole, setAppRole] = useState<AppUserRole>('trainer');
+  const [studentSection, setStudentSection] = useState<StudentNavSection>('meu-treino');
+  const [activeStudentId, setActiveStudentId] = useState<string>('');
 
   // Initialize with empty clean slate state matching SSR server HTML
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
@@ -47,9 +56,6 @@ export default function Home() {
 
   // Auth Screen & User state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login');
-  const [dismissedAuthBanner, setDismissedAuthBanner] = useState(false);
 
   // Trainer Profile state & modal
   const [trainerProfile, setTrainerProfile] = useState<TrainerProfile | null>(null);
@@ -71,10 +77,19 @@ export default function Home() {
       const loadedClients = storage.getClients();
       const loadedWorkouts = storage.getWorkouts();
       const loadedCalendar = storage.getCalendarEvents();
+      const savedRole = storage.getAppRole();
+      const savedStudentId = storage.getActiveStudentId();
 
       setClients(loadedClients);
       setWorkouts(loadedWorkouts);
       setCalendarEvents(loadedCalendar);
+      setAppRole(savedRole);
+
+      if (savedStudentId && loadedClients.some((c) => c.id === savedStudentId)) {
+        setActiveStudentId(savedStudentId);
+      } else if (loadedClients.length > 0) {
+        setActiveStudentId(loadedClients[0].id);
+      }
 
       if (loadedWorkouts.length > 0) {
         const savedSession = storage.getActiveSession();
@@ -428,14 +443,42 @@ export default function Home() {
     (c) => c.id === activeWorkoutForExecution?.clientId
   );
 
+  // Student resolved for Student Portal view
+  const effectiveStudent =
+    clients.find((c) => c.id === activeStudentId) || clients[0] || null;
+
+  const handleChangeRole = (nextRole: AppUserRole) => {
+    setAppRole(nextRole);
+    storage.saveAppRole(nextRole);
+    if (nextRole === 'student') {
+      if (!activeStudentId && clients.length > 0) {
+        setActiveStudentId(clients[0].id);
+        storage.saveActiveStudentId(clients[0].id);
+      }
+      setExecutionNavTrigger((prev) => prev + 1);
+    }
+  };
+
+  const handleSelectStudentId = (studentId: string) => {
+    setActiveStudentId(studentId);
+    storage.saveActiveStudentId(studentId);
+    setActiveWorkoutForExecution(null);
+    setExecutionNavTrigger((prev) => prev + 1);
+  };
+
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-3 sm:p-6">
         <AuthScreen
           mode="fullscreen"
           isOpen={true}
-          onSuccess={(user) => {
+          initialRole={appRole}
+          onSuccess={(user, chosenRole) => {
             setCurrentUser(user);
+            if (chosenRole) {
+              setAppRole(chosenRole);
+              storage.saveAppRole(chosenRole);
+            }
             setCurrentSection('agenda');
           }}
         />
@@ -477,6 +520,11 @@ export default function Home() {
           currentUser={currentUser}
           trainerProfile={trainerProfile}
           onOpenTrainerProfile={() => setIsTrainerProfileModalOpen(true)}
+          appRole={appRole}
+          onChangeRole={handleChangeRole}
+          clients={clients}
+          activeStudentId={effectiveStudent?.id}
+          onSelectStudentId={handleSelectStudentId}
           onLogout={async () => {
             try {
               await logoutUser();
@@ -489,101 +537,205 @@ export default function Home() {
 
         {/* Main Section Content */}
         <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto w-full min-w-0">
-          <AnimatePresence mode="wait" initial={false}>
-            {currentSection === 'cliente' && (
-              <motion.div
-                key="section-cliente"
-                initial={{ opacity: 0, y: 10, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.995 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full"
-              >
-                <ClientSection
-                  clients={clients}
-                  trainerProfile={trainerProfile}
-                  onOpenTrainerProfile={() => setIsTrainerProfileModalOpen(true)}
-                  onAddClient={handleAddClient}
-                  onUpdateClient={handleUpdateClient}
-                  onDeleteClient={handleDeleteClient}
-                  onStartWorkoutForClient={handleStartWorkoutForClient}
-                  onCreateWorkoutForClient={handleCreateWorkoutForClient}
-                />
-              </motion.div>
-            )}
+          {appRole === 'student' ? (
+            /* VISÃO DO ALUNO (PORTAL DE RECEBIMENTO E EXECUÇÃO) */
+            !effectiveStudent ? (
+              <div className="max-w-xl mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
+                <div className="w-14 h-14 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto">
+                  <GraduationCap className="w-7 h-7" />
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-lg sm:text-xl font-black text-white">
+                    Nenhum Aluno Cadastrado para Simular o Perfil
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                    Para visualizar o portal do aluno (Meu Treino, Minha Dieta e Meu Progresso), cadastre pelo menos um aluno no Perfil do Treinador.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleChangeRole('trainer');
+                      setCurrentSection('cliente');
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 transition active:scale-95 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Ir para Perfil Treinador e Cadastrar Aluno</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <AnimatePresence mode="wait" initial={false}>
+                {studentSection === 'meu-treino' && (
+                  <motion.div
+                    key={`student-treino-${effectiveStudent.id}`}
+                    initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full"
+                  >
+                    <WorkoutExecutionSection
+                      key={`student-exec-${effectiveStudent.id}-${executionNavTrigger}`}
+                      clients={[effectiveStudent]}
+                      workouts={workouts.filter((w) => w.clientId === effectiveStudent.id)}
+                      activeWorkout={
+                        activeWorkoutForExecution?.clientId === effectiveStudent.id
+                          ? activeWorkoutForExecution
+                          : null
+                      }
+                      calendarEvents={calendarEvents.filter(
+                        (e) => e.clientId === effectiveStudent.id
+                      )}
+                      lockedClientId={effectiveStudent.id}
+                      isStudentView={true}
+                      onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
+                      onConfirmWorkoutCompletedInAgenda={handleConfirmWorkoutCompletedInAgenda}
+                      onFinishWorkout={() => {
+                        setHasActiveRunningSession(false);
+                        setActiveWorkoutForExecution(null);
+                      }}
+                    />
+                  </motion.div>
+                )}
 
-            {currentSection === 'agenda' && (
-              <motion.div
-                key="section-agenda"
-                initial={{ opacity: 0, y: 10, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.995 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full"
-              >
-                <AgendaSection
-                  events={calendarEvents}
-                  clients={clients}
-                  onAddEvent={handleAddCalendarEvent}
-                  onAddEvents={handleAddCalendarEvents}
-                  onUpdateEvent={handleUpdateCalendarEvent}
-                  onDeleteEvent={handleDeleteCalendarEvent}
-                  onStartWorkoutForClient={handleStartWorkoutForClient}
-                />
-              </motion.div>
-            )}
+                {studentSection === 'minha-dieta' && (
+                  <motion.div
+                    key={`student-dieta-${effectiveStudent.id}`}
+                    initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full"
+                  >
+                    <StudentDietView client={effectiveStudent} />
+                  </motion.div>
+                )}
 
-            {currentSection === 'criar-treino' && (
-              <motion.div
-                key="section-criar-treino"
-                initial={{ opacity: 0, y: 10, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.995 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full"
-              >
-                <CreateWorkoutSection
-                  clients={clients}
-                  workouts={workouts}
-                  preSelectedClientId={preSelectedClientId}
-                  onSaveWorkout={handleSaveWorkout}
-                  onDeleteWorkout={handleDeleteWorkout}
-                  onStartExecution={handleStartExecutionFromBuilder}
-                  onNavigateToClients={() => setCurrentSection('cliente')}
-                />
-              </motion.div>
-            )}
+                {studentSection === 'meu-progresso' && (
+                  <motion.div
+                    key={`student-progresso-${effectiveStudent.id}`}
+                    initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-full"
+                  >
+                    <WorkoutHistoryPage
+                      clients={[effectiveStudent]}
+                      initialClientId={effectiveStudent.id}
+                      readOnly={true}
+                      hideBackButton={true}
+                      onBack={() => setStudentSection('meu-treino')}
+                      onStartWorkoutForClient={() => {
+                        setStudentSection('meu-treino');
+                        setExecutionNavTrigger((prev) => prev + 1);
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )
+          ) : (
+            /* VISÃO DO TREINADOR (GESTÃO COMPLETA) */
+            <AnimatePresence mode="wait" initial={false}>
+              {currentSection === 'cliente' && (
+                <motion.div
+                  key="section-cliente"
+                  initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-full"
+                >
+                  <ClientSection
+                    clients={clients}
+                    trainerProfile={trainerProfile}
+                    onOpenTrainerProfile={() => setIsTrainerProfileModalOpen(true)}
+                    onAddClient={handleAddClient}
+                    onUpdateClient={handleUpdateClient}
+                    onDeleteClient={handleDeleteClient}
+                    onStartWorkoutForClient={handleStartWorkoutForClient}
+                    onCreateWorkoutForClient={handleCreateWorkoutForClient}
+                  />
+                </motion.div>
+              )}
 
-            {currentSection === 'execucao' && (
-              <motion.div
-                key="section-execucao"
-                initial={{ opacity: 0, y: 10, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.995 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full"
-              >
-                <WorkoutExecutionSection
-                  key={`execucao-${executionNavTrigger}`}
-                  clients={clients}
-                  workouts={workouts}
-                  activeWorkout={activeWorkoutForExecution}
-                  calendarEvents={calendarEvents}
-                  onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
-                  onNavigateToClients={() => setCurrentSection('cliente')}
-                  onNavigateToCreateWorkout={(clientId) => {
-                    setPreSelectedClientId(clientId);
-                    setCurrentSection('criar-treino');
-                  }}
-                  onConfirmWorkoutCompletedInAgenda={handleConfirmWorkoutCompletedInAgenda}
-                  onFinishWorkout={() => {
-                    setHasActiveRunningSession(false);
-                    setActiveWorkoutForExecution(null);
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+              {currentSection === 'agenda' && (
+                <motion.div
+                  key="section-agenda"
+                  initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-full"
+                >
+                  <AgendaSection
+                    events={calendarEvents}
+                    clients={clients}
+                    onAddEvent={handleAddCalendarEvent}
+                    onAddEvents={handleAddCalendarEvents}
+                    onUpdateEvent={handleUpdateCalendarEvent}
+                    onDeleteEvent={handleDeleteCalendarEvent}
+                    onStartWorkoutForClient={handleStartWorkoutForClient}
+                  />
+                </motion.div>
+              )}
+
+              {currentSection === 'criar-treino' && (
+                <motion.div
+                  key="section-criar-treino"
+                  initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-full"
+                >
+                  <CreateWorkoutSection
+                    clients={clients}
+                    workouts={workouts}
+                    preSelectedClientId={preSelectedClientId}
+                    onSaveWorkout={handleSaveWorkout}
+                    onDeleteWorkout={handleDeleteWorkout}
+                    onStartExecution={handleStartExecutionFromBuilder}
+                    onNavigateToClients={() => setCurrentSection('cliente')}
+                  />
+                </motion.div>
+              )}
+
+              {currentSection === 'execucao' && (
+                <motion.div
+                  key="section-execucao"
+                  initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.995 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-full"
+                >
+                  <WorkoutExecutionSection
+                    key={`execucao-${executionNavTrigger}`}
+                    clients={clients}
+                    workouts={workouts}
+                    activeWorkout={activeWorkoutForExecution}
+                    calendarEvents={calendarEvents}
+                    onSelectWorkout={(w) => setActiveWorkoutForExecution(w)}
+                    onNavigateToClients={() => setCurrentSection('cliente')}
+                    onNavigateToCreateWorkout={(clientId) => {
+                      setPreSelectedClientId(clientId);
+                      setCurrentSection('criar-treino');
+                    }}
+                    onConfirmWorkoutCompletedInAgenda={handleConfirmWorkoutCompletedInAgenda}
+                    onFinishWorkout={() => {
+                      setHasActiveRunningSession(false);
+                      setActiveWorkoutForExecution(null);
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
         </main>
 
         {/* Toast Notificação de Sincronização após Inatividade com o Firestore */}
@@ -596,6 +748,14 @@ export default function Home() {
 
         {/* Fixed Touch-Friendly Bottom Navigation Bar */}
         <BottomNav
+          appRole={appRole}
+          studentSection={studentSection}
+          onSelectStudentSection={(sec) => {
+            if (sec === 'meu-treino') {
+              setExecutionNavTrigger((prev) => prev + 1);
+            }
+            setStudentSection(sec);
+          }}
           currentSection={currentSection}
           onSelectSection={(sec) => {
             if (sec === 'execucao') {
@@ -618,8 +778,8 @@ export default function Home() {
           hasActiveSession={hasActiveRunningSession}
         />
 
-        {/* Modal de Perfil do Treinador (Obrigatório no 1º acesso com Nome; Senha e Logo opcionais) */}
-        {isTrainerProfileModalOpen && (
+        {/* Modal de Perfil do Treinador (Obrigatório no 1º acesso no Perfil Treinador) */}
+        {isTrainerProfileModalOpen && appRole === 'trainer' && (
           <TrainerProfileModal
             key={trainerProfile?.updatedAt || currentUser?.uid || 'trainer-profile'}
             isOpen={isTrainerProfileModalOpen}

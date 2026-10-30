@@ -22,6 +22,7 @@ import {
   Smartphone,
   Cloud,
   Loader2,
+  GraduationCap,
 } from 'lucide-react';
 import {
   loginWithEmail,
@@ -31,17 +32,19 @@ import {
   getFirebaseAuthErrorMessage,
 } from '@/lib/firebase';
 import { User } from 'firebase/auth';
+import { AppUserRole } from '@/types';
 
 interface AuthScreenProps {
   isOpen?: boolean;
   onClose?: () => void;
-  onSuccess?: (user: User) => void;
+  onSuccess?: (user: User, role: AppUserRole) => void;
   /**
    * If true, renders as an inline full-page container (e.g., when unauthenticated)
    * If false or not provided with isOpen, renders as a responsive overlay/modal
    */
   mode?: 'modal' | 'fullscreen';
   initialTab?: 'login' | 'register';
+  initialRole?: AppUserRole;
 }
 
 type AuthTab = 'login' | 'register' | 'forgot_password';
@@ -52,8 +55,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onSuccess,
   mode = 'modal',
   initialTab = 'login',
+  initialRole = 'trainer',
 }) => {
   const [activeTab, setActiveTab] = useState<AuthTab>(initialTab);
+  const [selectedRole, setSelectedRole] = useState<AppUserRole>(initialRole);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -135,7 +140,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       const user = await loginWithEmail(cleanEmail, password);
       setSuccessMessage(`Bem-vindo de volta${user.displayName ? `, ${user.displayName}` : ''}! Sincronizando dados...`);
       setTimeout(() => {
-        onSuccess?.(user);
+        onSuccess?.(user, selectedRole);
         onClose?.();
       }, 700);
     } catch (err: unknown) {
@@ -188,7 +193,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       const user = await registerWithEmail(cleanEmail, password, cleanName);
       setSuccessMessage('Conta criada com sucesso! Sincronização em nuvem ativada.');
       setTimeout(() => {
-        onSuccess?.(user);
+        onSuccess?.(user, selectedRole);
         onClose?.();
       }, 900);
     } catch (err: unknown) {
@@ -245,7 +250,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       if (user) {
         setSuccessMessage(`Conectado como ${user.displayName || user.email}!`);
         setTimeout(() => {
-          onSuccess?.(user);
+          onSuccess?.(user, selectedRole);
           onClose?.();
         }, 600);
       }
@@ -301,9 +306,49 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </div>
           </div>
 
+          {/* Seletor de Perfil de Acesso: Treinador vs Aluno */}
+          {activeTab !== 'forgot_password' && (
+            <div className="mt-4 space-y-1.5">
+              <span className="text-[11px] font-bold text-slate-400 block px-0.5">
+                Escolha o Perfil de Acesso (Desenvolvimento / Uso):
+              </span>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('trainer')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    selectedRole === 'trainer'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Perfil Treinador</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('student')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    selectedRole === 'student'
+                      ? 'bg-cyan-600 text-white shadow-md shadow-cyan-950/60'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Perfil Aluno</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 px-1">
+                {selectedRole === 'trainer'
+                  ? 'Acesso total: gestão de alunos, agenda, criação de treinos e prescrição de dieta.'
+                  : 'Visão do Aluno: visualização de Meu Treino, Minha Dieta, Meu Progresso e execução de séries.'}
+              </p>
+            </div>
+          )}
+
           {/* Tabs: Entrar / Cadastrar */}
           {activeTab !== 'forgot_password' && (
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90 mt-5">
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90 mt-3">
               <button
                 type="button"
                 onClick={() => handleSwitchTab('login')}

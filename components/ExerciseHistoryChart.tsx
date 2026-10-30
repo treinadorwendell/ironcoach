@@ -82,7 +82,7 @@ const CustomChartTooltip: React.FC<CustomTooltipProps> = ({
             {data.date}
           </span>
           <span className="text-[10px] text-emerald-400 font-bold">
-            Série #{data.setNumber}
+            Série {data.setNumber}
           </span>
         </div>
 
@@ -243,7 +243,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base sm:text-lg font-black text-white truncate">
-                  Evolução da Série #{activeSetNumber}
+                  Evolução da Série {activeSetNumber}
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30 shrink-0">
                   {exerciseName}
@@ -288,7 +288,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                       : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
                   }`}
                 >
-                  Série #{num}
+                  Série {num}
                 </button>
               );
             })}
@@ -305,7 +305,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
               </div>
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-white">
-                  Nenhum histórico registrado para a Série #{activeSetNumber}
+                  Nenhum histórico registrado para a Série {activeSetNumber}
                 </h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
                   Este exercício ainda não possui séries registradas ao clicar no botão &ldquo;Concluir e Recolher&rdquo;.
@@ -467,7 +467,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                 <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
                   <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center justify-center gap-1">
                     <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                    Recorde Série #{activeSetNumber}
+                    Recorde Série {activeSetNumber}
                   </span>
                   <span className="text-base sm:text-lg font-black text-amber-400 font-mono mt-0.5 block">
                     {maxWeight} <span className="text-xs font-bold text-slate-400">kg</span>
@@ -483,7 +483,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                 <div className="flex items-center justify-between text-xs font-bold text-slate-300 px-1">
                   <span className="flex items-center gap-1.5">
                     <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Curva Histórica da Série #{activeSetNumber}</span>
+                    <span>Curva Histórica da Série {activeSetNumber}</span>
                   </span>
                   <span className="text-[11px] text-slate-500 font-mono">
                     Registros de &ldquo;Concluir e Recolher&rdquo;
@@ -681,7 +681,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
               {/* Tabela de Histórico da Série */}
               <div className="space-y-2">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Registros Históricos da Série #{activeSetNumber} ({seriesData.length})
+                  Registros Históricos da Série {activeSetNumber} ({seriesData.length})
                 </span>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -721,7 +721,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
         {/* Rodapé da Modal */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-400">
-            Série #{activeSetNumber} de {exerciseName}
+            Série {activeSetNumber} de {exerciseName}
           </span>
         </div>
       </div>

@@ -797,7 +797,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             <button
               type="button"
               onClick={() => setIsViewModeMenuOpen((prev) => !prev)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md border transition-all active:scale-95 cursor-pointer ${
+              className={`flex items-center gap-2 h-9 sm:h-10 lg:h-[42px] px-3.5 sm:px-4 rounded-xl font-bold text-xs sm:text-sm shadow-md border transition-all active:scale-95 cursor-pointer whitespace-nowrap shrink-0 ${
                 isViewModeMenuOpen
                   ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
                   : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
@@ -806,7 +806,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               aria-haspopup="true"
               title="Alternar modo de visualização da agenda"
             >
-              <CalendarIcon className={`w-3.5 h-3.5 ${isViewModeMenuOpen ? 'text-white' : 'text-purple-400'}`} />
+              <CalendarIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isViewModeMenuOpen ? 'text-white' : 'text-purple-400'}`} />
               <span className="font-extrabold tracking-tight">
                 {viewMode === 'dia'
                   ? 'Dia'
@@ -819,7 +819,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   : 'Programação'}
               </span>
               <ChevronDown
-                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
                   isViewModeMenuOpen ? 'rotate-180 text-white' : ''
                 }`}
               />
@@ -868,22 +868,22 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setIsReportModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700/80 shadow-md active:scale-95 transition"
+              className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-slate-700/80 shadow-md active:scale-95 transition whitespace-nowrap shrink-0"
               title="Abrir Relatório de Aulas e Financeiro"
             >
-              <FileText className="w-4 h-4 text-purple-400" />
+              <FileText className="w-4 h-4 text-purple-400 shrink-0" />
               <span className="hidden sm:inline">Relatório & Financeiro</span>
               <span className="sm:hidden">Relatório</span>
             </button>
 
             <button
               onClick={() => openNewModal()}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/50 active:scale-95 transition"
+              className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3.5 sm:px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-950/50 active:scale-95 transition whitespace-nowrap shrink-0"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Novo Compromisso</span>
               <span className="sm:hidden">Novo</span>
             </button>
@@ -895,20 +895,20 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleToday}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 active:scale-95"
+              className="h-8 sm:h-9 px-3 sm:px-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 active:scale-95 whitespace-nowrap shrink-0"
             >
               Hoje
             </button>
-            <div className="flex items-center gap-0.5 bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60">
+            <div className="flex items-center gap-0.5 bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60 shrink-0">
               <button
                 onClick={handlePrevDate}
-                className="p-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95 flex items-center justify-center"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={handleNextDate}
-                className="p-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95 flex items-center justify-center"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -928,7 +928,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+            className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white tabular-nums focus:outline-none focus:border-purple-500"
           />
         </div>
         <h2 className="text-xs font-bold text-slate-300 capitalize sm:hidden">
@@ -1222,27 +1222,27 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                   </div>
 
                                   {/* Options on Card: Iniciar Treino, Editar, Excluir */}
-                                  <div className="flex items-center gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 self-end sm:self-center">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 self-end sm:self-center shrink-0">
                                     {client && (
                                       <button
                                         onClick={() => onStartWorkoutForClient(client)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition"
+                                        className="flex items-center gap-1.5 h-8 sm:h-9 lg:h-10 px-3 sm:px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition whitespace-nowrap shrink-0"
                                         title="Iniciar Treino Imediatamente"
                                       >
-                                        <Play className="w-3.5 h-3.5 fill-white" />
-                                        <span>Treinar</span>
+                                        <Play className="w-3.5 h-3.5 fill-white shrink-0" />
+                                        <span>Iniciar</span>
                                       </button>
                                     )}
                                     <button
                                       onClick={() => openEditModal(evt, selectedDate)}
-                                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95"
+                                      className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-95 flex items-center justify-center shrink-0"
                                       title="Editar Compromisso"
                                     >
                                       <Edit2 className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => setEventToDelete(evt)}
-                                      className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95"
+                                      className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95 flex items-center justify-center shrink-0"
                                       title="Excluir Compromisso"
                                     >
                                       <Trash2 className="w-4 h-4" />
@@ -1251,7 +1251,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                 </div>
 
                                 {/* Barra Rápida de Alteração de Status da Aula (1 Toque) */}
-                                <div className="flex items-center gap-1 flex-wrap pt-2 border-t border-slate-800/70">
+                                <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/70">
                                   <span className="text-[10px] font-bold text-slate-400 mr-1">
                                     Alterar Status:
                                   </span>
@@ -1259,42 +1259,42 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => handleQuickStatusChange(evt, 'realizado', selectedDate)}
-                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                                    className={`h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-extrabold transition flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 ${
                                       isRealizado
                                         ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
                                         : 'bg-slate-900/90 hover:bg-emerald-950/50 text-slate-300 hover:text-emerald-300 border border-slate-800'
                                     }`}
                                     title="Marcar aula como Realizada"
                                   >
-                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                    <CheckCircle2 className="w-3 h-3 shrink-0" />
                                     <span>Realizado</span>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleQuickStatusChange(evt, 'reagendado', selectedDate)}
-                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                                    className={`h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-extrabold transition flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 ${
                                       isReagendado
                                         ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
                                         : 'bg-slate-900/90 hover:bg-amber-950/50 text-slate-300 hover:text-amber-300 border border-slate-800'
                                     }`}
                                     title="Marcar aula como Reagendada"
                                   >
-                                    <RotateCcw className="w-2.5 h-2.5" />
+                                    <RotateCcw className="w-3 h-3 shrink-0" />
                                     <span>Reagendado</span>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleQuickStatusChange(evt, 'falta', selectedDate)}
-                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
+                                    className={`h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-extrabold transition flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 ${
                                       isFalta
                                         ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
                                         : 'bg-slate-900/90 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-slate-800'
                                     }`}
                                     title="Marcar falta do aluno"
                                   >
-                                    <XCircle className="w-2.5 h-2.5" />
+                                    <XCircle className="w-3 h-3 shrink-0" />
                                     <span>Falta</span>
                                   </button>
 
@@ -1302,7 +1302,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => handleQuickStatusChange(evt, 'confirmado', selectedDate)}
-                                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 hover:text-white bg-slate-900/90 hover:bg-purple-950/50 border border-slate-800 transition active:scale-95 ml-auto"
+                                      className="h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-semibold text-slate-400 hover:text-white bg-slate-900/90 hover:bg-purple-950/50 border border-slate-800 transition active:scale-95 ml-auto flex items-center whitespace-nowrap shrink-0"
                                       title="Redefinir para Agendado"
                                     >
                                       <span>↺ Agendado</span>

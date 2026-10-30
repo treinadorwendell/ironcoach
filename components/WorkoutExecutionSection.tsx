@@ -105,6 +105,8 @@ interface WorkoutExecutionSectionProps {
     startTimeStr?: string,
     trainerNotes?: string
   ) => void;
+  lockedClientId?: string;
+  isStudentView?: boolean;
 }
 
 interface ExecutionIconButtonWithTooltipProps {
@@ -246,7 +248,7 @@ const ExecutionIconButtonWithTooltip: React.FC<ExecutionIconButtonWithTooltipPro
         onPointerLeave={handlePointerLeave}
         disabled={disabled}
         aria-label={ariaLabel}
-        className={`p-2 sm:p-2.5 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center justify-center select-none touch-manipulation ${colorClasses}`}
+        className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-[42px] lg:h-[42px] p-2 sm:p-2.5 lg:p-3 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center justify-center select-none touch-manipulation shrink-0 ${colorClasses}`}
       >
         {icon}
       </button>
@@ -291,6 +293,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   onFinishWorkout,
   onRegisterWorkoutInAgenda,
   onConfirmWorkoutCompletedInAgenda,
+  lockedClientId,
+  isStudentView = false,
 }) => {
   // Helper to build a session from a program (with split support)
   const buildSession = useCallback(
@@ -422,7 +426,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
   // Selected student state for explicit selection
   const [selectedClientId, setSelectedClientId] = useState<string>(() => {
-    return session?.clientId || activeWorkout?.clientId || '';
+    return lockedClientId || session?.clientId || activeWorkout?.clientId || '';
   });
 
   // Sequential navigation steps:
@@ -431,15 +435,30 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
   // 2. 'selecao-treino': Choose which workout/split to execute from the chosen program
   // 3. 'execucao': Hidden execution page rendered ready with timer waiting to start
   const [currentStep, setCurrentStep] = useState<ExecutionStep>(() => {
-    if (session && session.isStarted) return 'execucao';
-    if (activeWorkout) return 'execucao';
+    if (session && session.isStarted && (!lockedClientId || session.clientId === lockedClientId)) {
+      return 'execucao';
+    }
+    if (activeWorkout && (!lockedClientId || activeWorkout.clientId === lockedClientId)) {
+      return 'execucao';
+    }
+    if (lockedClientId) return 'programas';
     return 'selecao-aluno';
   });
+
+  // Keep lockedClientId synced when switching student in Dev switcher
+  useEffect(() => {
+    if (lockedClientId && selectedClientId !== lockedClientId) {
+      setSelectedClientId(lockedClientId);
+      if (currentStep === 'selecao-aluno') {
+        setCurrentStep('programas');
+      }
+    }
+  }, [lockedClientId, selectedClientId, currentStep]);
 
   const [selectedProgram, setSelectedProgram] = useState<WorkoutProgram | null>(() => {
     if (activeWorkout) return activeWorkout;
     const initialClientWorkouts = workouts.filter(
-      (w) => w.clientId === (session?.clientId || clients[0]?.id || '')
+      (w) => w.clientId === (lockedClientId || session?.clientId || clients[0]?.id || '')
     );
     return initialClientWorkouts[0] || null;
   });
@@ -576,6 +595,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     programName?: string;
     selectedRecordId?: string;
   } | null>(null);
+
+  // Estado para o Modal Explicativo do Modo Visualização
+  const [isViewModeModalOpen, setIsViewModeModalOpen] = useState<boolean>(false);
 
   // Estado para a Página/Modal de Seleção de PSE (0 a 10)
   const [pseModalConfig, setPseModalConfig] = useState<{
@@ -1545,11 +1567,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     setIsReportViewOpen(false);
     setNextWorkoutGoalText('');
 
-    // Prepara o estado base para a seleção geral de alunos enquanto o modal de celebração é exibido
+    // Prepara o estado base para a seleção geral de alunos (ou lista de programas do aluno logado) enquanto o modal de celebração é exibido
     setSelectedProgram(null);
-    setSelectedClientId('');
+    setSelectedClientId(lockedClientId || '');
     setExpandedExerciseIds({});
-    setCurrentStep('selecao-aluno');
+    setCurrentStep(lockedClientId ? 'programas' : 'selecao-aluno');
     setIsFinishedModalOpen(true);
 
     try {
@@ -1596,10 +1618,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       clearActiveSession();
       setFocusedExerciseId(null);
       setSelectedProgram(null);
-      setSelectedClientId('');
+      setSelectedClientId(lockedClientId || '');
       setExpandedExerciseIds({});
       setIsFinishedModalOpen(false);
-      setCurrentStep('selecao-aluno');
+      setCurrentStep(lockedClientId ? 'programas' : 'selecao-aluno');
       if (onFinishWorkout) onFinishWorkout();
       return;
     }
@@ -1715,10 +1737,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     clearActiveSession();
     setFocusedExerciseId(null);
     setSelectedProgram(null);
-    setSelectedClientId('');
+    setSelectedClientId(lockedClientId || '');
     setExpandedExerciseIds({});
     setIsFinishedModalOpen(false);
-    setCurrentStep('selecao-aluno');
+    setCurrentStep(lockedClientId ? 'programas' : 'selecao-aluno');
     if (onFinishWorkout) onFinishWorkout();
   };
 
@@ -1909,29 +1931,43 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             transition={{ duration: 0.2 }}
             className="space-y-4"
           >
-            {/* Top Bar com Botão Trocar Aluno */}
+            {/* Top Bar com Botão Trocar Aluno (ou Banner do Aluno quando no Perfil Aluno) */}
             <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
-              <button
-                type="button"
-                onClick={() => setCurrentStep('selecao-aluno')}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
-                title="Voltar para a seleção de alunos"
-              >
-                <ArrowLeft className="w-4 h-4 text-emerald-400" />
-                <span>Trocar Aluno</span>
-              </button>
+              {!isStudentView && !lockedClientId ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep('selecao-aluno')}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition cursor-pointer"
+                  title="Voltar para a seleção de alunos"
+                >
+                  <ArrowLeft className="w-4 h-4 text-emerald-400" />
+                  <span>Trocar Aluno</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Dumbbell className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-sm sm:text-base font-black text-white block truncate">
+                      Meus Treinos Prescritos
+                    </span>
+                    <span className="text-xs text-slate-400 block truncate">
+                      Escolha sua divisão do dia para visualizar ou executar as séries
+                    </span>
+                  </div>
+                </div>
+              )}
 
-              <div className="text-right min-w-0">
-                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block truncate">
-                  Aluno Selecionado
+              <div className="text-right min-w-0 shrink-0">
+                <span className="text-[10px] text-slate-400 font-bold tracking-wider block truncate">
+                  {isStudentView ? 'Meu Perfil' : 'Aluno Selecionado'}
                 </span>
-                <span className="text-xs sm:text-sm font-black text-white block truncate">
+                <span className="text-xs sm:text-sm font-black text-emerald-400 block truncate">
                   {selectedClient?.name || 'Aluno'}
                 </span>
               </div>
             </div>
-
-
 
             {/* Banner de Treino em Andamento se houver sessão ativa iniciada */}
             {session && session.isStarted && (
@@ -1964,12 +2000,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider">
-                  Programas de Treino do Aluno ({studentWorkouts.length})
+                <h3 className="text-xs font-black text-slate-200 tracking-wider">
+                  {isStudentView
+                    ? `Minhas Fichas e Programas (${studentWorkouts.length})`
+                    : `Programas de Treino do Aluno (${studentWorkouts.length})`}
                 </h3>
               </div>
 
-              {onNavigateToCreateWorkout && (
+              {!isStudentView && onNavigateToCreateWorkout && (
                 <button
                   type="button"
                   onClick={() => onNavigateToCreateWorkout(selectedClientId)}
@@ -1990,32 +2028,38 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                 <div className="space-y-1">
                   <h3 className="text-lg font-black text-white">
-                    Nenhum Programa Prescrito para {selectedClient?.name || 'este Aluno'}
+                    {isStudentView
+                      ? 'Nenhum Programa de Treino Disponível Ainda'
+                      : `Nenhum Programa Prescrito para ${selectedClient?.name || 'este Aluno'}`}
                   </h3>
                   <p className="text-xs text-slate-400 max-w-md mx-auto">
-                    Prescreva um programa na aba &ldquo;Criar Treino&rdquo; ou inicie com um protocolo rápido de adaptação muscular com 1 toque.
+                    {isStudentView
+                      ? 'Seu treinador ainda não liberou uma ficha de treino para o seu perfil. Assim que o treino for prescrito, ele aparecerá automaticamente aqui.'
+                      : 'Prescreva um programa na aba “Criar Treino” ou inicie com um protocolo rápido de adaptação muscular com 1 toque.'}
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                  <button
-                    onClick={handleCreateQuickStarterWorkout}
-                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Gerar Treino de Adaptação Imediato</span>
-                  </button>
-
-                  {onNavigateToCreateWorkout && (
+                {!isStudentView && (
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                     <button
-                      onClick={() => onNavigateToCreateWorkout(selectedClientId)}
-                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2"
+                      onClick={handleCreateQuickStarterWorkout}
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
                     >
-                      <FilePlus className="w-4 h-4 text-cyan-400" />
-                      <span>Montar Ficha Completa na Seção &ldquo;Criar Treino&rdquo;</span>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Gerar Treino de Adaptação Imediato</span>
                     </button>
-                  )}
-                </div>
+
+                    {onNavigateToCreateWorkout && (
+                      <button
+                        onClick={() => onNavigateToCreateWorkout(selectedClientId)}
+                        className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2"
+                      >
+                        <FilePlus className="w-4 h-4 text-cyan-400" />
+                        <span>Montar Ficha Completa na Seção &ldquo;Criar Treino&rdquo;</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               /* CARDS VERTICAIS DOS PROGRAMAS DE TREINO (RESPONSIVO FLUIDO) */
@@ -2491,21 +2535,68 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                   {/* Botão de Iniciar Treino ou Indicador de Tempo Contínuo */}
                   {!session.isStarted ? (
-                    <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
                       <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 font-mono text-xs font-bold text-slate-400">
                         <Clock className="w-3.5 h-3.5 text-slate-500" />
                         <span>00:00</span>
-                        <span className="text-[10px] text-slate-500 font-sans font-normal">(Aguardando)</span>
+                        <span className="text-[10px] text-slate-500 font-sans font-normal hidden sm:inline">(Aguardando)</span>
                       </div>
 
+                      {/* Botão Somente Ícone: Histórico de Relatórios Anteriores (se houver histórico salvo) */}
+                      {(() => {
+                        const splitPart = session.programName.includes('•')
+                          ? session.programName.split('•')[1].trim()
+                          : session.programName;
+                        const progPart = session.programName.includes('•')
+                          ? session.programName.split('•')[0].trim()
+                          : session.programName;
+                        const preAnalysis = storage.getPreWorkoutHistoryAnalysis(
+                          session.clientId,
+                          splitPart,
+                          progPart
+                        );
+                        if (!preAnalysis.latestRecord) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreWorkoutHistoryModal({
+                                isOpen: true,
+                                clientId: session.clientId,
+                                splitName: splitPart,
+                                programName: progPart,
+                                selectedRecordId: preAnalysis.latestRecord!.id,
+                              })
+                            }
+                            className="h-10 sm:h-11 lg:h-12 w-10 sm:w-11 lg:w-12 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 border border-cyan-500/40 text-cyan-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
+                            title={`Histórico de Relatórios & Próxima Meta (${preAnalysis.allPreviousRecords.length})`}
+                            aria-label="Abrir modal de histórico de relatórios anteriores"
+                          >
+                            <History className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
+                          </button>
+                        );
+                      })()}
+
+                      {/* Botão Somente Ícone: Abre o Modal de Informações do Treino / Modo Visualização */}
+                      <button
+                        type="button"
+                        onClick={() => setIsViewModeModalOpen(true)}
+                        className="h-10 sm:h-11 lg:h-12 w-10 sm:w-11 lg:w-12 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 border border-amber-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
+                        title="Modo Visualização: Clique para abrir as regras e informações do treino"
+                        aria-label="Informações sobre o Modo Visualização"
+                      >
+                        <Info className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-400" />
+                      </button>
+
+                      {/* Botão com a escrita 'Iniciar', perfeitamente alinhado com o ícone */}
                       <button
                         type="button"
                         onClick={handleStartWorkout}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+                        className="h-10 sm:h-11 lg:h-12 px-4 sm:px-5 lg:px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
                         title="Clique para iniciar o treino, começar a contagem do tempo e liberar edições"
                       >
-                        <Play className="w-4 h-4 fill-slate-950" />
-                        <span>Iniciar Treino</span>
+                        <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-slate-950" />
+                        <span>Iniciar</span>
                       </button>
                     </div>
                   ) : (
@@ -2545,15 +2636,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     </div>
                   )}
                 </div>
-
-                {!session.isStarted && (
-                  <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/30 flex items-center gap-2 text-[11px] text-amber-200">
-                    <Info className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>
-                      <strong>Modo Visualização:</strong> Você pode expandir/recolher e abrir qualquer exercício para consultar as informações. As alterações só serão liberadas após clicar em <strong>Iniciar Treino</strong>.
-                    </span>
-                  </div>
-                )}
 
                 <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                   <div
@@ -2623,9 +2705,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         selectedRecordId: latestRecord.id,
                       })
                     }
-                    className="px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer shrink-0"
+                    className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                   >
-                    <History className="w-3.5 h-3.5" />
+                    <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>
                       Ver Histórico de Relatórios ({preAnalysis.allPreviousRecords.length})
                     </span>
@@ -2737,24 +2819,24 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={handleExpandAllExercises}
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition active:scale-95 flex items-center justify-center cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
                 title="Expandir todos os exercícios"
                 aria-label="Expandir todos os exercícios"
               >
-                <ChevronDown className="w-4 h-4 text-cyan-400" />
+                <ChevronDown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
               </button>
               <button
                 type="button"
                 onClick={handleCollapseAllExercises}
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition active:scale-95 flex items-center justify-center cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition active:scale-95 flex items-center justify-center cursor-pointer shrink-0"
                 title="Recolher todos os exercícios"
                 aria-label="Recolher todos os exercícios"
               >
-                <ChevronUp className="w-4 h-4 text-cyan-400" />
+                <ChevronUp className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
               </button>
             </div>
           </div>
@@ -2867,14 +2949,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           </span>
                         </span>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleToggleExerciseExpand(ex.exerciseId);
                             }}
-                            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition cursor-pointer"
+                            className="w-9 h-9 sm:w-10 sm:h-10 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition flex items-center justify-center cursor-pointer shrink-0"
                             title="Expandir card do exercício"
                           >
                             <ChevronDown className="w-4 h-4 text-cyan-400" />
@@ -2886,11 +2968,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               e.stopPropagation();
                               setFocusedExerciseId(ex.exerciseId);
                             }}
-                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer"
+                            className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                             title="Abrir página dedicada com todas as informações deste exercício"
                           >
                             <span>{session.isStarted ? 'Executar' : 'Visualizar'}</span>
-                            <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
+                            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
                           </button>
                         </div>
                       </div>
@@ -3093,14 +3175,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         </div>
                       </div>
 
-                      {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES GIGANTES (LOGO ABAIXO DO CABEÇALHO) */}
+                      {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES PROPORCIONAIS POR TELA */}
                       <div className="space-y-2.5">
-                        <div className="grid grid-cols-12 gap-1.5 text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider items-center">
-                          <span className="col-span-2 text-center">Série</span>
-                          <span className="col-span-3 text-center">Reps (Alvo)</span>
+                        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-400 px-2 sm:px-3 uppercase tracking-wider items-center">
+                          <span className="col-span-2 text-left lg:text-center w-[43.83px] sm:w-auto h-[16.5px] sm:h-auto -ml-[24px] sm:ml-0 mr-0 my-0 p-0 flex items-center justify-start lg:justify-center">Série</span>
+                          <span className="col-span-3 text-center w-[67.25px] sm:w-auto h-[34px] sm:h-auto -ml-[13px] sm:ml-0 p-0 flex items-center justify-center">Reps (Alvo)</span>
                           <span className="col-span-3 text-center">Carga (KG)</span>
                           <span className="col-span-2 text-center text-amber-400">PSE</span>
-                          <span className="col-span-2 text-center">Check</span>
+                          <span className="col-span-2 text-center pl-0 ml-[5px] sm:ml-0 -mr-[10px] sm:mr-0">Check</span>
                         </div>
 
                         {ex.sets.map((set, setIndex) => {
@@ -3109,19 +3191,19 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                           return (
                             <div key={set.setNumber} className="space-y-1.5">
-                              {/* Linha da Série Principal */}
+                              {/* Linha da Série Principal (Proporções Mobile de referência + Expansão Fluida Tablet/Desktop) */}
                               <div
-                                className={`grid grid-cols-12 gap-1.5 items-center p-2 rounded-xl transition-all duration-150 ${
+                                className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center w-[336px] max-w-[336px] sm:w-full sm:max-w-none h-[66px] sm:h-auto sm:min-h-[68px] lg:min-h-[72px] -ml-[17px] sm:ml-0 mr-0 my-0 p-[10px] sm:p-3 lg:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-150 ${
                                   set.completed
                                     ? 'bg-emerald-950/30 border border-emerald-500/40 shadow-sm'
                                     : 'bg-slate-950/70 border border-slate-800/80 hover:border-slate-700'
                                 }`}
                               >
-                                {/* Col 1: Set Number + Ícone de Evolução da Série */}
-                                 <div className="col-span-2 flex flex-col items-center justify-center">
-                                  <div className="w-full sm:w-[69px] flex items-center justify-center gap-1 sm:gap-0">
+                                {/* Col 1: Set Number + Ícone de Evolução da Série (Compacto e mais à esquerda no mobile/tablet) */}
+                                <div className="col-span-2 flex flex-col items-start lg:items-center justify-center -ml-1 sm:ml-0">
+                                  <div className="w-full sm:w-auto flex items-center justify-start lg:justify-center gap-1 sm:gap-1.5">
                                     <span
-                                      className={`w-[22px] h-7 sm:w-6 sm:h-6 rounded-lg font-black text-[10px] sm:text-[11px] flex items-center justify-center shrink-0 ${
+                                      className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 pb-0 pr-0 mr-0 rounded-md sm:rounded-lg lg:rounded-xl font-black text-[10px] sm:text-xs lg:text-sm tabular-nums flex items-center justify-center shrink-0 ${
                                         set.completed
                                           ? 'bg-emerald-500 text-slate-950'
                                           : 'bg-slate-800 text-slate-200'
@@ -3139,22 +3221,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           ex.sets.length
                                         )
                                       }
-                                      className="w-[22px] h-7 sm:w-6 sm:h-6 sm:ml-3 px-0 shrink-0 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90"
-                                      title={`Ver página de evolução da Série #${set.setNumber}`}
+                                      className="w-[22px] h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 px-0 shrink-0 rounded-md sm:rounded-lg lg:rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90 cursor-pointer touch-manipulation"
+                                      title={`Ver página de evolução da Série ${set.setNumber}`}
                                     >
-                                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
                                     </button>
                                   </div>
                                   {set.extraVariation ? (
                                     <span
-                                      className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px]"
+                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px] sm:max-w-[90px]"
                                       title={set.extraVariation}
                                     >
                                       {set.extraVariation.split(' • ')[0]}
                                     </span>
                                   ) : set.method && set.method !== 'Normal' ? (
                                     <span
-                                      className="text-[9px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px]"
+                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px] sm:max-w-[90px]"
                                       title={set.method}
                                     >
                                       {set.method}
@@ -3162,30 +3244,30 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   ) : null}
                                 </div>
 
-                                {/* Col 2: Reps Target & Stepper */}
-                                <div className="col-span-3 flex items-center justify-center gap-1">
+                                {/* Col 2: Reps Target & Stepper (Botões - e + maiores no mobile) */}
+                                <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 pr-0">
                                   <button
                                     type="button"
                                     onClick={() => adjustReps(exIndex, setIndex, -1)}
-                                    className={`w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation ${
+                                    className={`w-8 h-[38px] sm:w-8 sm:h-9 lg:w-9 lg:h-10 px-0 py-0 m-0 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
                                     }`}
                                     title={session.isStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
                                   >
                                     -
                                   </button>
-                                  <div className="text-center min-w-[34px]">
-                                    <span className="text-sm font-black text-white font-mono block">
+                                  <div className="text-center min-w-[28px] sm:min-w-[38px] lg:min-w-[44px]">
+                                    <span className="text-sm sm:text-base font-black text-white font-mono tabular-nums block">
                                       {set.completedReps}
                                     </span>
-                                    <span className="text-[9px] text-slate-400 font-semibold block">
+                                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold block">
                                       {set.repZone}
                                     </span>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => adjustReps(exIndex, setIndex, +1)}
-                                    className={`w-7 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-sm flex items-center justify-center active:scale-90 transition touch-manipulation ${
+                                    className={`w-8 h-[38px] sm:w-8 sm:h-9 lg:w-9 lg:h-10 px-0 py-0 m-0 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
                                     }`}
                                     title={session.isStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
@@ -3234,7 +3316,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           );
                                         }
                                       }}
-                                      className={`h-[38px] w-[50px] mx-0 text-center p-0 font-mono font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                                      className={`h-[38px] w-[50px] sm:h-10 sm:w-16 lg:h-[42px] lg:w-[76px] mx-0 text-center p-0 font-mono tabular-nums font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
                                         !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                       }`}
                                     />
@@ -3254,7 +3336,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         set.setNumber
                                       )
                                     }
-                                    className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group ${
+                                    className={`w-[44px] sm:w-12 lg:w-[52px] h-10 sm:h-[42px] lg:h-11 -ml-[8px] sm:ml-0 mb-0 pt-0 px-0 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                     }${
                                       pseInfo
@@ -3271,17 +3353,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   >
                                     {pseInfo ? (
                                       <>
-                                        <span className="font-mono font-black text-sm leading-none">
+                                        <span className="font-mono tabular-nums font-black text-sm sm:text-base leading-none">
                                           {set.pse}
                                         </span>
-                                        <span className="text-[8px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
+                                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
                                           PSE
                                         </span>
                                       </>
                                     ) : (
                                       <>
                                         <Gauge className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
-                                        <span className="text-[8px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
+                                        <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
                                           PSE
                                         </span>
                                       </>
@@ -3294,7 +3376,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => handleToggleSetCheck(exIndex, setIndex)}
-                                    className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation ${
+                                    className={`w-10 h-10 sm:w-11 sm:h-11 lg:w-[46px] lg:h-[46px] rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                     }${
                                       set.completed
@@ -3310,7 +3392,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     }
                                   >
                                     <Check
-                                      className={`w-5 h-5 stroke-[3] transition-transform ${
+                                      className={`w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[3] transition-transform ${
                                         set.completed ? 'scale-110' : 'opacity-40'
                                       }`}
                                     />
@@ -3320,24 +3402,24 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                               {/* Subséries Vinculadas ao Método Avançado */}
                               {hasSubsets && (
-                                <div className="ml-3 sm:ml-5 pl-2.5 border-l-2 border-purple-500/50 space-y-1.5 my-1">
+                                <div className="ml-3 sm:ml-5 pl-2.5 sm:pl-3 border-l-2 border-purple-500/50 space-y-1.5 my-1">
                                   {set.subSets!.map((sub, subIdx) => (
                                     <div
                                       key={sub.id || subIdx}
-                                      className={`grid grid-cols-12 gap-1.5 items-center p-2 rounded-xl transition-all ${
+                                      className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center p-2 sm:p-2.5 lg:p-3 rounded-xl transition-all ${
                                         sub.completed
                                           ? 'bg-purple-950/40 border border-purple-500/50 shadow-sm'
                                           : 'bg-slate-950/70 border border-purple-500/30'
                                       }`}
                                     >
                                       {/* Col 1: Subsérie label */}
-                                      <div className="col-span-2 flex flex-col items-center justify-center">
-                                        <span className="text-[10px] font-black text-purple-300">
-                                          ↳ Sub #{sub.subSetNumber}
+                                      <div className="col-span-2 flex flex-col items-start lg:items-center justify-center">
+                                        <span className="text-[10px] sm:text-xs font-black text-purple-300 tabular-nums">
+                                          ↳ Sub {sub.subSetNumber}
                                         </span>
                                         {sub.note && (
                                           <span
-                                            className="text-[8px] text-slate-400 block truncate max-w-[65px]"
+                                            className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[65px] sm:max-w-[90px]"
                                             title={sub.note}
                                           >
                                             {sub.note}
@@ -3346,23 +3428,23 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                       </div>
 
                                       {/* Col 2: Reps Stepper */}
-                                      <div className="col-span-3 flex items-center justify-center gap-1">
+                                      <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
                                         <button
                                           type="button"
                                           onClick={() =>
                                             handleAdjustSubSetReps(exIndex, setIndex, subIdx, -1)
                                           }
-                                          className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                                          className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                             !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
                                           }`}
                                         >
                                           -
                                         </button>
-                                        <div className="text-center min-w-[28px]">
-                                          <span className="text-xs font-black text-white font-mono block">
+                                        <div className="text-center min-w-[26px] sm:min-w-[34px]">
+                                          <span className="text-xs sm:text-sm font-black text-white font-mono tabular-nums block">
                                             {sub.completedReps}
                                           </span>
-                                          <span className="text-[8px] text-slate-400 block truncate max-w-[40px]">
+                                          <span className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[40px] sm:max-w-[54px]">
                                             {sub.repZone}
                                           </span>
                                         </div>
@@ -3371,7 +3453,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleAdjustSubSetReps(exIndex, setIndex, subIdx, +1)
                                           }
-                                          className={`w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs flex items-center justify-center active:scale-90 ${
+                                          className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                             !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
                                           }`}
                                         >
@@ -3420,7 +3502,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                                 );
                                               }
                                             }}
-                                            className={`h-[34px] w-[50px] mx-0 text-center p-0 font-mono font-black text-xs text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
+                                            className={`h-[34px] w-[50px] sm:h-9 sm:w-16 lg:h-10 lg:w-[72px] mx-0 text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
                                               !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                             }`}
                                           />
@@ -3439,7 +3521,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleToggleSubSetCheck(exIndex, setIndex, subIdx)
                                           }
-                                          className={`w-9 h-9 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 ${
+                                          className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                             !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                           }${
                                             sub.completed
@@ -3484,7 +3566,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                       {/* Footer do Exercício Expandido com botão de recolher */}
                       <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 gap-2 flex-wrap">
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] sm:text-xs text-slate-400">
                           {!session.isStarted
                             ? 'Modo Visualização • Clique em "Iniciar Treino" para registrar séries'
                             : isAllSetsCompleted
@@ -3496,7 +3578,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             <button
                               type="button"
                               onClick={() => handleToggleExerciseExpand(ex.exerciseId)}
-                              className="text-xs font-bold text-slate-200 flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition active:scale-95 cursor-pointer"
+                              className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 text-xs sm:text-sm font-bold text-slate-200 flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                             >
                               <ChevronUp className="w-4 h-4 text-cyan-400" />
                               <span>Recolher</span>
@@ -3504,17 +3586,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             <button
                               type="button"
                               onClick={handleStartWorkout}
-                              className="text-xs font-black text-slate-950 flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md transition active:scale-95 cursor-pointer"
+                              className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 text-xs sm:text-sm font-black text-slate-950 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                             >
-                              <Play className="w-3.5 h-3.5 fill-slate-950" />
-                              <span>Iniciar Treino</span>
+                              <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-slate-950" />
+                              <span>Iniciar</span>
                             </button>
                           </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleFinishAndCollapseExercise(exIndex)}
-                            className="text-xs font-bold text-white flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 shadow-md shadow-emerald-950/40 transition active:scale-95 cursor-pointer"
+                            className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 lg:px-5 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 shadow-md shadow-emerald-950/40 transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                             title="Concluir exercício, gravar séries no histórico de evolução e recolher"
                           >
                             <Check className="w-4 h-4 stroke-[3]" />
@@ -3628,22 +3710,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <button
                       type="button"
                       onClick={handleStartWorkout}
-                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0"
+                      className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 lg:px-7 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
                     >
-                      <Play className="w-5 h-5 fill-slate-950" />
-                      <span>Iniciar Treino</span>
+                      <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-slate-950" />
+                      <span>Iniciar</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleFinishWorkout()}
-                      className={`w-full sm:w-auto px-6 py-3.5 rounded-xl active:scale-95 font-black text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation flex-shrink-0 animate-in fade-in duration-150 ${
+                      className={`w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 lg:px-7 rounded-xl active:scale-95 font-black text-xs sm:text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0 animate-in fade-in duration-150 ${
                         allCompleted
                           ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-950/60'
                           : 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-emerald-950/40'
                       }`}
                     >
-                      <CheckCircle2 className="w-5 h-5" />
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>Concluir e Finalizar</span>
                     </button>
                   )}
@@ -4479,6 +4561,76 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         exercise={executionMediaModalEx}
         onClose={() => setExecutionMediaModalEx(null)}
       />
+
+      {/* MODAL EXPLICATIVO: MODO VISUALIZAÇÃO DO TREINO */}
+      {isViewModeModalOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsViewModeModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+                  <Info className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Modo Visualização
+                  </h3>
+                  <span className="text-[11px] text-amber-300 font-medium">
+                    Treino aguardando início
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsViewModeModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <p>
+                Você está no <strong>Modo de Consulta Pré-Treino</strong>. Pode expandir, recolher e abrir qualquer exercício para revisar as instruções biomecânicas, histórico de cargas, número de séries, repetições alvo e observações cadastradas.
+              </p>
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+                <Play className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 fill-amber-400" />
+                <span>
+                  O cronômetro e a edição de repetições, cargas, PSE e marcação de séries serão liberados imediatamente ao clicar em <strong>Iniciar</strong>.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsViewModeModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs active:scale-95 transition cursor-pointer"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsViewModeModalOpen(false);
+                  handleStartWorkout();
+                }}
+                className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-md active:scale-95 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <Play className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Iniciar Treino Agora</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
