@@ -2345,6 +2345,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                         {/* Resumo Rápido da Próxima Meta / Último Relatório antes de abrir o Split */}
                         {(() => {
+                          if (isStudentView) return null;
                           const preAnalysis = storage.getPreWorkoutHistoryAnalysis(
                             selectedClientId,
                             split.name,
@@ -2515,129 +2516,68 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             const progressPercent = totalSets > 0 ? Math.round((totalCompletedSets / totalSets) * 100) : 0;
 
             return (
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider flex items-center gap-1.5">
-                      <Flame className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Progresso do Treino</span>
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  {/* Título Limpo do Treino (sem contador de séries) */}
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                      <Flame className="w-4 h-4 text-emerald-400" />
                     </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black text-emerald-400">
-                        {totalCompletedSets}
-                      </span>
-                      <span className="text-sm text-slate-400 font-bold">/ {totalSets} séries</span>
-                      <span className="text-xs text-slate-500 font-semibold">
-                        ({progressPercent}% concluído)
-                      </span>
-                    </div>
+                    <span className="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
+                      Progresso do Treino
+                    </span>
                   </div>
 
-                  {/* Botão de Iniciar Treino ou Indicador de Tempo Contínuo */}
-                  {!session.isStarted ? (
-                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 font-mono text-xs font-bold text-slate-400">
-                        <Clock className="w-3.5 h-3.5 text-slate-500" />
-                        <span>00:00</span>
-                        <span className="text-[10px] text-slate-500 font-sans font-normal hidden sm:inline">(Aguardando)</span>
-                      </div>
-
-                      {/* Botão Somente Ícone: Histórico de Relatórios Anteriores (se houver histórico salvo) */}
-                      {(() => {
-                        const splitPart = session.programName.includes('•')
-                          ? session.programName.split('•')[1].trim()
-                          : session.programName;
-                        const progPart = session.programName.includes('•')
-                          ? session.programName.split('•')[0].trim()
-                          : session.programName;
-                        const preAnalysis = storage.getPreWorkoutHistoryAnalysis(
-                          session.clientId,
-                          splitPart,
-                          progPart
-                        );
-                        if (!preAnalysis.latestRecord) return null;
-                        return (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreWorkoutHistoryModal({
-                                isOpen: true,
-                                clientId: session.clientId,
-                                splitName: splitPart,
-                                programName: progPart,
-                                selectedRecordId: preAnalysis.latestRecord!.id,
-                              })
-                            }
-                            className="h-10 sm:h-11 lg:h-12 w-10 sm:w-11 lg:w-12 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 border border-cyan-500/40 text-cyan-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
-                            title={`Histórico de Relatórios & Próxima Meta (${preAnalysis.allPreviousRecords.length})`}
-                            aria-label="Abrir modal de histórico de relatórios anteriores"
-                          >
-                            <History className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
-                          </button>
-                        );
-                      })()}
-
-                      {/* Botão Somente Ícone: Abre o Modal de Informações do Treino / Modo Visualização */}
-                      <button
-                        type="button"
-                        onClick={() => setIsViewModeModalOpen(true)}
-                        className="h-10 sm:h-11 lg:h-12 w-10 sm:w-11 lg:w-12 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 border border-amber-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
-                        title="Modo Visualização: Clique para abrir as regras e informações do treino"
-                        aria-label="Informações sobre o Modo Visualização"
+                  {/* Apenas: Cronômetro de Treino, Botão de Modo Visualização e Botão Iniciar */}
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap self-end sm:self-auto">
+                    {/* Cronômetro de Treino */}
+                    {!session.isStarted ? (
+                      <div
+                        className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-slate-700/80 font-mono text-xs sm:text-sm font-bold text-slate-400 shadow-inner shrink-0"
+                        title="Cronômetro do treino (aguardando início)"
                       >
-                        <Info className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-400" />
-                      </button>
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
+                        <span>00:00</span>
+                      </div>
+                    ) : (
+                      <div
+                        className="flex items-center gap-1.5 sm:gap-2 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs sm:text-sm font-bold text-emerald-400 shadow-inner shrink-0"
+                        title="Cronômetro em contagem contínua"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+                        <span>{formatElapsed(session.elapsedSeconds)}</span>
+                      </div>
+                    )}
 
-                      {/* Botão com a escrita 'Iniciar', perfeitamente alinhado com o ícone */}
+                    {/* Botão de Modo Visualização */}
+                    <button
+                      type="button"
+                      onClick={() => setIsViewModeModalOpen(true)}
+                      className="h-10 sm:h-11 w-10 sm:w-11 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 border border-amber-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
+                      title="Modo Visualização: Clique para abrir as regras e informações do treino"
+                      aria-label="Informações sobre o Modo Visualização"
+                    >
+                      <Info className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-400" />
+                    </button>
+
+                    {/* Botão Iniciar */}
+                    {!session.isStarted && (
                       <button
                         type="button"
                         onClick={handleStartWorkout}
-                        className="h-10 sm:h-11 lg:h-12 px-4 sm:px-5 lg:px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
-                        title="Clique para iniciar o treino, começar a contagem do tempo e liberar edições"
+                        className="h-10 sm:h-11 px-4 sm:px-5 lg:px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-md shadow-emerald-950/50 transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
+                        title="Clique para iniciar o treino e começar a contagem do tempo"
                       >
-                        <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-slate-950" />
+                        <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-4.5 lg:h-4.5 fill-slate-950" />
                         <span>Iniciar</span>
                       </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                      <div
-                        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-bold text-emerald-400 shadow-inner"
-                        title="Cronômetro em contagem contínua até concluir e finalizar o treino"
-                      >
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{formatElapsed(session.elapsedSeconds)}</span>
-                        <span className="text-[10px] text-emerald-300/80 font-sans font-semibold hidden sm:inline">
-                          (Em andamento)
-                        </span>
-                      </div>
-
-                      {/* Notificações em Segundo Plano */}
-                      {notificationPermission === 'granted' ? (
-                        <div
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-bold text-xs"
-                          title="Notificações ativas: você receberá alertas de descanso mesmo com o app minimizado"
-                        >
-                          <BellRing className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-[11px] hidden sm:inline">Avisos 2º Plano Ativos</span>
-                        </div>
-                      ) : notificationPermission === 'default' ? (
-                        <button
-                          type="button"
-                          onClick={handleRequestWorkoutNotificationPermission}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer"
-                          title="Clique para ativar alertas em segundo plano no celular/tablet"
-                        >
-                          <Bell className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                          <span className="text-[11px]">Ativar Alertas 2º Plano</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
-                <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                {/* Barra de Progressão Mantida */}
+                <div className="h-2 sm:h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                   <div
                     className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
@@ -2649,6 +2589,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
           {/* PAINEL DE ANÁLISE PRÉ-TREINO: PRÓXIMA META E RELATÓRIO DE EVOLUÇÃO ANTERIOR (ANTES DE INICIAR) */}
           {(() => {
+            if (isStudentView) return null;
             const splitPart = session.programName.includes('•')
               ? session.programName.split('•')[1].trim()
               : session.programName;
@@ -3177,12 +3118,13 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                       {/* LISTA DE SÉRIES COM COLUNAS NÍTIDAS E BOTÕES PROPORCIONAIS POR TELA */}
                       <div className="space-y-2.5">
-                        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-400 px-2 sm:px-3 uppercase tracking-wider items-center">
-                          <span className="col-span-2 text-left lg:text-center w-[43.83px] sm:w-auto h-[16.5px] sm:h-auto -ml-[24px] sm:ml-0 mr-0 my-0 p-0 flex items-center justify-start lg:justify-center">Série</span>
-                          <span className="col-span-3 text-center w-[67.25px] sm:w-auto h-[34px] sm:h-auto -ml-[13px] sm:ml-0 p-0 flex items-center justify-center">Reps (Alvo)</span>
-                          <span className="col-span-3 text-center">Carga (KG)</span>
+                        {/* Cabeçalho da Tabela Alinhado para Mobile e Desktop */}
+                        <div className="grid grid-cols-12 gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold text-slate-400 px-2 sm:px-3 uppercase tracking-wider items-center text-center">
+                          <span className="col-span-2 text-center">Série</span>
+                          <span className="col-span-3 text-center">Reps</span>
+                          <span className="col-span-3 text-center">Carga (kg)</span>
                           <span className="col-span-2 text-center text-amber-400">PSE</span>
-                          <span className="col-span-2 text-center pl-0 ml-[5px] sm:ml-0 -mr-[10px] sm:mr-0">Check</span>
+                          <span className="col-span-2 text-center">Check</span>
                         </div>
 
                         {ex.sets.map((set, setIndex) => {
@@ -3191,52 +3133,37 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                           return (
                             <div key={set.setNumber} className="space-y-1.5">
-                              {/* Linha da Série Principal (Proporções Mobile de referência + Expansão Fluida Tablet/Desktop) */}
+                              {/* Linha da Série Principal com Alinhamento Perfeito das Colunas */}
                               <div
-                                className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center w-[336px] max-w-[336px] sm:w-full sm:max-w-none h-[66px] sm:h-auto sm:min-h-[68px] lg:min-h-[72px] -ml-[17px] sm:ml-0 mr-0 my-0 p-[10px] sm:p-3 lg:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-150 ${
+                                className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center w-full min-h-[56px] sm:min-h-[64px] lg:min-h-[68px] p-2 sm:p-2.5 lg:p-3 rounded-xl sm:rounded-2xl transition-all duration-150 ${
                                   set.completed
                                     ? 'bg-emerald-950/30 border border-emerald-500/40 shadow-sm'
                                     : 'bg-slate-950/70 border border-slate-800/80 hover:border-slate-700'
                                 }`}
                               >
-                                {/* Col 1: Set Number + Ícone de Evolução da Série (Compacto e mais à esquerda no mobile/tablet) */}
-                                <div className="col-span-2 flex flex-col items-start lg:items-center justify-center -ml-1 sm:ml-0">
-                                  <div className="w-full sm:w-auto flex items-center justify-start lg:justify-center gap-1 sm:gap-1.5">
-                                    <span
-                                      className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 pb-0 pr-0 mr-0 rounded-md sm:rounded-lg lg:rounded-xl font-black text-[10px] sm:text-xs lg:text-sm tabular-nums flex items-center justify-center shrink-0 ${
-                                        set.completed
-                                          ? 'bg-emerald-500 text-slate-950'
-                                          : 'bg-slate-800 text-slate-200'
-                                      }`}
-                                      title={`Série ${set.setNumber}`}
-                                    >
-                                      {set.setNumber}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleOpenSeriesHistory(
-                                          ex.exerciseName,
-                                          set.setNumber,
-                                          ex.sets.length
-                                        )
-                                      }
-                                      className="w-[22px] h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 px-0 shrink-0 rounded-md sm:rounded-lg lg:rounded-xl bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition active:scale-90 cursor-pointer touch-manipulation"
-                                      title={`Ver página de evolução da Série ${set.setNumber}`}
-                                    >
-                                      <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
-                                    </button>
-                                  </div>
+                                {/* Col 1: Número da Série (Sem botão de evolução, perfeitamente centralizado) */}
+                                <div className="col-span-2 flex flex-col items-center justify-center text-center">
+                                  <span
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm lg:text-base tabular-nums flex items-center justify-center shrink-0 ${
+                                      set.completed
+                                        ? 'bg-emerald-500 text-slate-950 shadow-md'
+                                        : 'bg-slate-800 text-slate-200'
+                                    }`}
+                                    title={`Série ${set.setNumber}`}
+                                  >
+                                    {set.setNumber}
+                                  </span>
+
                                   {set.extraVariation ? (
                                     <span
-                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px] sm:max-w-[90px]"
+                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-1 truncate max-w-[65px] sm:max-w-[90px]"
                                       title={set.extraVariation}
                                     >
                                       {set.extraVariation.split(' • ')[0]}
                                     </span>
                                   ) : set.method && set.method !== 'Normal' ? (
                                     <span
-                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-0.5 truncate max-w-[65px] sm:max-w-[90px]"
+                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-1 truncate max-w-[65px] sm:max-w-[90px]"
                                       title={set.method}
                                     >
                                       {set.method}
@@ -3244,30 +3171,30 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   ) : null}
                                 </div>
 
-                                {/* Col 2: Reps Target & Stepper (Botões - e + maiores no mobile) */}
-                                <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 pr-0">
+                                {/* Col 2: Reps Target & Stepper (Botões - e + alinhados) */}
+                                <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => adjustReps(exIndex, setIndex, -1)}
-                                    className={`w-8 h-[38px] sm:w-8 sm:h-9 lg:w-9 lg:h-10 px-0 py-0 m-0 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm sm:text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
                                     }`}
                                     title={session.isStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
                                   >
                                     -
                                   </button>
-                                  <div className="text-center min-w-[28px] sm:min-w-[38px] lg:min-w-[44px]">
-                                    <span className="text-sm sm:text-base font-black text-white font-mono tabular-nums block">
+                                  <div className="text-center min-w-[24px] sm:min-w-[32px]">
+                                    <span className="text-xs sm:text-sm lg:text-base font-black text-white font-mono tabular-nums block">
                                       {set.completedReps}
                                     </span>
-                                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold block">
+                                    <span className="text-[8px] sm:text-[9px] text-slate-400 font-semibold block leading-tight">
                                       {set.repZone}
                                     </span>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => adjustReps(exIndex, setIndex, +1)}
-                                    className={`w-8 h-[38px] sm:w-8 sm:h-9 lg:w-9 lg:h-10 px-0 py-0 m-0 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm sm:text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
                                     }`}
                                     title={session.isStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
@@ -3276,54 +3203,52 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   </button>
                                 </div>
 
-                                {/* Col 3: Carga (KG) */}
+                                {/* Col 3: Carga (KG) (Centralizada) */}
                                 <div className="col-span-3 flex items-center justify-center">
-                                  <div className="relative flex justify-center text-center">
-                                    <input
-                                      type="text"
-                                      readOnly={!session.isStarted}
-                                      inputMode="decimal"
-                                      pattern="[0-9]*[.,]?[0-9]*"
-                                      placeholder="—"
-                                      value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
-                                      onClick={() => {
-                                        if (!session.isStarted) {
-                                          requireWorkoutStarted();
-                                        }
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (!session.isStarted) {
-                                          e.preventDefault();
-                                          return;
-                                        }
-                                        if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
-                                        if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
-                                        if (/^[0-9]$/.test(e.key)) return;
-                                        if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
+                                  <input
+                                    type="text"
+                                    readOnly={!session.isStarted}
+                                    inputMode="decimal"
+                                    pattern="[0-9]*[.,]?[0-9]*"
+                                    placeholder="—"
+                                    value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
+                                    onClick={() => {
+                                      if (!session.isStarted) {
+                                        requireWorkoutStarted();
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (!session.isStarted) {
                                         e.preventDefault();
-                                      }}
-                                      onChange={(e) => {
-                                        if (!session.isStarted) return;
-                                        const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                                        if (raw === '') {
-                                          setWeightDirect(exIndex, setIndex, null);
-                                        } else {
-                                          const parsed = parseFloat(raw);
-                                          setWeightDirect(
-                                            exIndex,
-                                            setIndex,
-                                            isNaN(parsed) ? null : Math.max(0, parsed)
-                                          );
-                                        }
-                                      }}
-                                      className={`h-[38px] w-[50px] sm:h-10 sm:w-16 lg:h-[42px] lg:w-[76px] mx-0 text-center p-0 font-mono tabular-nums font-black text-sm sm:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
-                                        !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
-                                      }`}
-                                    />
-                                  </div>
+                                        return;
+                                      }
+                                      if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
+                                      if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
+                                      if (/^[0-9]$/.test(e.key)) return;
+                                      if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
+                                      e.preventDefault();
+                                    }}
+                                    onChange={(e) => {
+                                      if (!session.isStarted) return;
+                                      const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                                      if (raw === '') {
+                                        setWeightDirect(exIndex, setIndex, null);
+                                      } else {
+                                        const parsed = parseFloat(raw);
+                                        setWeightDirect(
+                                          exIndex,
+                                          setIndex,
+                                          isNaN(parsed) ? null : Math.max(0, parsed)
+                                        );
+                                      }
+                                    }}
+                                    className={`h-8 sm:h-9 lg:h-10 w-12 sm:w-16 lg:w-20 text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm lg:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                                      !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
+                                    }`}
+                                  />
                                 </div>
 
-                                {/* Col 4: PSE (0 a 10) com Cores de Intensidade */}
+                                {/* Col 4: PSE (0 a 10) (Centralizado) */}
                                 <div className="col-span-2 flex items-center justify-center">
                                   <button
                                     type="button"
@@ -3336,7 +3261,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         set.setNumber
                                       )
                                     }
-                                    className={`w-[44px] sm:w-12 lg:w-[52px] h-10 sm:h-[42px] lg:h-11 -ml-[8px] sm:ml-0 mb-0 pt-0 px-0 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer shrink-0 ${
+                                    className={`w-9 sm:w-10 lg:w-11 h-8 sm:h-9 lg:h-10 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                     }${
                                       pseInfo
@@ -3353,17 +3278,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   >
                                     {pseInfo ? (
                                       <>
-                                        <span className="font-mono tabular-nums font-black text-sm sm:text-base leading-none">
+                                        <span className="font-mono tabular-nums font-black text-xs sm:text-sm lg:text-base leading-none">
                                           {set.pse}
                                         </span>
-                                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
+                                        <span className="text-[7px] sm:text-[8px] font-bold uppercase tracking-tighter opacity-80 leading-none mt-0.5">
                                           PSE
                                         </span>
                                       </>
                                     ) : (
                                       <>
-                                        <Gauge className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
-                                        <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
+                                        <Gauge className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-hover:text-amber-400 transition-colors" />
+                                        <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 group-hover:text-amber-400 uppercase leading-none mt-0.5">
                                           PSE
                                         </span>
                                       </>
@@ -3371,12 +3296,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   </button>
                                 </div>
 
-                                {/* Col 5: Botão de Check List Lateral */}
-                                <div className="col-span-2 flex justify-center">
+                                {/* Col 5: Check Série (Centralizado) */}
+                                <div className="col-span-2 flex items-center justify-center">
                                   <button
                                     type="button"
                                     onClick={() => handleToggleSetCheck(exIndex, setIndex)}
-                                    className={`w-10 h-10 sm:w-11 sm:h-11 lg:w-[46px] lg:h-[46px] rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer shrink-0 ${
+                                    className={`w-9 sm:w-10 lg:w-11 h-8 sm:h-9 lg:h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                     }${
                                       set.completed
@@ -3392,7 +3317,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     }
                                   >
                                     <Check
-                                      className={`w-5 h-5 sm:w-5.5 sm:h-5.5 stroke-[3] transition-transform ${
+                                      className={`w-4 h-4 sm:w-4.5 sm:h-4.5 lg:w-5 lg:h-5 stroke-[3] transition-transform ${
                                         set.completed ? 'scale-110' : 'opacity-40'
                                       }`}
                                     />
@@ -4184,7 +4109,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       )}
 
       {/* MODAL DE ANÁLISE PRÉ-TREINO E HISTÓRICO DE RELATÓRIOS / METAS */}
-      {preWorkoutHistoryModal && preWorkoutHistoryModal.isOpen && (
+      {preWorkoutHistoryModal && preWorkoutHistoryModal.isOpen && !isStudentView && (
         <div
           className="fixed inset-0 z-[75] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
           onClick={() => setPreWorkoutHistoryModal(null)}

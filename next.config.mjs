@@ -9,6 +9,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts', 'motion'],
+  },
   serverExternalPackages: ['firebase', '@grpc/grpc-js', '@grpc/proto-loader'],
   // Allow access to remote image placeholder.
   images: {
