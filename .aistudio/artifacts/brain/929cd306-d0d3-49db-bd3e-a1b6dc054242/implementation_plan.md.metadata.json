@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação para o Sistema de Perfis (Treinador vs. Aluno) e Alternador de Desenvolvimento no IronCoach, incluindo seletor rápido no cabeçalho, opção de perfil no login e portal exclusivo do aluno com as abas Meu Treino, Minha Dieta e Meu Progresso.",
-  "updatedAt":  "2026-10-29T22:53:40.585151417Z",
-  "requestFeedback":  true,
-  "userFacing":  true
+  "summary": "Plano arquitetural detalhado para compatibilização mobile com iPhones a partir da geração 11, suportando Entalhe (Notch), Dynamic Island e Home Indicator através de safe-area-insets, preenchimento contínuo e simulador visual interativo de dispositivos.",
+  "updatedAt": "2026-11-02T23:20:46.876395113Z",
+  "requestFeedback": true,
+  "userFacing": true
 }

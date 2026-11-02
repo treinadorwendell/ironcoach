@@ -364,11 +364,11 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                 <button
                   type="button"
                   onClick={() => setIsMediaExpanded(true)}
-                  className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg border font-bold flex items-center justify-center gap-1 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
+                  className="h-7 sm:h-8 w-7 sm:w-8 rounded-lg border font-bold flex items-center justify-center bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30 active:scale-95 transition cursor-pointer shrink-0 shadow-sm"
                   title="Abrir mídia/vídeo do exercício em janela separada"
+                  aria-label="Vídeo do exercício"
                 >
-                  <Film className="w-3 h-3" />
-                  <span>Vídeo</span>
+                  <Film className="w-3.5 h-3.5" />
                 </button>
               )}
 
@@ -376,11 +376,11 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
               <button
                 type="button"
                 onClick={() => setIsInstructionsModalOpen(true)}
-                className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
+                className="h-7 sm:h-8 w-7 sm:w-8 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold flex items-center justify-center active:scale-95 transition cursor-pointer shrink-0 shadow-sm"
                 title="Abrir modal com a descrição passo a passo da execução do exercício"
+                aria-label="Descrição da execução do exercício"
               >
-                <BookOpen className="w-3 h-3 text-emerald-400" />
-                <span>Execução</span>
+                <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
               </button>
             </div>
           </div>

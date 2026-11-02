@@ -9,6 +9,7 @@ import {
   TrainerProfile,
   AppUserRole,
   StudentNavSection,
+  DevicePreviewMode,
 } from '@/types';
 import {
   storage,
@@ -35,7 +36,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('agenda');
-  const [isTabletFramed, setIsTabletFramed] = useState(false);
+  const [deviceMode, setDeviceMode] = useState<DevicePreviewMode>('none');
 
   // Role & Student Portal states
   const [appRole, setAppRole] = useState<AppUserRole>('trainer');
@@ -486,22 +487,55 @@ export default function Home() {
     );
   }
 
+  const isFramed = deviceMode !== 'none';
+
   return (
     <div
       className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center transition-all ${
-        isTabletFramed ? 'py-4 sm:py-8 px-2 sm:px-4 bg-slate-900/60' : ''
+        isFramed ? 'py-3 sm:py-8 px-2 sm:px-4 bg-slate-900/80 justify-center' : 'w-full'
       }`}
     >
-      {/* Tablet Portrait Frame Wrapper (Aspect Ratio ~3:4 / Touch Screen) */}
+      {/* Device Frame Wrapper (Supports iPhone Notch 11-14, iPhone Dynamic Island 14P-16, iPad Tablet, and Native Fullscreen) */}
       <div
-        className={`w-full flex-1 flex flex-col transition-all relative ${
-          isTabletFramed
-            ? 'max-w-[768px] min-h-[960px] bg-slate-950 rounded-[32px] border-[8px] border-slate-800 shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden ring-1 ring-slate-700/50'
-            : 'w-full max-w-none'
+        className={`w-full flex flex-col transition-all relative ${
+          deviceMode === 'notch'
+            ? 'device-sim-notch max-w-[400px] h-[844px] min-h-[844px] bg-slate-950 rounded-[48px] border-[10px] border-slate-800 shadow-[0_25px_70px_rgba(0,0,0,0.95)] ring-1 ring-slate-700/60 overflow-hidden'
+            : deviceMode === 'dynamic-island'
+            ? 'device-sim-island max-w-[400px] h-[852px] min-h-[852px] bg-slate-950 rounded-[50px] border-[10px] border-slate-800 shadow-[0_25px_70px_rgba(0,0,0,0.95)] ring-1 ring-slate-700/60 overflow-hidden'
+            : deviceMode === 'tablet'
+            ? 'device-sim-tablet max-w-[768px] min-h-[960px] bg-slate-950 rounded-[32px] border-[8px] border-slate-800 shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden ring-1 ring-slate-700/50'
+            : 'w-full max-w-none flex-1'
         }`}
       >
-        {/* Tablet Camera / Speaker Notch Simulation (when framed) */}
-        {isTabletFramed && (
+        {/* iPhone Notch Simulation (iPhone 11, 12, 13, 14) */}
+        {deviceMode === 'notch' && (
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 pointer-events-none select-none flex flex-col items-center">
+            <div className="w-40 h-7 bg-black rounded-b-2xl flex items-center justify-center gap-3 px-3 shadow-md">
+              <div className="w-12 h-1 bg-slate-800 rounded-full" />
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700/80 flex items-center justify-center">
+                <div className="w-1 h-1 rounded-full bg-blue-900/60" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* iPhone Dynamic Island Simulation (iPhone 14 Pro, 15, 16) */}
+        {deviceMode === 'dynamic-island' && (
+          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-50 pointer-events-none select-none">
+            <div className="w-28 h-8 bg-black rounded-full flex items-center justify-between px-2.5 shadow-lg border border-slate-900/80">
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
+                <div className="w-1 h-1 rounded-full bg-blue-900/50" />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-mono text-slate-300 font-bold">IronCoach</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tablet Camera / Speaker Notch Simulation (when tablet framed) */}
+        {deviceMode === 'tablet' && (
           <div className="w-full flex justify-center py-2 bg-slate-950 select-none">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-slate-800 border border-slate-700" />
@@ -510,10 +544,17 @@ export default function Home() {
           </div>
         )}
 
+        {/* iPhone Home Indicator Gesture Bar Simulation */}
+        {(deviceMode === 'notch' || deviceMode === 'dynamic-island') && (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-50 pointer-events-none select-none">
+            <div className="w-32 h-1 bg-slate-400/80 rounded-full" />
+          </div>
+        )}
+
         {/* Global Header */}
         <Header
-          isTabletFramed={isTabletFramed}
-          onToggleTabletFrame={() => setIsTabletFramed(!isTabletFramed)}
+          deviceMode={deviceMode}
+          onChangeDeviceMode={(mode) => setDeviceMode(mode)}
           activeClientName={
             currentSection === 'execucao' ? activeClient?.name : undefined
           }
@@ -535,8 +576,8 @@ export default function Home() {
           }}
         />
 
-        {/* Main Section Content */}
-        <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto w-full min-w-0">
+        {/* Main Section Content with Safe-Area Clearance */}
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 pb-28 sm:pb-32 pb-safe overflow-y-auto w-full min-w-0">
           {appRole === 'student' ? (
             /* VISÃO DO ALUNO (PORTAL DE RECEBIMENTO E EXECUÇÃO) */
             !effectiveStudent ? (
@@ -748,6 +789,7 @@ export default function Home() {
 
         {/* Fixed Touch-Friendly Bottom Navigation Bar */}
         <BottomNav
+          isFramed={isFramed}
           appRole={appRole}
           studentSection={studentSection}
           onSelectStudentSection={(sec) => {

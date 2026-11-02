@@ -20,6 +20,7 @@ interface BottomNavProps {
   appRole?: AppUserRole;
   studentSection?: StudentNavSection;
   onSelectStudentSection?: (section: StudentNavSection) => void;
+  isFramed?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -29,6 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   appRole = 'trainer',
   studentSection = 'meu-treino',
   onSelectStudentSection,
+  isFramed = false,
 }) => {
   const trainerNavItems: {
     id: MainNavSection;
@@ -96,7 +98,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const items = isStudent ? studentNavItems : trainerNavItems;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] px-2 sm:px-6 lg:px-10 py-1 sm:py-1.5 w-full">
+    <nav
+      className={`${
+        isFramed ? 'sticky bottom-0 left-0 right-0' : 'fixed bottom-0 left-0 right-0'
+      } z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] px-2 sm:px-6 lg:px-10 pt-1 pb-safe sm:pb-2 w-full transition-all`}
+    >
       <div
         className={`max-w-6xl mx-auto grid ${
           isStudent ? 'grid-cols-3' : 'grid-cols-4'

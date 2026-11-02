@@ -108,12 +108,12 @@ self.addEventListener('message', (event) => {
       }
       lastRestNotificationTime = nowTs;
 
-      self.registration.showNotification('⏱️ Descanso Finalizado!', {
-        body: `Hora da Série #${setNumber || 1} de ${exerciseName || 'Exercício'}. Bora lá!`,
+      self.registration.showNotification('Fim do descanso!', {
+        body: '',
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
         tag: 'ironcoach-rest-complete',
-        renotify: false,
+        renotify: true,
         requireInteraction: true,
         vibrate: [250, 100, 250, 100, 400],
         data: {

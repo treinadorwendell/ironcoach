@@ -49,6 +49,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   const endTimeRef = useRef<number | null>(null);
   const timeLeftRef = useRef<number>(initialSeconds);
   const completedTriggeredRef = useRef<boolean>(false);
+  const beepedSecondsRef = useRef<Set<number>>(new Set<number>());
 
   // Store callbacks & dynamic props in refs to prevent timer effect restarts
   const onCompleteRef = useRef(onComplete);
@@ -74,6 +75,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   const scheduleNotification = useCallback(
     (targetTimeMs: number) => {
       if (!exerciseNameRef.current) return;
+      beepedSecondsRef.current.clear();
       notificationService.scheduleRestNotification({
         exerciseName: exerciseNameRef.current,
         setNumber: setNumberRef.current,
@@ -89,6 +91,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
     if (isOpen) {
       timeLeftRef.current = initialSeconds;
       completedTriggeredRef.current = false;
+      beepedSecondsRef.current.clear();
       const targetTime = new Date().getTime() + initialSeconds * 1000;
       endTimeRef.current = targetTime;
       const initTimer = setTimeout(() => {
@@ -108,6 +111,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
     } else {
       endTimeRef.current = null;
       completedTriggeredRef.current = false;
+      beepedSecondsRef.current.clear();
       notificationService.cancelRestNotification();
     }
   }, [isOpen, initialSeconds, exerciseName, setNumber]);
@@ -119,7 +123,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
     setPermission(result);
 
     if (result === 'granted') {
-      showFeedbackToast('🔔 Notificações ativadas! Você será alertado mesmo com o app em 2º plano.');
+      showFeedbackToast('🔔 Notificações ativadas! Alertas serão exibidos mesmo em segundo plano.');
       if (endTimeRef.current && isRunning) {
         scheduleNotification(endTimeRef.current);
       }
@@ -135,8 +139,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
       await handleRequestPermission();
       return;
     }
+    // Teste de som de contagem + notificação push de término
+    sounds.playCountdownBeep(1);
     notificationService.triggerRestNotificationNow(exerciseNameRef.current, setNumberRef.current);
-    showFeedbackToast('Alerta de teste enviado com sucesso!');
+    showFeedbackToast('Alerta testado: bipe sonoro e notificação "Fim do descanso!" disparados!');
   };
 
   // Real-clock timestamp countdown (continues even when mobile/tablet app is minimized or screen locked)
@@ -154,6 +160,17 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
       timeLeftRef.current = remainingSecs;
       setTimeLeft(remainingSecs);
 
+      // 5 alertas sonoros curtos de contagem regressiva (5, 4, 3, 2, 1)
+      if (remainingSecs <= 5 && remainingSecs >= 1) {
+        if (!beepedSecondsRef.current.has(remainingSecs)) {
+          beepedSecondsRef.current.add(remainingSecs);
+          if (!isMutedRef.current) {
+            sounds.playCountdownBeep(remainingSecs);
+          }
+          vibration.lightTap();
+        }
+      }
+
       if (remainingSecs <= 0 && !completedTriggeredRef.current) {
         completedTriggeredRef.current = true;
         if (timerRef.current) {
@@ -161,7 +178,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
           timerRef.current = null;
         }
 
-        // Fire single notification for rest completion
+        // Dispara notificação push com apenas o título: 'Fim do descanso!'
         notificationService.triggerRestNotificationNow(exerciseNameRef.current, setNumberRef.current);
 
         if (!isMutedRef.current) {

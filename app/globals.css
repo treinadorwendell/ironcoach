@@ -1,14 +1,71 @@
 @import "tailwindcss";
 
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+.device-sim-notch {
+  --sat: 44px;
+  --sab: 34px;
+}
+
+.device-sim-island {
+  --sat: 54px;
+  --sab: 34px;
+}
+
+.device-sim-tablet {
+  --sat: 24px;
+  --sab: 20px;
+}
+
+@layer utilities {
+  .pt-safe {
+    padding-top: var(--sat);
+  }
+  .pb-safe {
+    padding-bottom: var(--sab);
+  }
+  .pl-safe {
+    padding-left: var(--sal);
+  }
+  .pr-safe {
+    padding-right: var(--sar);
+  }
+  .top-safe {
+    top: var(--sat);
+  }
+  .bottom-safe {
+    bottom: var(--sab);
+  }
+  .min-h-screen-safe {
+    min-height: calc(100vh - var(--sat) - var(--sab));
+  }
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
   }
 
-  body {
+  html, body {
     touch-action: manipulation;
     overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Prevent automatic iOS input zoom if font-size < 16px */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input, select, textarea {
+      font-size: inherit;
+    }
   }
 
   /* Custom scrollbar for gym tablet */
@@ -38,3 +95,4 @@
 .timer-pulsing {
   animation: ringPulse 1.5s ease-in-out infinite;
 }
+

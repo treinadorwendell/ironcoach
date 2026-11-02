@@ -1,6 +1,8 @@
 // Web Notifications & Background Rest Timer Monitoring Service for IronCoach
 // Enables system push-level notifications when rest time between sets is finished,
-// even if the tablet or mobile browser is minimized or the screen is locked.
+// with 5-second acoustic countdown and zero-rest notification for the coach/student.
+
+import { sounds } from './sound';
 
 export interface RestNotificationPayload {
   exerciseName: string;
@@ -16,6 +18,7 @@ class NotificationService {
   private onTickCallback: (() => void) | null = null;
   private activeSessionId: string | null = null;
   private lastNotificationTimestamp: number = 0;
+  private countdownBeepedSeconds: Set<number> = new Set<number>();
 
   constructor() {
     this.initBackgroundWorker();
@@ -118,6 +121,7 @@ class NotificationService {
     const sessionId = `${payload.exerciseName}-${payload.setNumber}-${payload.targetTimeMs}`;
     this.activeSessionId = sessionId;
     this.currentPayload = payload;
+    this.countdownBeepedSeconds.clear();
 
     const now = Date.now();
     const delay = Math.max(0, payload.targetTimeMs - now);
@@ -159,6 +163,17 @@ class NotificationService {
   private handleWorkerTick() {
     if (!this.currentPayload) return;
 
+    const remainingMs = this.currentPayload.targetTimeMs - Date.now();
+    const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+
+    // 5 short countdown beeps for last 5 seconds (5, 4, 3, 2, 1)
+    if (remainingSecs <= 5 && remainingSecs >= 1) {
+      if (!this.countdownBeepedSeconds.has(remainingSecs)) {
+        this.countdownBeepedSeconds.add(remainingSecs);
+        sounds.playCountdownBeep(remainingSecs);
+      }
+    }
+
     if (Date.now() >= this.currentPayload.targetTimeMs) {
       const { exerciseName, setNumber } = this.currentPayload;
       const sessionId = this.activeSessionId || `${exerciseName}-${setNumber}`;
@@ -174,6 +189,7 @@ class NotificationService {
     }
     this.currentPayload = null;
     this.activeSessionId = null;
+    this.countdownBeepedSeconds.clear();
     this.stopBackgroundTicker();
 
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -209,6 +225,7 @@ class NotificationService {
       this.scheduledTimeout = null;
     }
     this.currentPayload = null;
+    this.countdownBeepedSeconds.clear();
     this.stopBackgroundTicker();
 
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -223,14 +240,14 @@ class NotificationService {
       } catch {}
     }
 
-    const title = '⏱️ Tempo de Descanso Concluído!';
-    const body = `Hora da Série #${setNumber} de ${exerciseName}. Bora pra cima!`;
+    // Apenas título - Fim do descanso!
+    const title = 'Fim do descanso!';
     const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-      body,
+      body: '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: 'ironcoach-rest-complete',
-      renotify: false, // Prevents repeated alerts/chimes if re-triggered or updated
+      renotify: true,
       requireInteraction: true,
       vibrate: [250, 100, 250, 100, 400],
       data: {
@@ -257,7 +274,6 @@ class NotificationService {
     // Standard Notification constructor fallback
     try {
       const notification = new Notification(title, {
-        body: options.body,
         icon: options.icon,
         tag: options.tag,
       });

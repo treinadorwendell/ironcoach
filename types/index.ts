@@ -695,5 +695,7 @@ export interface ClientDietPlan {
   updatedAt: string;
 }
 
+export type DevicePreviewMode = 'none' | 'notch' | 'dynamic-island' | 'tablet';
+
 
 

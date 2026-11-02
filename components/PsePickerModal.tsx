@@ -381,11 +381,11 @@ export function PsePickerModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-3.5 sm:p-4 border-t border-slate-800/80 bg-slate-950/80 flex items-center justify-end shrink-0">
+          <div className="p-3.5 sm:p-4 pb-safe border-t border-slate-800/80 bg-slate-950/80 flex items-center justify-end shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="w-full h-10 sm:h-11 rounded-2xl font-bold text-xs sm:text-sm text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition active:scale-95 touch-manipulation flex items-center justify-center cursor-pointer"
+              className="w-full h-11 rounded-2xl font-bold text-xs sm:text-sm text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition active:scale-95 touch-manipulation flex items-center justify-center cursor-pointer"
             >
               Fechar
             </button>

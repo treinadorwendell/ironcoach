@@ -1,16 +1,27 @@
 'use client';
 
-import React from 'react';
-import { Dumbbell, User as UserIcon, ShieldCheck, GraduationCap, ChevronDown } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Dumbbell,
+  User as UserIcon,
+  ShieldCheck,
+  GraduationCap,
+  ChevronDown,
+  Smartphone,
+  Tablet,
+  Monitor,
+} from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { OfflineIndicator } from './OfflineIndicator';
 import { CloudSyncBadge } from './CloudSyncBadge';
 import { User } from 'firebase/auth';
-import { TrainerProfile, AppUserRole, Client } from '@/types';
+import { TrainerProfile, AppUserRole, Client, DevicePreviewMode } from '@/types';
 
 interface HeaderProps {
-  isTabletFramed: boolean;
-  onToggleTabletFrame: () => void;
+  isTabletFramed?: boolean;
+  onToggleTabletFrame?: () => void;
+  deviceMode?: DevicePreviewMode;
+  onChangeDeviceMode?: (mode: DevicePreviewMode) => void;
   activeClientName?: string;
   currentUser?: User | null;
   trainerProfile?: TrainerProfile | null;
@@ -24,6 +35,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  deviceMode = 'none',
+  onChangeDeviceMode,
   activeClientName,
   currentUser,
   trainerProfile,
@@ -34,6 +47,26 @@ export const Header: React.FC<HeaderProps> = ({
   activeStudentId,
   onSelectStudentId,
 }) => {
+  const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
+  const deviceMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        deviceMenuRef.current &&
+        !deviceMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsDeviceMenuOpen(false);
+      }
+    }
+    if (isDeviceMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDeviceMenuOpen]);
+
   const trainerDisplayName =
     trainerProfile?.name?.trim() ||
     currentUser?.displayName ||
@@ -45,9 +78,18 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isTrainer = appRole === 'trainer';
 
+  const deviceLabels: Record<DevicePreviewMode, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+    none: { label: 'Nativo', icon: Monitor },
+    notch: { label: 'iPhone Notch', icon: Smartphone },
+    'dynamic-island': { label: 'Dynamic Island', icon: Smartphone },
+    tablet: { label: 'iPad Tablet', icon: Tablet },
+  };
+
+  const ActiveDeviceIcon = deviceLabels[deviceMode]?.icon || Monitor;
+
   return (
-    <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-2.5 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3 w-full">
-      <div className="w-full flex items-center justify-between gap-2 sm:gap-3 px-0.5 sm:px-2">
+    <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 px-2.5 sm:px-5 lg:px-6 pt-safe pb-2 sm:pb-2.5 lg:pb-3 w-full transition-all">
+      <div className="w-full flex items-center justify-between gap-2 sm:gap-3 px-0.5 sm:px-2 pt-1">
         {/* Brand & Trainer profile trigger */}
         <div
           onClick={isTrainer ? onOpenTrainerProfile : undefined}
@@ -178,6 +220,61 @@ export const Header: React.FC<HeaderProps> = ({
             <CloudSyncBadge />
             <OfflineIndicator />
           </div>
+
+          {/* Seletor de Simulação de Dispositivos (Notch, Dynamic Island, iPad, Nativo) */}
+          {onChangeDeviceMode && (
+            <div className="relative" ref={deviceMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsDeviceMenuOpen(!isDeviceMenuOpen)}
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border text-[10px] sm:text-xs font-bold transition shadow-sm cursor-pointer whitespace-nowrap ${
+                  deviceMode !== 'none'
+                    ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                }`}
+                title="Simular iPhone Notch, Dynamic Island ou Tablet"
+                aria-label="Alternar modo de simulação de tela"
+              >
+                <ActiveDeviceIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="hidden md:inline">{deviceLabels[deviceMode]?.label}</span>
+                <ChevronDown className="w-3 h-3 opacity-60 shrink-0" />
+              </button>
+
+              {isDeviceMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900/98 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 z-50 backdrop-blur-xl">
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    Modo de Tela / Dispositivo
+                  </div>
+                  {(['none', 'notch', 'dynamic-island', 'tablet'] as DevicePreviewMode[]).map((mode) => {
+                    const item = deviceLabels[mode];
+                    const ItemIcon = item.icon;
+                    const isSelected = deviceMode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          onChangeDeviceMode(mode);
+                          setIsDeviceMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 my-0.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white font-bold shadow-md'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ItemIcon className="w-4 h-4 shrink-0" />
+                          <span>{item.label}</span>
+                        </div>
+                        {isSelected && <span className="text-[10px] font-bold uppercase">Ativo</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <PWAInstallButton />
         </div>

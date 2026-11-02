@@ -18,6 +18,29 @@ class SoundEffects {
     return this.ctx;
   }
 
+  // Play short crisp countdown beep for the last 5 seconds (5, 4, 3, 2, 1)
+  public playCountdownBeep(secondNumber?: number) {
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      // Slightly higher pitch on 1 for clear acoustic urgency (A5 for 5-2, B5 for 1)
+      const freq = secondNumber === 1 ? 987.77 : 880;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.09);
+    } catch {
+      // Audio context may require first user interaction
+    }
+  }
+
   // Play double beep when countdown hits zero
   public playRestCompleteBeep() {
     try {

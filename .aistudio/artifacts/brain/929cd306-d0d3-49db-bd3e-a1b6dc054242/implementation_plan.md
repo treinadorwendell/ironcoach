@@ -1,123 +1,121 @@
-# Plano de Implementação: Perfis de Treinador e Aluno + Modo de Desenvolvimento
+# Compatibilidade iPhone 11+ (Notch, Dynamic Island e Home Bar)
 
-Este plano detalha a arquitetura de **Controle de Acesso Baseado em Perfil (Treinador vs. Aluno)** integrada a um **Seletor Rápido de Desenvolvimento**, permitindo testar e operar simultaneamente a visão completa de gestão do Personal Trainer e a experiência dedicada do Aluno (focada em receber treinos, executar séries, consultar a dieta prescrita e acompanhar seu progresso).
+Compatibilização ergonômica completa do IronCoach PWA para todos os modelos de iPhone da geração 11 em diante (iPhone 11, 12, 13, 14, 15 e 16), com suporte nativo a áreas seguras (`safe-area-inset`), preenchimento superior contínuo e simulador visual de Entalhe e Ilha Dinâmica.
 
----
+## Decisões Confirmadas pelo Usuário
 
-## Revisão do Usuário & Decisões Confirmadas
+> [!IMPORTANT]
+> As seguintes decisões foram confirmadas na fase de alinhamento interativo e guiam a arquitetura desta implementação:
 
-- **Alternância de Perfil (Desenvolvimento e Acesso)**: Disponibilizar tanto um **seletor rápido no cabeçalho superior** (permitindo alternar instantaneamente entre *Visão Treinador* e *Visão Aluno*, escolhendo qual aluno cadastrado simular) quanto uma **opção de perfil na tela de Login/Autenticação** (*Entrar como Treinador* ou *Entrar como Aluno*).
-- **Escopo de Permissões do Perfil Aluno**: O aluno tem acesso de leitura às prescrições enviadas pelo treinador (**Treino** e **Dieta**, sem botões de criar/excluir programas ou editar a estrutura nutricional) e **permissão interativa para executar séries** do seu treino do dia (marcar séries concluídas, ajustar carga/repetições realizadas, registrar PSE, usar cronômetro de descanso, registrar água consumida e finalizar o treino).
-- **Navegação Inferior Exclusiva do Aluno**: Quando o perfil ativo for **Aluno**, a barra inferior (`BottomNav`) exibirá exatamente **3 abas dedicadas**:
-  1. **Meu Treino** (visualização dos programas/divisões prescritas + execução interativa das séries)
-  2. **Minha Dieta** (visualização das refeições do dia, macronutrientes, substituições permitidas e meta de hidratação)
-  3. **Meu Progresso** (histórico de treinos concluídos, evolução de cargas e recordes pessoais do próprio aluno)
+- **Cabeçalho Superior e Entalhe/Dynamic Island**: Adaptação automática com preenchimento seguro dinâmico (`env(safe-area-inset-top)`) e fundo escuro contínuo (`bg-slate-950/95`), garantindo que o status bar e os recortes físicos do topo nunca sobreponham botões, perfis ou títulos.
+- **Barra de Navegação Inferior e Home Bar (Gesto de Início)**: Aplicação de `env(safe-area-inset-bottom)` na base da barra inferior (`pb-safe`) e aumento compensatório da folga de rolagem (`pb-28` a `pb-36`) no container principal (`<main>`), evitando toques acidentais na linha do sistema iOS.
+- **Simulador Visual no Modo Teste**: Inclusão de seletor rápido no topo permitindo alternar entre modo nativo, iPhone Notch (11/12/13/14), iPhone Dynamic Island (14 Pro/15/16) e Tablet vertical, possibilitando teste visual instantâneo em qualquer navegador desktop ou mobile.
 
 ---
 
-## 1. Visão Geral & Conceito Central
+## 1. Visão Geral & Ergonomia Mobile (iOS)
 
-O **IronCoach** passará a operar sob dois perfis complementares conectados à mesma base de dados (Local + Sincronização em Nuvem):
+A partir do iPhone 11, todos os modelos da Apple utilizam telas sem bordas com cantos arredondados e recortes físicos no topo:
+1. **Entalhe Tradicional (Notch)**: iPhone 11, 11 Pro/Max, 12, 13, 14 e 14 Plus (~$44\text{px}$ a $47\text{px}$ no topo).
+2. **Ilha Dinâmica (Dynamic Island)**: iPhone 14 Pro/Max, linha iPhone 15 e linha iPhone 16 (~$54\text{px}$ no topo, em formato de pílula central flutuante).
+3. **Indicador de Início (Home Indicator Bar)**: Faixa de gesto na parte inferior de todos os modelos (~$34\text{px}$ na base).
 
-1. **Perfil do Treinador (Gestão Completa)**:
-   - Mantém todas as 4 abas originais (*Cliente*, *Agenda*, *Criar Treino*, *Execução do Treino*).
-   - Possui controle total sobre cadastro de alunos, anamnese, prescrição de programas e métodos avançados, montagem de dietas/tabelas nutricionais e controle financeiro/agenda.
-2. **Perfil do Aluno (Portal de Recebimento & Execução)**:
-   - Interface limpa e focada exclusivamente nos dados do aluno vinculado (`activeStudentId`), ocultando informações de outros clientes, valores de contrato, agenda geral do treinador e ferramentas de edição estrutural.
-   - Permite que o aluno consulte sua ficha de treino da semana, inicie e registre sua sessão de treino em tempo real, consulte seu plano alimentar com opções de substituição equivalentes e acompanhe sua evolução de cargas.
-3. **Barra/Seletor de Desenvolvimento (Dev Role Switcher)**:
-   - Controle compacto no topo da aplicação que permite alternar com 1 toque entre `Treinador` e `Aluno`, incluindo um seletor rápido do aluno ativo para pré-visualizar exatamente como cada cliente enxerga seu treino e sua dieta.
+No modo PWA (`apple-mobile-web-app-capable: yes` com `viewport-fit=cover`), o navegador renderiza o conteúdo sob o vidro completo. O IronCoach precisa garantir que nenhum controle tocável fique posicionado sob esses recortes e que a barra de abas inferior tenha área de descanso ergonômica para o polegar.
+
+```
++-------------------------------------------------------+
+|  ••• 9:41             ( DYNAMIC ISLAND )          [=] | <- pt-safe / env(safe-area-inset-top)
++-------------------------------------------------------+
+|  [Logo] IronCoach       [Treinador v]       [Instalar] | <- Header protegido contra sobreposição
++-------------------------------------------------------+
+|                                                       |
+|  [ CONTEUDO DO TREINO / LISTA / EXERCICIOS ]          | <- Área de rolagem com folga inferior
+|                                                       |
++-------------------------------------------------------+
+|  [ Cliente ]   [ Agenda ]   [ Criar ]   [ Execução ]  | <- Barra de abas elevada
++-------------------------------------------------------+
+|                  ────── (Home Bar) ──────             | <- pb-safe / env(safe-area-inset-bottom)
++-------------------------------------------------------+
+```
 
 ---
 
 ## 2. Experiência do Usuário & Design Visual
 
-### Fluxo 1: Seletor Rápido no Topo (Modo Desenvolvimento) e Login
-- **No Cabeçalho Superior**:
-  - Um controle segmentado compacto exibe o modo atual: `Treinador` (ícone de escudo/haltere em esmeralda) ou `Aluno` (ícone de usuário em ciano/azul).
-  - Ao selecionar `Aluno`, um menu suspenso integrado permite escolher qualquer aluno cadastrado (ex: *Carlos Eduardo*, *Mariana Silva*) para inspecionar sua visão imediatamente.
-- **Na Tela de Login / Autenticação**:
-  - Acima das credenciais, um seletor permite escolher o perfil de entrada (**Sou Treinador** vs. **Sou Aluno**) ou ativar diretamente o **Acesso Rápido de Desenvolvimento** para testar os dois perfis sem fricção.
+### A. Cabeçalho Dinâmico com Fundo Contínuo
+- O cabeçalho (`Header.tsx`) receberá classes de utilitário `pt-safe` para preenchimento vertical automático respeitando a safe area.
+- O fundo escuro (`bg-slate-950/95`) se estende até o topo absoluto da tela, criando uma transição visual contínua com a barra de status do iOS (configurada com `statusBarStyle: 'black-translucent'`).
+- Os botões de alternância de perfil, seleção de aluno e botão PWA se manterão alinhados horizontalmente com altura mínima de toque de $44\text{px}$.
 
-### Fluxo 2: Aba "Meu Treino" (Visão do Aluno)
-- **Cabeçalho de Boas-Vindas do Aluno**: Exibe o nome do aluno, objetivo atual do programa ativo (ex: *Hipertrofia*) e o destaque para o **Treino de Hoje** segundo o dia da semana.
-- **Seleção de Divisão (Split A, B, C...)**: O aluno visualiza os exercícios prescritos pelo treinador com séries, zona de repetições, métodos avançados, observações técnicas e mídia demonstrativa (GIF/vídeo/instruções).
-- **Execução Interativa de Séries**: Ao tocar em **Iniciar**, o aluno entra na interface de execução otimizada para mobile (números de série compactos à esquerda, botões `-` e `+` amplos de `32x38px`, ajuste de carga em kg, seletor de PSE, cronômetro de descanso e botão de concluir série/finalizar treino). Controles exclusivos do treinador (como trocar de aluno ou excluir ficha) ficam ocultos.
+### B. Barra Inferior com Safe Area e Thumb Ergonomics
+- A `BottomNav.tsx` receberá `pb-safe` com padding base seguro, elevando os ícones e rótulos cerca de $24\text{px}$–$34\text{px}$ acima da barra de gestos do iOS.
+- O fundo com efeito de vidro fosco (`backdrop-blur-xl bg-slate-950/95`) continuará até a borda inferior absoluta da tela, garantindo estética nativa.
+- O container principal `<main>` terá compensação de rolagem (`pb-32 sm:pb-36`) para que botões de ação final (como "Concluir Série" ou "Finalizar Treino") nunca fiquem escondidos atrás da barra inferior.
 
-### Fluxo 3: Aba "Minha Dieta" (Visão do Aluno)
-- **Resumo Diário & Hidratação**: Cartão superior com a meta calórica e de macronutrientes prescrita pelo treinador (Proteínas, Carboidratos, Gorduras e Fibras) ao lado do rastreador interativo de ingestão de água do dia (`+250ml`, `+500ml`).
-- **Cronograma de Refeições (Somente Leitura + Substituições)**:
-  - Seleção da rotina do dia (ex: *Dias de Treino* vs. *Dias de Descanso*).
-  - Lista cronológica de refeições (*Café da Manhã*, *Almoço*, *Pré-Treino*, *Jantar*) exibindo alimentos, quantidades em gramas e medidas caseiras.
-  - Botão para consultar as **Opções de Substituição** e **Receitas Equivalentes** liberadas pelo treinador para cada item ou refeição, sem expor os painéis de cálculo metabólico ou edição da dieta.
+### C. Seletor de Simulação Interativo (Notch, Dynamic Island & Tablet)
+- Na barra de controle do topo, o botão de alternância de moldura será aprimorado com um menu seletor rápido:
+  1. **Nativo / Tela Cheia** (para uso direto no iPhone real).
+  2. **Simular iPhone Notch** (proporção 19.5:9, recorte do entalhe com câmera e sensor no topo, simulação de safe area).
+  3. **Simular iPhone Dynamic Island** (proporção 19.5:9, pílula preta com lente de câmera frontal e sensor TrueDepth, simulação de safe area expandida).
+  4. **Simular Tablet Vertical** (proporção iPad 3:4 com moldura para sala de musculação).
 
-### Fluxo 4: Aba "Meu Progresso" (Visão do Aluno)
-- **Resumo de Consistência**: Total de treinos realizados, volume total movimentado e últimos feedbacks de progressão pós-treino.
-- **Evolução por Exercício e Histórico**: Reutiliza a visualização analítica de evolução de cargas e histórico de sessões filtrada estritamente para o aluno logado/selecionado, em modo somente leitura (sem botão de apagar registros históricos).
+### D. Modais e Telas Cheias (Overlay)
+- A tela dedicada de execução de exercício (`ExerciseDedicatedPageView.tsx`) e modais de tela cheia (`PsePickerModal.tsx`, `DynamicSubstitutionModal.tsx`, etc.) receberão proteções `pt-safe` e `pb-safe`, impedindo que botões de fechar/voltar colidam com o recorte da câmera.
 
 ---
 
-## 3. Decisões de Produto & Trade-Offs
+## 3. Decisões Técnicas & Arquitetura
 
-- **Sincronização Unificada em Tempo Real**:
-  - *Decisão*: Quando o aluno conclui um treino na aba *Meu Treino* ou registra consumo de água em *Minha Dieta*, os dados gravam diretamente nas mesmas coleções persistidas do aluno (`completedWorkouts`, `exerciseSnapshots`, `dietPlans`).
-  - *Benefício*: Ao alternar de volta para o **Perfil do Treinador**, o treinador vê instantaneamente o treino concluído pelo aluno, o relatório de evolução de carga/PSE e a hidratação atualizada.
-- **Proteção Visual e Funcional no Perfil do Aluno**:
-  - *Decisão*: Ocultar todas as ações destrutivas ou administrativas (criar/editar/excluir alunos, editar estrutura de treinos, configurar fórmulas metabólicas, visualizar valores financeiros e agenda de outros alunos).
-  - *Benefício*: Garante que o aluno tenha uma experiência limpa, sem risco de alterar acidentalmente a prescrição planejada pelo treinador.
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    Root Layout & Viewport                     │
+│    viewport-fit=cover  |  appleWebApp.statusBarStyle='black' │
+└──────────────────────────────┬───────────────────────────────┘
+                               │
+                ┌──────────────┴──────────────┐
+                ▼                             ▼
+  ┌───────────────────────────┐ ┌───────────────────────────┐
+  │   CSS Safe-Area Helpers   │ │  Device Simulator Engine  │
+  │  pt-safe: env(safe-top)   │ │  - none                   │
+  │  pb-safe: env(safe-bot)   │ │  - iphone-notch           │
+  │  pl-safe: env(safe-left)  │ │  - iphone-dynamic-island  │
+  │  pr-safe: env(safe-right) │ │  - tablet-portrait        │
+  └─────────────┬─────────────┘ └─────────────┬─────────────┘
+                │                             │
+                ▼                             ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │                   App Components Tree                   │
+  │  - Header (pt-safe + Device Selector)                   │
+  │  - Main Container (pb-safe + scroll clearance)          │
+  │  - BottomNav (pb-safe + touch hitboxes)                 │
+  │  - Modais & Overlays (pt-safe + pb-safe)                │
+  └─────────────────────────────────────────────────────────┘
+```
+
+### Decisão 1: Abordagem Híbrida (CSS Nativo + Variáveis de Simulação)
+- *Abordagem*: Utilizaremos `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com fallbacks baseados em variáveis CSS (`--safe-top`, `--safe-bottom`). Em dispositivos reais, o navegador injeta os valores do hardware. No simulador desktop, as variáveis assumem os valores precisos do iPhone 11–14 (Notch: $44\text{px}$) ou iPhone 14 Pro–16 (Dynamic Island: $54\text{px}$).
+- *Vantagem*: Permite validar e demonstrar o funcionamento diretamente na interface web sem exigir um iPhone físico conectado.
+
+### Decisão 2: Prevenção de Zoom Involuntário em Formulários iOS
+- No Safari iOS, campos de texto (`<input>`, `<select>`) com tamanho de fonte menor que $16\text{px}$ disparam um zoom automático que quebra o layout. Adicionaremos regra de segurança garantindo `text-base sm:text-sm` em inputs focados e `touch-action: manipulation` para evitar duplo toque acidental.
 
 ---
 
-## 4. Arquitetura Técnica & Estratégia de Dados
+## 4. Etapas de Execução
 
-### Diagrama de Arquitetura e Fluxo de Estado
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                     ESTADO GLOBAL & CONTEXTO DE PERFIL                     │
-│  appRole: 'trainer' | 'student'   •   activeStudentId: string (Client ID)  │
-└───────────────────┬────────────────────────────────────┬───────────────────┘
-                    │                                    │
-      ┌─────────────▼─────────────┐        ┌─────────────▼─────────────┐
-      │   SELETOR NO CABEÇALHO    │        │     OPÇÃO NO LOGIN        │
-      │  [Treinador | Aluno ▾]    │        │  Escolha de Perfil / Dev  │
-      └─────────────┬─────────────┘        └─────────────┬─────────────┘
-                    │                                    │
-                    └─────────────────┬──────────────────┘
-                                      │
-        ┌─────────────────────────────┴─────────────────────────────┐
-        ▼                                                           ▼
-┌───────────────────────────────────────┐   ┌───────────────────────────────────────┐
-│          VISÃO DO TREINADOR           │   │            VISÃO DO ALUNO             │
-│  (4 Abas: Cliente, Agenda, Criar,     │   │  (3 Abas filtradas por activeStudent) │
-│   Execução • Controle Total CRUD)     │   │  Somente Leitura + Execução de Séries │
-└───────────────────┬───────────────────┘   └───────────────────┬───────────────────┘
-                    │                                           │
-                    │                                           ├──► 1. Meu Treino
-                    │                                           │    (Programas + Execução)
-                    │                                           ├──► 2. Minha Dieta
-                    │                                           │    (Refeições + Água)
-                    │                                           └──► 3. Meu Progresso
-                    │                                                (Histórico + Cargas)
-                    │                                           │
-                    └─────────────────────┬─────────────────────┘
-                                          ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│             CAMADA DE PERSISTÊNCIA (LocalStorage + Firestore)              │
-│   Clients • Workouts • DietPlans • ActiveSession • CompletedWorkouts       │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Modelo de Dados & Estado
-- **Tipos de Perfil e Navegação**:
-  - `UserRole = 'trainer' | 'student'`
-  - `StudentNavSection = 'meu-treino' | 'minha-dieta' | 'meu-progresso'`
-  - Persistência da preferência de perfil de desenvolvimento e do `activeStudentId` no armazenamento local (`ironcoach_app_role` e `ironcoach_active_student_id`) para manter o estado ao recarregar a página.
-
-### Mapeamento de Componentes Interativos
-- **Cabeçalho (`Header`)**: Recebe o seletor de perfil (`appRole`, `onChangeRole`) e o seletor rápido de aluno (`clients`, `activeStudentId`, `onSelectStudent`) quando em modo Aluno, além de adaptar o subtítulo e ocultar o modal de edição do perfil do treinador quando na visão do aluno.
-- **Navegação Inferior (`BottomNav`)**: Renderiza dinamicamente a grade de 4 colunas para o `trainer` (*Cliente*, *Agenda*, *Criar Treino*, *Execução*) ou a grade de 3 colunas para o `student` (*Meu Treino*, *Minha Dieta*, *Meu Progresso*) com indicador de sessão de treino ao vivo.
-- **Portal do Aluno (`StudentPortalView` + Reuso de Execução/Dieta/Progresso)**:
-  - **Aba Meu Treino**: Filtra `workouts` por `clientId === activeStudentId`, apresenta os cards das divisões semanais e integra a tela de execução (`WorkoutExecutionSection`) travada no aluno ativo (`lockedClientId={activeStudentId}`).
-  - **Aba Minha Dieta**: Carrega o `ClientDietPlan` do aluno ativo e exibe metas calóricas/macros, seletor de programação diária, cards de refeições com medidas caseiras, modal/expansão de substituições equivalentes e registro diário de água.
-  - **Aba Meu Progresso**: Renderiza os gráficos e histórico de evolução (`WorkoutHistoryPage`) restritos ao aluno ativo em modo `readOnly` (sem exclusão de histórico).
+1. **Definição de Classes de Safe Area no CSS Global (`app/globals.css`)**:
+   - Criação de utilitários `@layer utilities` para `pt-safe`, `pb-safe`, `pl-safe`, `pr-safe` e `h-screen-safe`.
+   - Regras de scroll suave iOS (`-webkit-overflow-scrolling: touch`) e controle de zoom de formulários.
+2. **Atualização do Cabeçalho (`components/Header.tsx`)**:
+   - Aplicação de `pt-safe` no container principal.
+   - Integração do seletor visual de dispositivos (Nativo / iPhone Notch / iPhone Dynamic Island / Tablet).
+3. **Atualização da Barra Inferior (`components/BottomNav.tsx`)**:
+   - Aplicação de `pb-safe` para separação da Home Bar.
+   - Ajuste dos botões de toque com tamanho mínimo de $44\text{px}$.
+4. **Atualização do Container Principal e Simulador de Dispositivo (`app/page.tsx`)**:
+   - Renderização dos mockups realistas de Entalhe e Dynamic Island quando o modo de teste estiver ativo.
+   - Ajuste do padding inferior de `<main>` para acomodar a barra inferior mais a safe area.
+5. **Ajustes nos Modais de Tela Cheia e Execução de Treino**:
+   - Garantir que a visualização de execução do exercício e os modais flutuantes usem `pt-safe` e `pb-safe`.
+6. **Verificação de Compilação & Lint**:
+   - Execução de `lint_applet` e `compile_applet` para assegurar integridade completa do código.

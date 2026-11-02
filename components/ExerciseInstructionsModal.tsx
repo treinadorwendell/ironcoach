@@ -81,7 +81,7 @@ export const ExerciseInstructionsModal: React.FC<ExerciseInstructionsModalProps>
 
   return (
     <div
-      className="fixed inset-0 z-[85] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[85] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 pt-safe pb-safe overflow-y-auto animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div

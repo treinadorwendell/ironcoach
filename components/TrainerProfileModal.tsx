@@ -2204,7 +2204,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 pt-safe pb-safe overflow-y-auto animate-in fade-in duration-200">
         <div
           className={`w-full ${
             isFirstLoginMandatory
