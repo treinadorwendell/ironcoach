@@ -40,17 +40,30 @@ export function useInactivitySync({
   const forceSyncNow = useCallback(async (reason = 'manual') => {
     const user = auth.currentUser;
     if (!user) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
+    const pendingBefore = cloudSync.getPendingQueueCount();
     setIsSyncing(true);
-    if (reason === 'return') {
-      triggerToast('Sincronizando treinos e PSE com o Firestore...', 2500);
+    if (reason === 'online' && pendingBefore > 0) {
+      triggerToast(
+        `Conexão restabelecida! Sincronizando ${pendingBefore} operação(ões) da fila...`,
+        3000
+      );
+    } else if (reason === 'return') {
+      triggerToast('Sincronizando treinos, fila offline e PSE com o Firestore...', 2500);
     }
 
     try {
-      const res = await cloudSync.forceSync(user.uid);
-      if (res.success) {
+      const queueRes = await cloudSync.processPendingQueue();
+      const res = await cloudSync.forceSync();
+      if (res.success || queueRes.processed > 0) {
         setLastSyncTime(new Date());
-        if (reason === 'return') {
+        if (queueRes.processed > 0) {
+          triggerToast(
+            `${queueRes.processed} alteração(ões) offline sincronizada(s) com o Firestore!`,
+            3500
+          );
+        } else if (reason === 'return' || reason === 'online') {
           triggerToast('Histórico e PSE sincronizados com sucesso!', 3500);
         }
       }

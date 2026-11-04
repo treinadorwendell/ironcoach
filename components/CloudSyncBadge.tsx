@@ -28,6 +28,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingQueueCount, setPendingQueueCount] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
@@ -39,14 +40,22 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
       }
     });
 
+    const updateQueueCount = () => {
+      setPendingQueueCount(cloudSync.getPendingQueueCount());
+    };
+    updateQueueCount();
+
     const handleDataSynced = () => {
       setSyncStatus('synced');
+      updateQueueCount();
     };
     window.addEventListener('ironcoach:data-synced', handleDataSynced);
+    window.addEventListener('ironcoach:sync-queue-updated', updateQueueCount);
 
     return () => {
       unsub();
       window.removeEventListener('ironcoach:data-synced', handleDataSynced);
+      window.removeEventListener('ironcoach:sync-queue-updated', updateQueueCount);
     };
   }, []);
 
@@ -71,7 +80,8 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
     if (!user) return;
     setIsBusy(true);
     try {
-      await cloudSync.forceSync(user.uid);
+      await cloudSync.processPendingQueue();
+      await cloudSync.forceSync();
       if (onManualSyncTrigger) onManualSyncTrigger();
       setSyncStatus('synced');
     } catch (err) {
@@ -85,6 +95,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
     if (!user) return;
     setIsBusy(true);
     try {
+      await cloudSync.processPendingQueue();
       await cloudSync.seedLocalToCloud(user.uid);
       if (onManualSyncTrigger) onManualSyncTrigger();
       setSyncStatus('synced');
@@ -101,15 +112,40 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
         {user ? (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center justify-center h-9 sm:h-10 lg:h-[42px] px-2.5 sm:px-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition active:scale-95 shadow-sm cursor-pointer shrink-0"
-            title={`${user.displayName || user.email || 'Conta conectada'} • Sincronização em nuvem ativa`}
+            className={`flex items-center justify-center h-9 sm:h-10 lg:h-[42px] px-2.5 sm:px-3.5 rounded-xl border transition active:scale-95 shadow-sm cursor-pointer shrink-0 ${
+              pendingQueueCount > 0
+                ? 'border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300'
+                : 'border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300'
+            }`}
+            title={
+              pendingQueueCount > 0
+                ? `${pendingQueueCount} operação(ões) na fila offline aguardando sincronização`
+                : `${user.displayName || user.email || 'Conta conectada'} • Sincronização em nuvem ativa`
+            }
             aria-label="Sincronização em nuvem"
           >
             <span className="relative flex h-2 w-2 mr-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  pendingQueueCount > 0 ? 'bg-amber-400' : 'bg-emerald-400'
+                }`}
+              ></span>
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${
+                  pendingQueueCount > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+              ></span>
             </span>
-            <Cloud className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-emerald-400" />
+            <Cloud
+              className={`w-4 h-4 sm:w-[18px] sm:h-[18px] ${
+                pendingQueueCount > 0 ? 'text-amber-400' : 'text-emerald-400'
+              }`}
+            />
+            {pendingQueueCount > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-500/20 text-[10px] font-black text-amber-300">
+                {pendingQueueCount}
+              </span>
+            )}
           </button>
         ) : (
           <button
@@ -148,7 +184,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Firebase Ativo
+                    Data Persist
                   </span>
                   <button
                     type="button"
@@ -166,8 +202,25 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                 <div className="flex items-start gap-2 text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <div className="text-[11px] leading-relaxed">
-                    <strong>Autenticação Nativa Conectada:</strong> Seus dados de treinos, alunos e histórico estão protegidos por regras seguras no Firestore e sincronizados em tempo real entre seus dispositivos.
+                    <strong>Data Persist & Fila Offline:</strong> Sessões de treino e histórico ficam gravados localmente de forma independente e sincronizam automaticamente quando a rede está disponível.
                   </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    Operações na Fila Offline:
+                  </span>
+                  <span
+                    className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${
+                      pendingQueueCount > 0
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-400'
+                    }`}
+                  >
+                    {pendingQueueCount === 0
+                      ? '0 pendentes (Sincronizado)'
+                      : `${pendingQueueCount} pendente(s)`}
+                  </span>
                 </div>
 
                 {errorMessage && (
@@ -186,7 +239,11 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isBusy ? 'animate-spin' : ''}`} />
-                  <span>Atualizar Histórico e PSE da Nuvem</span>
+                  <span>
+                    {pendingQueueCount > 0
+                      ? `Sincronizar Fila (${pendingQueueCount}) e Histórico`
+                      : 'Atualizar Histórico e PSE da Nuvem'}
+                  </span>
                 </button>
 
                 <button

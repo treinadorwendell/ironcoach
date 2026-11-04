@@ -81,12 +81,12 @@ export const ExerciseInstructionsModal: React.FC<ExerciseInstructionsModalProps>
 
   return (
     <div
-      className="fixed inset-0 z-[85] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 pt-safe pb-safe overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[85] flex items-center justify-center bg-black/85 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] overflow-y-auto animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+        className="w-full max-w-2xl max-h-modal-safe sm:max-h-[90dvh] flex flex-col rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/90 flex items-start justify-between gap-3 shrink-0">

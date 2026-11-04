@@ -20,7 +20,6 @@ interface BottomNavProps {
   appRole?: AppUserRole;
   studentSection?: StudentNavSection;
   onSelectStudentSection?: (section: StudentNavSection) => void;
-  isFramed?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -30,7 +29,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   appRole = 'trainer',
   studentSection = 'meu-treino',
   onSelectStudentSection,
-  isFramed = false,
 }) => {
   const trainerNavItems: {
     id: MainNavSection;
@@ -98,11 +96,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const items = isStudent ? studentNavItems : trainerNavItems;
 
   return (
-    <nav
-      className={`${
-        isFramed ? 'sticky bottom-0 left-0 right-0' : 'fixed bottom-0 left-0 right-0'
-      } z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] px-2 sm:px-6 lg:px-10 pt-1 pb-safe sm:pb-2 w-full transition-all`}
-    >
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:px-6 lg:px-10 pt-1.5 pb-[calc(var(--sab)+0.35rem)] sm:pb-2 w-full transition-all">
       <div
         className={`max-w-6xl mx-auto grid ${
           isStudent ? 'grid-cols-3' : 'grid-cols-4'
@@ -125,7 +119,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 }
               }}
               whileTap={{ scale: 0.94 }}
-              className={`relative flex flex-col sm:flex-row lg:gap-2.5 items-center justify-center py-1.5 sm:py-2.5 px-1.5 sm:px-3 min-h-[54px] sm:min-h-[60px] lg:min-h-[62px] rounded-xl sm:rounded-2xl transition-colors touch-manipulation cursor-pointer ${
+              className={`relative flex flex-col sm:flex-row lg:gap-2.5 items-center justify-center py-1.5 sm:py-2.5 px-1 sm:px-3 min-h-[50px] sm:min-h-[60px] lg:min-h-[62px] rounded-xl sm:rounded-2xl transition-colors touch-manipulation cursor-pointer ${
                 isActive
                   ? 'text-white'
                   : 'text-slate-400 hover:text-slate-200'
@@ -178,7 +172,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   isActive ? 'text-white font-bold' : 'text-slate-400'
                 }`}
               >
-                {item.label}
+                {item.id === 'execucao' ? (
+                  <>
+                    <span className="hidden min-[414px]:inline">Execução do Treino</span>
+                    <span className="inline min-[414px]:hidden">Execução</span>
+                  </>
+                ) : (
+                  item.label
+                )}
               </span>
             </motion.button>
           );

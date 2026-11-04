@@ -34,6 +34,9 @@ import {
   Minus,
   X,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Check,
 } from 'lucide-react';
 
 interface StudentDietViewProps {
@@ -48,6 +51,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
     storage.getNutritionLibrary()
   );
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+  const [isCardapioDropdownOpen, setIsCardapioDropdownOpen] = useState<boolean>(false);
   const [expandedSubItemIds, setExpandedSubItemIds] = useState<Record<string, boolean>>({});
   const [selectedRecipeModal, setSelectedRecipeModal] = useState<NutritionRecipe | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -261,6 +265,11 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
       ? 'Ganho de Massa Muscular (Hipertrofia)'
       : 'Manutenção & Recomposição Corporal';
 
+  const activeScheduleDaysStr = (activeSchedule.weekDays || [])
+    .map((d) => WEEK_DAYS_SHORT.find((w) => w.day === d)?.short || '')
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <div className="space-y-4 pb-28">
       {/* Toast Notification */}
@@ -456,55 +465,131 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
         </div>
       </div>
 
-      {/* Day Schedule Selector (when trainer prescribed multiple schedules) */}
-      {dietPlan.schedules.length > 1 && (
-        <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-2 overflow-x-auto">
-          <Calendar className="w-4 h-4 text-cyan-400 shrink-0 ml-1" />
-          <span className="text-xs font-bold text-slate-400 shrink-0">
-            Rotina do Dia:
-          </span>
-          <div className="flex items-center gap-1.5">
-            {dietPlan.schedules.map((sched) => {
-              const isSelected = sched.id === activeSchedule.id;
-              const daysStr = (sched.weekDays || [])
-                .map((d) => WEEK_DAYS_SHORT[d])
-                .join(', ');
-              return (
-                <button
-                  key={sched.id}
-                  type="button"
-                  onClick={() => setSelectedScheduleId(sched.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-cyan-600 text-white shadow-sm'
-                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                  }`}
-                >
-                  <span>{sched.name}</span>
-                  {daysStr && (
-                    <span className="ml-1.5 text-[10px] opacity-80">
-                      ({daysStr})
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Chronological Meals List */}
+      {/* Cardápio Button that transforms into a Dropdown with the Cardápio Name & Meals */}
       <div className="space-y-3.5">
-        {activeSchedule.meals.map((meal, mealIdx) => {
-          const mealNutrients = sumNutrientProfiles(
-            meal.items.map((it) => it.nutrients)
-          );
-
-          return (
+        <button
+          type="button"
+          onClick={() => setIsCardapioDropdownOpen((prev) => !prev)}
+          aria-expanded={isCardapioDropdownOpen}
+          className={`w-full p-4 sm:p-5 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer touch-manipulation shadow-lg ${
+            isCardapioDropdownOpen
+              ? 'bg-gradient-to-r from-cyan-950/90 via-slate-900 to-slate-900 border-cyan-500/60 ring-1 ring-cyan-500/30'
+              : 'bg-slate-900/95 hover:bg-slate-900 border-slate-800 hover:border-cyan-500/40'
+          }`}
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
             <div
-              key={meal.id || mealIdx}
-              className="rounded-2xl bg-slate-900/95 border border-slate-800 shadow-lg overflow-hidden"
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border transition ${
+                isCardapioDropdownOpen
+                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-950/50'
+                  : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400'
+              }`}
             >
+              <Utensils className="w-5 h-5" />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400">
+                  Cardápio Prescrito
+                </span>
+                {activeScheduleDaysStr && (
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                    · <Calendar className="w-3 h-3 text-cyan-400 inline" /> {activeScheduleDaysStr}
+                  </span>
+                )}
+              </div>
+
+              <h3 className="text-sm sm:text-base font-black text-white truncate mt-0.5">
+                {activeSchedule.name}
+              </h3>
+
+              <p className="text-[11px] text-slate-400 font-mono tabular-nums mt-0.5">
+                {activeSchedule.meals.length}{' '}
+                {activeSchedule.meals.length === 1 ? 'refeição' : 'refeições'} ·{' '}
+                <strong className="text-slate-200">
+                  {Math.round(dayTotals.energyKcal)} kcal
+                </strong>{' '}
+                · P: {Math.round(dayTotals.proteinG)}g · C: {Math.round(dayTotals.carbohydrateG)}g · G:{' '}
+                {Math.round(dayTotals.lipidG)}g
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="hidden sm:inline-block text-xs font-extrabold text-cyan-300">
+              {isCardapioDropdownOpen ? 'Ocultar Cardápio' : 'Abrir Cardápio'}
+            </span>
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition ${
+                isCardapioDropdownOpen
+                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                  : 'bg-slate-950 border-slate-800 text-slate-300'
+              }`}
+            >
+              {isCardapioDropdownOpen ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </div>
+          </div>
+        </button>
+
+        {/* Dropdown Content: Schedule Switcher (if multiple) + Chronological Meals List */}
+        {isCardapioDropdownOpen && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-3.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+            {dietPlan.schedules.length > 1 && (
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <span className="text-[11px] font-extrabold text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Selecionar Cardápio da Rotina:</span>
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {dietPlan.schedules.map((sched) => {
+                    const isSelected = sched.id === activeSchedule.id;
+                    const daysStr = (sched.weekDays || [])
+                      .map((d) => WEEK_DAYS_SHORT.find((w) => w.day === d)?.short || '')
+                      .filter(Boolean)
+                      .join(', ');
+                    return (
+                      <button
+                        key={sched.id}
+                        type="button"
+                        onClick={() => setSelectedScheduleId(sched.id)}
+                        className={`p-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between gap-2 text-left cursor-pointer border ${
+                          isSelected
+                            ? 'bg-cyan-600/20 text-white border-cyan-500 shadow-sm'
+                            : 'bg-slate-950 text-slate-300 hover:text-white border-slate-800'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <span className="block truncate font-extrabold">{sched.name}</span>
+                          {daysStr && (
+                            <span className="block text-[10px] text-slate-400 truncate">
+                              Dias: {daysStr}
+                            </span>
+                          )}
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3.5">
+              {activeSchedule.meals.map((meal, mealIdx) => {
+                const mealNutrients = sumNutrientProfiles(
+                  meal.items.map((it) => it.nutrients)
+                );
+
+                return (
+                  <div
+                    key={meal.id || mealIdx}
+                    className="rounded-2xl bg-slate-900/95 border border-slate-800 shadow-lg overflow-hidden"
+                  >
               {/* Meal Header */}
               <div className="p-4 bg-slate-950/70 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
@@ -707,6 +792,9 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             </div>
           );
         })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recipe Instructions Modal */}

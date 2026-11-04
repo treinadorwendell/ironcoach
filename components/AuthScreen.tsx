@@ -29,15 +29,21 @@ import {
   registerWithEmail,
   loginWithGoogle,
   resetPassword,
+  loginExclusiveStudent,
   getFirebaseAuthErrorMessage,
 } from '@/lib/firebase';
+import { storage } from '@/lib/storage';
 import { User } from 'firebase/auth';
-import { AppUserRole } from '@/types';
+import { AppUserRole, StudentSessionContext } from '@/types';
 
 interface AuthScreenProps {
   isOpen?: boolean;
   onClose?: () => void;
-  onSuccess?: (user: User, role: AppUserRole) => void;
+  onSuccess?: (
+    user: User,
+    role: AppUserRole,
+    studentSession?: StudentSessionContext | null
+  ) => void;
   /**
    * If true, renders as an inline full-page container (e.g., when unauthenticated)
    * If false or not provided with isOpen, renders as a responsive overlay/modal
@@ -106,15 +112,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setSuccessMessage(null);
   };
 
+  const handleSelectAccessRole = (role: AppUserRole) => {
+    setSelectedRole(role);
+    if (role === 'student') {
+      setActiveTab('login');
+    }
+    setErrorMessage(null);
+    setErrorCode(null);
+    setSuccessMessage(null);
+  };
+
   // Validação de E-mail
   const isValidEmail = (val: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
   };
 
-  // Submissão do Formulário de Login
+  // Submissão do Formulário de Login (Treinador ou Aluno Exclusivo)
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setErrorCode(null);
     setSuccessMessage(null);
 
     const cleanEmail = email.trim();
@@ -137,23 +154,42 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     setIsLoading(true);
     try {
-      const user = await loginWithEmail(cleanEmail, password);
-      setSuccessMessage(`Bem-vindo de volta${user.displayName ? `, ${user.displayName}` : ''}! Sincronizando dados...`);
-      setTimeout(() => {
-        onSuccess?.(user, selectedRole);
-        onClose?.();
-      }, 700);
+      if (selectedRole === 'student') {
+        const { user, studentSession } = await loginExclusiveStudent(cleanEmail, password);
+        setSuccessMessage(
+          `Acesso liberado! Bem-vindo(a), ${studentSession.name}. Carregando seus treinos e dieta...`
+        );
+        setTimeout(() => {
+          onSuccess?.(user, 'student', studentSession);
+          onClose?.();
+        }, 650);
+      } else {
+        const user = await loginWithEmail(cleanEmail, password);
+        storage.saveStudentSession(null);
+        storage.saveAppRole('trainer');
+        setSuccessMessage(
+          `Bem-vindo de volta${user.displayName ? `, ${user.displayName}` : ''}! Sincronizando dados do treinador...`
+        );
+        setTimeout(() => {
+          onSuccess?.(user, 'trainer', null);
+          onClose?.();
+        }, 650);
+      }
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code || '';
       setErrorCode(code);
-      const friendlyMsg = getFirebaseAuthErrorMessage(err);
-      setErrorMessage(friendlyMsg);
+      if (selectedRole === 'student' && err instanceof Error && !code.startsWith('auth/')) {
+        setErrorMessage(err.message);
+      } else {
+        const friendlyMsg = getFirebaseAuthErrorMessage(err);
+        setErrorMessage(friendlyMsg);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Submissão do Formulário de Registro
+  // Submissão do Formulário de Registro (Apenas Treinador)
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -191,9 +227,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
     try {
       const user = await registerWithEmail(cleanEmail, password, cleanName);
-      setSuccessMessage('Conta criada com sucesso! Sincronização em nuvem ativada.');
+      storage.saveStudentSession(null);
+      storage.saveAppRole('trainer');
+      setSuccessMessage('Conta de Treinador criada com sucesso! Sincronização em nuvem ativada.');
       setTimeout(() => {
-        onSuccess?.(user, selectedRole);
+        onSuccess?.(user, 'trainer', null);
         onClose?.();
       }, 900);
     } catch (err: unknown) {
@@ -239,7 +277,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
-  // Login com Google
+  // Login com Google (Exclusivo para Treinador)
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
     setErrorCode(null);
@@ -248,9 +286,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       const user = await loginWithGoogle();
       if (user) {
-        setSuccessMessage(`Conectado como ${user.displayName || user.email}!`);
+        storage.saveStudentSession(null);
+        storage.saveAppRole('trainer');
+        setSuccessMessage(`Conectado como Treinador: ${user.displayName || user.email}!`);
         setTimeout(() => {
-          onSuccess?.(user, selectedRole);
+          onSuccess?.(user, 'trainer', null);
           onClose?.();
         }, 600);
       }
@@ -268,11 +308,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     <div
       className={
         mode === 'fullscreen'
-          ? 'min-h-[calc(100vh-120px)] flex items-center justify-center p-3 sm:p-6'
-          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200'
+          ? 'min-h-screen-safe w-full flex items-center justify-center p-1 sm:p-6'
+          : 'fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-5 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] overflow-y-auto animate-in fade-in duration-200'
       }
     >
-      <div className="w-full max-w-md bg-slate-900 border border-emerald-500/30 rounded-3xl shadow-2xl shadow-emerald-950/40 overflow-hidden flex flex-col my-auto transition-all">
+      <div
+        className={`w-full max-w-md bg-slate-900 border rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all ${
+          selectedRole === 'student'
+            ? 'border-cyan-500/40 shadow-cyan-950/40'
+            : 'border-emerald-500/30 shadow-emerald-950/40'
+        }`}
+      >
         {/* Top Header Card */}
         <div className="relative p-5 sm:p-6 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 border-b border-slate-800">
           {/* Close button if modal */}
@@ -289,90 +335,119 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
           {/* Logo & Branding */}
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/30 flex-shrink-0">
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0 transition ${
+                selectedRole === 'student'
+                  ? 'bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-500 shadow-cyan-950/60 ring-1 ring-cyan-400/30'
+                  : 'bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 shadow-emerald-950/60 ring-1 ring-emerald-400/30'
+              }`}
+            >
               <Dumbbell className="w-6 h-6 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-white tracking-tight">IronCoach</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  PRO PWA
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                    selectedRole === 'student'
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  }`}
+                >
+                  {selectedRole === 'student' ? 'PORTAL DO ALUNO' : 'TREINADOR PRO'}
                 </span>
               </div>
               <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                 <Cloud className="w-3.5 h-3.5 text-emerald-400 inline" />
-                <span>Sincronização em nuvem e histórico contínuo</span>
+                <span>
+                  {selectedRole === 'student'
+                    ? 'Acesso exclusivo aos treinos e dieta prescritos'
+                    : 'Gestão completa, prescrição e acompanhamento'}
+                </span>
               </p>
             </div>
           </div>
 
-          {/* Seletor de Perfil de Acesso: Treinador vs Aluno */}
+          {/* Seletor de Acesso Exclusivo: Sou Treinador vs Sou Aluno */}
           {activeTab !== 'forgot_password' && (
             <div className="mt-4 space-y-1.5">
-              <span className="text-[11px] font-bold text-slate-400 block px-0.5">
-                Escolha o Perfil de Acesso (Desenvolvimento / Uso):
+              <span className="text-[11px] font-bold text-slate-300 block px-0.5">
+                Selecione seu Tipo de Acesso Exclusivo:
               </span>
               <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90">
                 <button
                   type="button"
-                  onClick={() => setSelectedRole('trainer')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  onClick={() => handleSelectAccessRole('trainer')}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                     selectedRole === 'trainer'
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Perfil Treinador</span>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Sou Treinador</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedRole('student')}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  onClick={() => handleSelectAccessRole('student')}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                     selectedRole === 'student'
                       ? 'bg-cyan-600 text-white shadow-md shadow-cyan-950/60'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span>Perfil Aluno</span>
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Sou Aluno</span>
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400 px-1">
+              <p className="text-[11px] text-slate-400 px-1 leading-relaxed">
                 {selectedRole === 'trainer'
-                  ? 'Acesso total: gestão de alunos, agenda, criação de treinos e prescrição de dieta.'
-                  : 'Visão do Aluno: visualização de Meu Treino, Minha Dieta, Meu Progresso e execução de séries.'}
+                  ? 'Acesso exclusivo para o Treinador gerenciar alunos, agenda, fichas de treino e planos alimentares.'
+                  : 'Acesso exclusivo liberado após o seu Treinador cadastrar seu Nome completo, Data de nascimento, E-mail e Telefone.'}
               </p>
             </div>
           )}
 
-          {/* Tabs: Entrar / Cadastrar */}
-          {activeTab !== 'forgot_password' && (
+          {/* Tabs: Entrar / Cadastrar (Apenas para Treinador; Aluno entra exclusivamente com credencial gerada pelo Treinador) */}
+          {activeTab !== 'forgot_password' && selectedRole === 'trainer' && (
             <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90 mt-3">
               <button
                 type="button"
                 onClick={() => handleSwitchTab('login')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'login'
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Entrar</span>
+                <span>Entrar (Treinador)</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSwitchTab('register')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'register'
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>Cadastrar</span>
+                <span>Criar Conta Treinador</span>
               </button>
+            </div>
+          )}
+
+          {/* Banner de Aviso no Acesso do Aluno */}
+          {selectedRole === 'student' && (
+            <div className="mt-3 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 flex items-start gap-2.5">
+              <KeyRound className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div className="text-[11px] text-cyan-100 leading-relaxed">
+                <strong className="font-bold text-cyan-300 block">
+                  Credenciais Geradas pelo Treinador
+                </strong>
+                Informe o <strong>E-mail cadastrado</strong> e a <strong>Senha gerada pelo seu treinador</strong> após o registro dos seus dados na plataforma.
+              </div>
             </div>
           )}
 
@@ -403,13 +478,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <div className="flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <span className="font-bold block text-rose-300">Falha na autenticação</span>
+                  <span className="font-bold block text-rose-300">
+                    {selectedRole === 'student' ? 'Acesso do Aluno não autorizado' : 'Falha na autenticação'}
+                  </span>
                   <span>{errorMessage}</span>
                 </div>
               </div>
 
               {/* Botão de resolução rápida para E-mail já existente */}
-              {errorCode === 'auth/email-already-in-use' && (
+              {selectedRole === 'trainer' && errorCode === 'auth/email-already-in-use' && (
                 <div className="pt-2 border-t border-rose-500/25 flex items-center justify-between gap-2">
                   <span className="text-[11px] text-rose-300">Deseja entrar com este e-mail?</span>
                   <button
@@ -424,7 +501,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               )}
 
               {/* Botão de resolução rápida para Provedor de e-mail não ativado */}
-              {errorCode === 'auth/operation-not-allowed' && (
+              {selectedRole === 'trainer' && errorCode === 'auth/operation-not-allowed' && (
                 <div className="pt-2 border-t border-rose-500/25 flex items-center justify-between gap-2">
                   <span className="text-[11px] text-rose-300">Use o login instantâneo com Google:</span>
                   <button
@@ -473,8 +550,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </div>
           )}
 
-          {/* TAB 1: ENTRAR (LOGIN) */}
-          {activeTab === 'login' && (
+          {/* TAB 1: ENTRAR (LOGIN TREINADOR OU LOGIN EXCLUSIVO DO ALUNO) */}
+          {(activeTab === 'login' || selectedRole === 'student') && activeTab !== 'forgot_password' && (
             <form onSubmit={handleLoginSubmit} className="space-y-3.5">
               {/* Campo E-mail */}
               <div className="space-y-1">
@@ -483,7 +560,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   className="text-xs font-bold text-slate-300 flex items-center gap-1.5"
                 >
                   <Mail className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>E-mail</span>
+                  <span>
+                    {selectedRole === 'student'
+                      ? 'E-mail Cadastrado pelo Treinador'
+                      : 'E-mail do Treinador'}
+                  </span>
                 </label>
                 <div className="relative">
                   <input
@@ -492,7 +573,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     inputMode="email"
                     autoComplete="email"
                     required
-                    placeholder="seu.email@exemplo.com"
+                    placeholder={
+                      selectedRole === 'student'
+                        ? 'email.cadastrado@exemplo.com'
+                        : 'treinador@exemplo.com'
+                    }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
@@ -508,15 +593,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     className="text-xs font-bold text-slate-300 flex items-center gap-1.5"
                   >
                     <Lock className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Senha</span>
+                    <span>
+                      {selectedRole === 'student'
+                        ? 'Senha Gerada pelo Treinador'
+                        : 'Senha'}
+                    </span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => handleSwitchTab('forgot_password')}
-                    className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
-                  >
-                    Esqueceu a senha?
-                  </button>
+                  {selectedRole === 'trainer' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchTab('forgot_password')}
+                      className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  )}
                 </div>
                 <div className="relative">
                   <input
@@ -524,7 +615,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     required
-                    placeholder="Sua senha secreta"
+                    placeholder={
+                      selectedRole === 'student'
+                        ? 'Digite a senha enviada pelo seu treinador'
+                        : 'Sua senha secreta'
+                    }
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full h-11 pl-3.5 pr-10 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
@@ -544,17 +639,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <button
                 type="submit"
                 disabled={isLoading || isGoogleLoading}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60 border border-emerald-400/30 transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation"
+                className={`w-full h-12 rounded-xl text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation cursor-pointer ${
+                  selectedRole === 'student'
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-cyan-950/60 border border-cyan-400/30'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-950/60 border border-emerald-400/30'
+                }`}
               >
                 {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                    <span>Autenticando...</span>
+                    <span>
+                      {selectedRole === 'student'
+                        ? 'Validando cadastro do aluno...'
+                        : 'Autenticando...'}
+                    </span>
                   </>
                 ) : (
                   <>
                     <LogIn className="w-4 h-4 stroke-[2.5]" />
-                    <span>Entrar no IronCoach</span>
+                    <span>
+                      {selectedRole === 'student'
+                        ? 'Acessar Portal do Aluno'
+                        : 'Entrar como Treinador'}
+                    </span>
                     <ArrowRight className="w-4 h-4 ml-0.5" />
                   </>
                 )}
@@ -562,8 +669,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </form>
           )}
 
-          {/* TAB 2: CADASTRAR (REGISTER) */}
-          {activeTab === 'register' && (
+          {/* TAB 2: CADASTRAR (REGISTER - APENAS TREINADOR) */}
+          {activeTab === 'register' && selectedRole === 'trainer' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
               {/* Campo Nome */}
               <div className="space-y-1">
@@ -712,7 +819,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4 stroke-[2.5]" />
-                    <span>Cadastrar Gratuitamente</span>
+                    <span>Cadastrar Conta de Treinador</span>
                   </>
                 )}
               </button>
@@ -782,8 +889,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </form>
           )}
 
-          {/* Divisor "ou continue com" */}
-          {activeTab !== 'forgot_password' && (
+          {/* Divisor "ou continue com" (Apenas para Treinador) */}
+          {activeTab !== 'forgot_password' && selectedRole === 'trainer' && (
             <>
               <div className="relative flex items-center justify-center my-3">
                 <div className="border-t border-slate-800 w-full" />
@@ -797,7 +904,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={isGoogleLoading || isLoading}
-                className="w-full h-11 rounded-xl bg-slate-950 hover:bg-slate-800/90 border border-slate-700/80 hover:border-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center gap-2.5 transition active:scale-[0.98] disabled:opacity-60"
+                className="w-full h-11 rounded-xl bg-slate-950 hover:bg-slate-800/90 border border-slate-700/80 hover:border-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center gap-2.5 transition active:scale-[0.98] disabled:opacity-60 cursor-pointer"
               >
                 {isGoogleLoading ? (
                   <RefreshCw className="w-4 h-4 animate-spin text-slate-400" />
@@ -821,7 +928,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     />
                   </svg>
                 )}
-                <span>Continuar com o Google</span>
+                <span>Continuar com o Google (Treinador)</span>
               </button>
             </>
           )}
@@ -830,7 +937,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
             <span className="flex items-center gap-1 truncate">
               <Smartphone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>Otimizado para PWA / Tablet</span>
+              <span>Otimizado para iPhone / iPad / PWA</span>
             </span>
 
             {onClose && (

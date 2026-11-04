@@ -57,7 +57,7 @@ export function useActiveWorkoutPersistence({
     hasActiveProgressRef.current = hasActiveProgress;
   }, [hasActiveProgress]);
 
-  // Set session and immediately persist to localStorage outside of React state updater
+  // Set session and immediately persist to localStorage (independent per-student Data Persist) + Firebase queue
   const setSessionAndPersist = useCallback(
     (
       newSessionOrUpdater:
@@ -74,16 +74,25 @@ export function useActiveWorkoutPersistence({
       sessionRef.current = next;
       isClearedRef.current = next === null;
       setSessionState(next);
-      storage.saveActiveSession(next);
+      storage.saveActiveSession(
+        next,
+        next?.clientId || activeWorkoutRef.current?.clientId,
+        next?.programId || activeWorkoutRef.current?.id
+      );
+      if (next && hasActiveProgressRef.current(next)) {
+        cloudSync.syncActiveSession(next);
+      }
     },
     []
   );
 
-  // Initial hydration from localStorage on mount (preserves checked sets & custom loads/reps on page refresh)
+  // Initial hydration from localStorage on mount (preserves checked sets & custom loads/reps on page refresh or offline)
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        const savedSession = storage.getActiveSession();
+        const targetClientId = activeWorkoutRef.current?.clientId;
+        const targetProgramId = activeWorkoutRef.current?.id;
+        const savedSession = storage.getActiveSession(targetClientId, targetProgramId);
 
         if (savedSession && savedSession.exercises && savedSession.exercises.length > 0) {
           isClearedRef.current = false;
@@ -96,7 +105,7 @@ export function useActiveWorkoutPersistence({
             const fresh = buildSessionRef.current(activeWorkoutRef.current);
             sessionRef.current = fresh;
             setSessionState(fresh);
-            storage.saveActiveSession(fresh);
+            storage.saveActiveSession(fresh, fresh.clientId, fresh.programId);
             lastProgramIdRef.current = activeWorkoutRef.current.id;
           } else {
             // Restore the active session and recalculate real elapsed time if already started
@@ -113,7 +122,11 @@ export function useActiveWorkoutPersistence({
                   isPaused: false,
                   elapsedSeconds: realElapsed,
                 };
-                storage.saveActiveSession(restoredSession);
+                storage.saveActiveSession(
+                  restoredSession,
+                  restoredSession.clientId,
+                  restoredSession.programId
+                );
               }
             }
             sessionRef.current = restoredSession;
@@ -130,7 +143,7 @@ export function useActiveWorkoutPersistence({
           const fresh = buildSessionRef.current(activeWorkoutRef.current);
           sessionRef.current = fresh;
           setSessionState(fresh);
-          storage.saveActiveSession(fresh);
+          storage.saveActiveSession(fresh, fresh.clientId, fresh.programId);
           lastProgramIdRef.current = activeWorkoutRef.current.id;
         }
       } catch (err) {
@@ -158,20 +171,21 @@ export function useActiveWorkoutPersistence({
       return;
     }
 
-    // If current session has active progress for another workout, don't silently overwrite unless workout changed
-    if (
-      currentSession &&
-      hasActiveProgress(currentSession) &&
-      lastProgramIdRef.current === currentSession.programId
-    ) {
-      if (currentSession.programId !== activeWorkout.id) {
-        isClearedRef.current = false;
-        const fresh = buildSession(activeWorkout);
-        sessionRef.current = fresh;
-        lastProgramIdRef.current = activeWorkout.id;
-        setSessionState(fresh);
-        storage.saveActiveSession(fresh);
-      }
+    // Check if there is an independently persisted session for this student + workout program
+    const persistedForProgram = storage.getStudentSessionPersist(
+      activeWorkout.clientId,
+      activeWorkout.id
+    );
+    if (persistedForProgram && hasActiveProgress(persistedForProgram)) {
+      isClearedRef.current = false;
+      sessionRef.current = persistedForProgram;
+      lastProgramIdRef.current = activeWorkout.id;
+      setSessionState(persistedForProgram);
+      storage.saveActiveSession(
+        persistedForProgram,
+        persistedForProgram.clientId,
+        persistedForProgram.programId
+      );
       return;
     }
 
@@ -181,7 +195,7 @@ export function useActiveWorkoutPersistence({
     sessionRef.current = fresh;
     lastProgramIdRef.current = activeWorkout.id;
     setSessionState(fresh);
-    storage.saveActiveSession(fresh);
+    storage.saveActiveSession(fresh, fresh.clientId, fresh.programId);
   }, [activeWorkout, buildSession, hasActiveProgress]);
 
   // Force start a new session (e.g. user selects a split or starts fresh)
@@ -192,17 +206,18 @@ export function useActiveWorkoutPersistence({
       lastProgramIdRef.current = prog.id;
       sessionRef.current = fresh;
       setSessionState(fresh);
-      storage.saveActiveSession(fresh);
+      storage.saveActiveSession(fresh, fresh.clientId, fresh.programId);
     },
     [buildSession]
   );
 
   // Clear active workout session (e.g. after finishing workout)
   const clearActiveSession = useCallback(() => {
+    const prev = sessionRef.current;
     isClearedRef.current = true;
     sessionRef.current = null;
     setSessionState(null);
-    storage.saveActiveSession(null);
+    storage.saveActiveSession(null, prev?.clientId, prev?.programId);
     cloudSync.syncActiveSession(null);
   }, []);
 

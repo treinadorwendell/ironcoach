@@ -7,13 +7,40 @@
   --sar: env(safe-area-inset-right, 0px);
 }
 
+/* Fallback instantâneo em CSS antes da hidratação para iPhones com Notch (iPhone 11, 12, 13, 14: 375px, 390px, 414px, 428px) */
+@media only screen and (min-width: 370px) and (max-width: 445px) and (orientation: portrait) {
+  :root {
+    --sat: max(env(safe-area-inset-top, 0px), 47px);
+    --sab: max(env(safe-area-inset-bottom, 0px), 34px);
+  }
+}
+
+/* Fallback instantâneo em CSS para iPhones com Dynamic Island (iPhone 14 Pro, 15, 16: 393px, 402px, 430px, 440px) */
+@media only screen and (min-width: 392px) and (max-width: 405px) and (orientation: portrait),
+       only screen and (min-width: 429px) and (max-width: 445px) and (orientation: portrait) {
+  :root {
+    --sat: max(env(safe-area-inset-top, 0px), 59px);
+    --sab: max(env(safe-area-inset-bottom, 0px), 34px);
+  }
+}
+
+/* Paisagem para iPhones 11 ao 16 Pro Max */
+@media only screen and (min-width: 780px) and (max-width: 965px) and (max-height: 445px) and (orientation: landscape) {
+  :root {
+    --sat: 0px;
+    --sab: max(env(safe-area-inset-bottom, 0px), 21px);
+    --sal: max(env(safe-area-inset-left, 0px), 47px);
+    --sar: max(env(safe-area-inset-right, 0px), 47px);
+  }
+}
+
 .device-sim-notch {
-  --sat: 44px;
+  --sat: 47px;
   --sab: 34px;
 }
 
 .device-sim-island {
-  --sat: 54px;
+  --sat: 59px;
   --sab: 34px;
 }
 
@@ -42,7 +69,10 @@
     bottom: var(--sab);
   }
   .min-h-screen-safe {
-    min-height: calc(100vh - var(--sat) - var(--sab));
+    min-height: calc(100dvh - var(--sat) - var(--sab));
+  }
+  .max-h-modal-safe {
+    max-height: calc(100dvh - var(--sat) - var(--sab) - 1.25rem);
   }
 }
 

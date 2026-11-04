@@ -18,6 +18,10 @@ import {
   ClientDietPlan,
   NutritionProfessionalLibrary,
   AppUserRole,
+  StudentSessionContext,
+  PendingSyncOperation,
+  PendingSyncOperationType,
+  StudentIndependentProgressPersist,
 } from '@/types';
 import { INITIAL_EXERCISE_DATABASE } from './exerciseDatabase';
 import { getInitialProfessionalLibrary } from './nutritionEngine';
@@ -39,7 +43,21 @@ const STORAGE_KEYS = {
   NUTRITION_LIBRARY: 'ironcoach_nutrition_library_v1',
   APP_ROLE: 'ironcoach_app_role_v1',
   ACTIVE_STUDENT_ID: 'ironcoach_active_student_id_v1',
+  STUDENT_SESSION: 'ironcoach_student_session_v1',
+  PENDING_SYNC_QUEUE: 'ironcoach_pending_sync_queue_v1',
+  STUDENT_SESSIONS_PERSIST: 'ironcoach_student_sessions_persist_v1',
+  STUDENT_PROGRESS_PERSIST: 'ironcoach_student_progress_persist_v1',
 };
+
+export function isStudentAccessComplete(client?: Client | null): boolean {
+  if (!client) return false;
+  const hasName = Boolean(client.name && client.name.trim().length >= 3);
+  const hasBirth = Boolean(client.birthDate && client.birthDate.trim().length >= 8);
+  const hasEmail = Boolean(client.email && client.email.includes('@'));
+  const hasPhone = Boolean(client.phone && client.phone.replace(/\D/g, '').length >= 8);
+  const hasPass = Boolean(client.accessPassword && client.accessPassword.trim().length >= 6);
+  return hasName && hasBirth && hasEmail && hasPhone && hasPass;
+}
 
 // Clean initial state (no dummy clients, workouts, calendar events, or histories)
 export const INITIAL_CLIENTS: Client[] = [];
@@ -257,6 +275,30 @@ export const storage = {
       }
     } catch (e) {
       console.error('Error saving active student id:', e);
+    }
+  },
+
+  getStudentSession(): StudentSessionContext | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.STUDENT_SESSION);
+      if (!raw) return null;
+      return JSON.parse(raw) as StudentSessionContext;
+    } catch {
+      return null;
+    }
+  },
+
+  saveStudentSession(session: StudentSessionContext | null) {
+    if (typeof window === 'undefined') return;
+    try {
+      if (session) {
+        localStorage.setItem(STORAGE_KEYS.STUDENT_SESSION, JSON.stringify(session));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.STUDENT_SESSION);
+      }
+    } catch (e) {
+      console.error('Error saving student session:', e);
     }
   },
 
@@ -586,6 +628,9 @@ export const storage = {
         list.splice(0, list.length - 120);
       }
       localStorage.setItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS, JSON.stringify(list));
+      if (clientId) {
+        this.persistStudentIndependentSnapshot(clientId, newSnapshot);
+      }
       return newSnapshot;
     } catch (e) {
       console.error('Error recording finished exercise snapshot:', e);
@@ -594,7 +639,7 @@ export const storage = {
   },
 
   /**
-   * Mescla snapshots recebidos do Firestore com o cache local.
+   * Mescla snapshots recebidos do Firestore com o cache local e atualiza o Data Persist independente de cada aluno.
    */
   mergeExerciseSnapshots(incoming: ExerciseFinishedSnapshot[]) {
     if (typeof window === 'undefined' || !Array.isArray(incoming)) return;
@@ -603,17 +648,25 @@ export const storage = {
       const existing: ExerciseFinishedSnapshot[] = existingData ? JSON.parse(existingData) : [];
       const existingIds = new Set(existing.map((s) => s.id));
       const merged = [...existing];
+      const affectedClients = new Set<string>();
       incoming.forEach((item) => {
         if (!existingIds.has(item.id)) {
           merged.push(item);
           existingIds.add(item.id);
         }
+        if (item.clientId) {
+          affectedClients.add(item.clientId);
+        }
       });
       merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      if (merged.length > 120) {
-        merged.splice(0, merged.length - 120);
+      if (merged.length > 200) {
+        merged.splice(0, merged.length - 200);
       }
       localStorage.setItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS, JSON.stringify(merged));
+      affectedClients.forEach((cid) => {
+        const clientSnaps = merged.filter((s) => s.clientId === cid);
+        clientSnaps.forEach((snap) => this.persistStudentIndependentSnapshot(cid, snap));
+      });
     } catch (e) {
       console.error('Error merging exercise snapshots:', e);
     }
@@ -652,18 +705,34 @@ export const storage = {
 
       const registeredTimestamps = new Set<string>();
 
-      // 1. Buscar snapshots gravados via "Concluir e Recolher"
+      // 1. Buscar snapshots gravados via "Concluir e Recolher" (global + Data Persist independente do aluno)
       const snapData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
-      if (snapData) {
-        const snapshots = JSON.parse(snapData);
-        if (Array.isArray(snapshots)) {
-          snapshots
-            .filter(
-              (snap: any) =>
-                (!clientId || !snap.clientId || snap.clientId === 'general' || snap.clientId === clientId) &&
-                snap.exerciseName?.trim().toLowerCase() === cleanName
-            )
-            .forEach((snap: any) => {
+      const rawGlobalSnaps: ExerciseFinishedSnapshot[] = snapData ? JSON.parse(snapData) : [];
+      const progressMap = this.getStudentProgressPersistMap();
+      const studentSnaps =
+        clientId && progressMap[clientId]?.exerciseSnapshots
+          ? progressMap[clientId].exerciseSnapshots
+          : [];
+      const snapById = new Map<string, ExerciseFinishedSnapshot>();
+      if (Array.isArray(rawGlobalSnaps)) {
+        rawGlobalSnaps.forEach((s) => {
+          if (s && s.id) snapById.set(s.id, s);
+        });
+      }
+      if (Array.isArray(studentSnaps)) {
+        studentSnaps.forEach((s) => {
+          if (s && s.id && !snapById.has(s.id)) snapById.set(s.id, s);
+        });
+      }
+      const snapshots = Array.from(snapById.values());
+      if (snapshots.length > 0) {
+        snapshots
+          .filter(
+            (snap: any) =>
+              (!clientId || !snap.clientId || snap.clientId === 'general' || snap.clientId === clientId) &&
+              snap.exerciseName?.trim().toLowerCase() === cleanName
+          )
+          .forEach((snap: any) => {
               if (Array.isArray(snap.sets)) {
                 const s = snap.sets.find((item: any) => item.setNumber === setNumber);
                 if (s && ((typeof s.weightKg === 'number' && s.weightKg > 0) || (typeof s.pse === 'number') || s.completed)) {
@@ -685,7 +754,6 @@ export const storage = {
                 }
               }
             });
-        }
       }
 
       // 2. Buscar nos treinos finalizados sincronizados no Firestore ("completedWorkouts")
@@ -735,10 +803,14 @@ export const storage = {
     }
   },
 
-  getActiveSession(): ActiveWorkoutSession | null {
+  getActiveSession(clientId?: string, programId?: string): ActiveWorkoutSession | null {
     if (typeof window === 'undefined') return null;
     ensureCleanSlate();
     try {
+      if (clientId || programId) {
+        const scoped = this.getStudentSessionPersist(clientId, programId);
+        if (scoped) return scoped;
+      }
       const data = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
       if (!data) return null;
       return JSON.parse(data);
@@ -747,14 +819,21 @@ export const storage = {
     }
   },
 
-  saveActiveSession(session: ActiveWorkoutSession | null) {
+  saveActiveSession(session: ActiveWorkoutSession | null, clientId?: string, programId?: string) {
     if (typeof window === 'undefined') return;
     try {
+      const prevSession = this.getActiveSession();
+      const targetClientId = clientId || session?.clientId || prevSession?.clientId;
+      const targetProgramId = programId || session?.programId || prevSession?.programId;
+
       if (!session) {
         localStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
       } else {
         localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(session));
       }
+
+      this.saveStudentSessionPersist(session, targetClientId, targetProgramId);
+
       setTimeout(() => {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
@@ -966,17 +1045,36 @@ export const storage = {
     ensureCleanSlate();
     try {
       const data = localStorage.getItem(STORAGE_KEYS.COMPLETED_WORKOUTS);
-      if (!data) {
-        localStorage.setItem(
-          STORAGE_KEYS.COMPLETED_WORKOUTS,
-          JSON.stringify(INITIAL_COMPLETED_WORKOUTS)
-        );
-        return clientId
-          ? INITIAL_COMPLETED_WORKOUTS.filter((w) => w.clientId === clientId)
-          : INITIAL_COMPLETED_WORKOUTS;
+      const list: CompletedWorkoutRecord[] = data ? JSON.parse(data) : [];
+
+      // Merge with independent student progress store so history is always available offline
+      const progressMap = this.getStudentProgressPersistMap();
+      const byId = new Map<string, CompletedWorkoutRecord>();
+      list.forEach((item) => {
+        if (item && item.id) byId.set(item.id, item);
+      });
+
+      if (clientId && progressMap[clientId]?.completedWorkouts) {
+        progressMap[clientId].completedWorkouts.forEach((item) => {
+          if (item && item.id && !byId.has(item.id)) {
+            byId.set(item.id, item);
+          }
+        });
+      } else if (!clientId) {
+        Object.values(progressMap).forEach((entry) => {
+          entry?.completedWorkouts?.forEach((item) => {
+            if (item && item.id && !byId.has(item.id)) {
+              byId.set(item.id, item);
+            }
+          });
+        });
       }
-      const list: CompletedWorkoutRecord[] = JSON.parse(data);
-      return clientId ? list.filter((w) => w.clientId === clientId) : list;
+
+      const combined = Array.from(byId.values()).sort(
+        (a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+
+      return clientId ? combined.filter((w) => w.clientId === clientId) : combined;
     } catch {
       return clientId
         ? INITIAL_COMPLETED_WORKOUTS.filter((w) => w.clientId === clientId)
@@ -997,11 +1095,73 @@ export const storage = {
           STORAGE_KEYS.COMPLETED_WORKOUTS,
           JSON.stringify(updated)
         );
+        if (record.clientId) {
+          this.persistStudentIndependentCompletedWorkout(record.clientId, record);
+        }
       } catch (e) {
         console.error('Error saving completed workout:', e);
       }
     }
     return updated;
+  },
+
+  mergeCompletedWorkouts(incoming: CompletedWorkoutRecord[]): CompletedWorkoutRecord[] {
+    if (typeof window === 'undefined') return incoming;
+    try {
+      const localList = this.getCompletedWorkouts();
+      const pendingOps = this.getPendingOperations();
+      const pendingDeletedIds = new Set(
+        pendingOps
+          .filter((op) => op.type === 'DELETE_COMPLETED_WORKOUT')
+          .map((op) => op.entityId)
+      );
+      const pendingUpserts = new Map<string, CompletedWorkoutRecord>();
+      pendingOps
+        .filter((op) => op.type === 'UPSERT_COMPLETED_WORKOUT')
+        .forEach((op) => {
+          const rec = op.payload as CompletedWorkoutRecord;
+          if (rec && rec.id) pendingUpserts.set(rec.id, rec);
+        });
+
+      const byId = new Map<string, CompletedWorkoutRecord>();
+      localList.forEach((item) => {
+        if (item && item.id && !pendingDeletedIds.has(item.id)) {
+          byId.set(item.id, item);
+        }
+      });
+      incoming.forEach((item) => {
+        if (item && item.id && !pendingDeletedIds.has(item.id)) {
+          const pendingLocal = pendingUpserts.get(item.id);
+          byId.set(item.id, pendingLocal || item);
+        }
+      });
+      pendingUpserts.forEach((rec, id) => {
+        if (!pendingDeletedIds.has(id)) {
+          byId.set(id, rec);
+        }
+      });
+
+      const merged = Array.from(byId.values()).sort(
+        (a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+
+      localStorage.setItem(STORAGE_KEYS.COMPLETED_WORKOUTS, JSON.stringify(merged));
+
+      // Mirror into per-student independent Data Persist store
+      const affectedClients = new Set<string>();
+      merged.forEach((r) => {
+        if (r.clientId) affectedClients.add(r.clientId);
+      });
+      affectedClients.forEach((cid) => {
+        const studentRecords = merged.filter((r) => r.clientId === cid);
+        this.persistStudentIndependentCompletedWorkoutList(cid, studentRecords);
+      });
+
+      return merged;
+    } catch (e) {
+      console.error('Error merging completed workouts:', e);
+      return incoming;
+    }
   },
 
   updateCompletedWorkout(record: CompletedWorkoutRecord): CompletedWorkoutRecord[] {
@@ -1410,6 +1570,7 @@ export const storage = {
 
   deleteCompletedWorkout(workoutId: string): CompletedWorkoutRecord[] {
     const list = this.getCompletedWorkouts();
+    const target = list.find((w) => w.id === workoutId);
     const updated = list.filter((w) => w.id !== workoutId);
     if (typeof window !== 'undefined') {
       try {
@@ -1417,6 +1578,10 @@ export const storage = {
           STORAGE_KEYS.COMPLETED_WORKOUTS,
           JSON.stringify(updated)
         );
+        if (target?.clientId) {
+          const clientRemaining = updated.filter((w) => w.clientId === target.clientId);
+          this.persistStudentIndependentCompletedWorkoutList(target.clientId, clientRemaining);
+        }
       } catch (e) {
         console.error('Error deleting completed workout:', e);
       }
@@ -1564,6 +1729,460 @@ export const storage = {
     } catch (e) {
       console.error('Error saving nutrition library:', e);
     }
+  },
+
+  // ============================================================================
+  // DATA PERSIST: INDEPENDENT STUDENT WORKOUT SESSION & PROGRESS STORAGE
+  // ============================================================================
+  getStudentProgressPersistMap(): Record<string, StudentIndependentProgressPersist> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.STUDENT_PROGRESS_PERSIST);
+      if (!raw) return {};
+      return JSON.parse(raw) as Record<string, StudentIndependentProgressPersist>;
+    } catch {
+      return {};
+    }
+  },
+
+  saveStudentProgressPersistMap(map: Record<string, StudentIndependentProgressPersist>) {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.STUDENT_PROGRESS_PERSIST, JSON.stringify(map));
+    } catch (e) {
+      console.error('Error saving student independent progress map:', e);
+    }
+  },
+
+  ensureStudentProgressBucket(
+    map: Record<string, StudentIndependentProgressPersist>,
+    clientId: string
+  ): StudentIndependentProgressPersist {
+    if (!map[clientId]) {
+      map[clientId] = {
+        clientId,
+        activeSession: null,
+        sessionsByProgram: {},
+        completedWorkouts: [],
+        exerciseSnapshots: [],
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return map[clientId];
+  },
+
+  saveStudentSessionPersist(
+    session: ActiveWorkoutSession | null,
+    clientId?: string,
+    programId?: string
+  ) {
+    if (typeof window === 'undefined') return;
+    try {
+      const targetClientId = clientId || session?.clientId;
+      const targetProgramId = programId || session?.programId;
+
+      const rawMap = localStorage.getItem(STORAGE_KEYS.STUDENT_SESSIONS_PERSIST);
+      const sessionsMap: Record<string, ActiveWorkoutSession> = rawMap
+        ? JSON.parse(rawMap)
+        : {};
+
+      if (session && targetClientId) {
+        sessionsMap[`${targetClientId}::latest`] = session;
+        if (targetProgramId) {
+          sessionsMap[`${targetClientId}::${targetProgramId}`] = session;
+        }
+      } else if (!session && targetClientId) {
+        delete sessionsMap[`${targetClientId}::latest`];
+        if (targetProgramId) {
+          delete sessionsMap[`${targetClientId}::${targetProgramId}`];
+        }
+      }
+      localStorage.setItem(
+        STORAGE_KEYS.STUDENT_SESSIONS_PERSIST,
+        JSON.stringify(sessionsMap)
+      );
+
+      if (targetClientId) {
+        const progressMap = this.getStudentProgressPersistMap();
+        const bucket = this.ensureStudentProgressBucket(progressMap, targetClientId);
+        bucket.activeSession = session;
+        if (targetProgramId) {
+          if (session) {
+            bucket.sessionsByProgram[targetProgramId] = session;
+          } else {
+            delete bucket.sessionsByProgram[targetProgramId];
+          }
+        }
+        bucket.updatedAt = new Date().toISOString();
+        this.saveStudentProgressPersistMap(progressMap);
+      }
+    } catch (e) {
+      console.error('Error saving student session persist:', e);
+    }
+  },
+
+  getStudentSessionPersist(
+    clientId?: string,
+    programId?: string
+  ): ActiveWorkoutSession | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const rawMap = localStorage.getItem(STORAGE_KEYS.STUDENT_SESSIONS_PERSIST);
+      const sessionsMap: Record<string, ActiveWorkoutSession> = rawMap
+        ? JSON.parse(rawMap)
+        : {};
+
+      if (clientId && programId && sessionsMap[`${clientId}::${programId}`]) {
+        return sessionsMap[`${clientId}::${programId}`];
+      }
+      if (clientId && sessionsMap[`${clientId}::latest`]) {
+        const latest = sessionsMap[`${clientId}::latest`];
+        if (!programId || latest.programId === programId) {
+          return latest;
+        }
+      }
+
+      if (clientId) {
+        const progressMap = this.getStudentProgressPersistMap();
+        const bucket = progressMap[clientId];
+        if (bucket) {
+          if (programId && bucket.sessionsByProgram?.[programId]) {
+            return bucket.sessionsByProgram[programId];
+          }
+          if (bucket.activeSession && (!programId || bucket.activeSession.programId === programId)) {
+            return bucket.activeSession;
+          }
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  persistStudentIndependentCompletedWorkout(
+    clientId: string,
+    record: CompletedWorkoutRecord
+  ) {
+    if (typeof window === 'undefined' || !clientId) return;
+    try {
+      const progressMap = this.getStudentProgressPersistMap();
+      const bucket = this.ensureStudentProgressBucket(progressMap, clientId);
+      const idx = bucket.completedWorkouts.findIndex((w) => w.id === record.id);
+      if (idx >= 0) {
+        bucket.completedWorkouts[idx] = record;
+      } else {
+        bucket.completedWorkouts.unshift(record);
+      }
+      bucket.completedWorkouts.sort(
+        (a, b) =>
+          new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+      bucket.updatedAt = new Date().toISOString();
+      this.saveStudentProgressPersistMap(progressMap);
+    } catch (e) {
+      console.error('Error persisting student independent completed workout:', e);
+    }
+  },
+
+  persistStudentIndependentCompletedWorkoutList(
+    clientId: string,
+    records: CompletedWorkoutRecord[]
+  ) {
+    if (typeof window === 'undefined' || !clientId) return;
+    try {
+      const progressMap = this.getStudentProgressPersistMap();
+      const bucket = this.ensureStudentProgressBucket(progressMap, clientId);
+      bucket.completedWorkouts = [...records].sort(
+        (a, b) =>
+          new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+      bucket.updatedAt = new Date().toISOString();
+      this.saveStudentProgressPersistMap(progressMap);
+    } catch (e) {
+      console.error('Error persisting student independent completed workout list:', e);
+    }
+  },
+
+  persistStudentIndependentSnapshot(
+    clientId: string,
+    snapshot: ExerciseFinishedSnapshot
+  ) {
+    if (typeof window === 'undefined' || !clientId) return;
+    try {
+      const progressMap = this.getStudentProgressPersistMap();
+      const bucket = this.ensureStudentProgressBucket(progressMap, clientId);
+      const exists = bucket.exerciseSnapshots.some((s) => s.id === snapshot.id);
+      if (!exists) {
+        bucket.exerciseSnapshots.push(snapshot);
+        if (bucket.exerciseSnapshots.length > 120) {
+          bucket.exerciseSnapshots.splice(0, bucket.exerciseSnapshots.length - 120);
+        }
+        bucket.updatedAt = new Date().toISOString();
+        this.saveStudentProgressPersistMap(progressMap);
+      }
+    } catch (e) {
+      console.error('Error persisting student independent snapshot:', e);
+    }
+  },
+
+  // ============================================================================
+  // OFFLINE-SAFE MERGE HELPERS RESPECTING PENDING QUEUE OPERATIONS
+  // ============================================================================
+  mergeClients(incoming: Client[]): Client[] {
+    if (typeof window === 'undefined') return incoming;
+    try {
+      const pendingOps = this.getPendingOperations();
+      const deletedIds = new Set(
+        pendingOps
+          .filter((op) => op.type === 'DELETE_CLIENT')
+          .map((op) => op.entityId)
+      );
+      const pendingUpserts = new Map<string, Client>();
+      pendingOps
+        .filter((op) => op.type === 'UPSERT_CLIENT')
+        .forEach((op) => {
+          const client = op.payload as Client;
+          if (client && client.id) {
+            pendingUpserts.set(client.id, client);
+          }
+        });
+
+      const byId = new Map<string, Client>();
+      incoming.forEach((c) => {
+        if (c && c.id && !deletedIds.has(c.id)) {
+          byId.set(c.id, pendingUpserts.get(c.id) || c);
+        }
+      });
+      pendingUpserts.forEach((c, id) => {
+        if (!deletedIds.has(id)) {
+          byId.set(id, c);
+        }
+      });
+
+      const merged = Array.from(byId.values());
+      this.saveClients(merged);
+      return merged;
+    } catch (e) {
+      console.error('Error merging clients:', e);
+      return incoming;
+    }
+  },
+
+  mergeWorkouts(incoming: WorkoutProgram[]): WorkoutProgram[] {
+    if (typeof window === 'undefined') return incoming;
+    try {
+      const pendingOps = this.getPendingOperations();
+      const deletedIds = new Set(
+        pendingOps
+          .filter((op) => op.type === 'DELETE_WORKOUT')
+          .map((op) => op.entityId)
+      );
+      const pendingUpserts = new Map<string, WorkoutProgram>();
+      pendingOps
+        .filter((op) => op.type === 'UPSERT_WORKOUT')
+        .forEach((op) => {
+          const workout = op.payload as WorkoutProgram;
+          if (workout && workout.id) {
+            pendingUpserts.set(workout.id, workout);
+          }
+        });
+
+      const byId = new Map<string, WorkoutProgram>();
+      incoming.forEach((w) => {
+        if (w && w.id && !deletedIds.has(w.id)) {
+          byId.set(w.id, pendingUpserts.get(w.id) || w);
+        }
+      });
+      pendingUpserts.forEach((w, id) => {
+        if (!deletedIds.has(id)) {
+          byId.set(id, w);
+        }
+      });
+
+      const merged = Array.from(byId.values());
+      this.saveWorkouts(merged);
+      return merged;
+    } catch (e) {
+      console.error('Error merging workouts:', e);
+      return incoming;
+    }
+  },
+
+  mergeCalendarEvents(incoming: CalendarEvent[]): CalendarEvent[] {
+    if (typeof window === 'undefined') return incoming;
+    try {
+      const pendingOps = this.getPendingOperations();
+      const deletedIds = new Set(
+        pendingOps
+          .filter((op) => op.type === 'DELETE_CALENDAR_EVENT')
+          .map((op) => op.entityId)
+      );
+      const pendingUpserts = new Map<string, CalendarEvent>();
+      pendingOps
+        .filter((op) => op.type === 'UPSERT_CALENDAR_EVENT')
+        .forEach((op) => {
+          const evt = op.payload as CalendarEvent;
+          if (evt && evt.id) {
+            pendingUpserts.set(evt.id, evt);
+          }
+        });
+
+      const byId = new Map<string, CalendarEvent>();
+      incoming.forEach((e) => {
+        if (e && e.id && !deletedIds.has(e.id)) {
+          byId.set(e.id, pendingUpserts.get(e.id) || e);
+        }
+      });
+      pendingUpserts.forEach((e, id) => {
+        if (!deletedIds.has(id)) {
+          byId.set(id, e);
+        }
+      });
+
+      const merged = Array.from(byId.values());
+      this.saveCalendarEvents(merged);
+      return merged;
+    } catch (e) {
+      console.error('Error merging calendar events:', e);
+      return incoming;
+    }
+  },
+
+  // ============================================================================
+  // OFFLINE PENDING OPERATIONS QUEUE
+  // ============================================================================
+  getPendingOperations(): PendingSyncOperation[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.PENDING_SYNC_QUEUE);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
+
+  savePendingOperations(ops: PendingSyncOperation[]) {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PENDING_SYNC_QUEUE, JSON.stringify(ops));
+      window.dispatchEvent(
+        new CustomEvent('ironcoach:sync-queue-updated', {
+          detail: { count: ops.length, operations: ops },
+        })
+      );
+    } catch (e) {
+      console.error('Error saving pending operations queue:', e);
+    }
+  },
+
+  enqueuePendingOperation(input: {
+    type: PendingSyncOperationType;
+    entityId: string;
+    payload: unknown;
+    previousEmail?: string;
+    clientEmail?: string;
+  }): PendingSyncOperation {
+    const queue = this.getPendingOperations();
+    const nowIso = new Date().toISOString();
+
+    const deleteCounterpartMap: Partial<Record<PendingSyncOperationType, PendingSyncOperationType>> = {
+      DELETE_CLIENT: 'UPSERT_CLIENT',
+      DELETE_WORKOUT: 'UPSERT_WORKOUT',
+      DELETE_CALENDAR_EVENT: 'UPSERT_CALENDAR_EVENT',
+      DELETE_COMPLETED_WORKOUT: 'UPSERT_COMPLETED_WORKOUT',
+      DELETE_CUSTOM_EXERCISE: 'UPSERT_CUSTOM_EXERCISE',
+      DELETE_DIET_PLAN: 'UPSERT_DIET_PLAN',
+    };
+
+    const upsertCounterpartMap: Partial<Record<PendingSyncOperationType, PendingSyncOperationType>> = {
+      UPSERT_CLIENT: 'DELETE_CLIENT',
+      UPSERT_WORKOUT: 'DELETE_WORKOUT',
+      UPSERT_CALENDAR_EVENT: 'DELETE_CALENDAR_EVENT',
+      UPSERT_COMPLETED_WORKOUT: 'DELETE_COMPLETED_WORKOUT',
+      UPSERT_CUSTOM_EXERCISE: 'DELETE_CUSTOM_EXERCISE',
+      UPSERT_DIET_PLAN: 'DELETE_DIET_PLAN',
+    };
+
+    let filteredQueue = [...queue];
+
+    // If enqueueing a DELETE, remove any prior UPSERT for the same entityId
+    const upsertToCancel = deleteCounterpartMap[input.type];
+    if (upsertToCancel) {
+      filteredQueue = filteredQueue.filter(
+        (op) => !(op.type === upsertToCancel && op.entityId === input.entityId)
+      );
+    }
+
+    // If enqueueing an UPSERT, remove any prior DELETE for the same entityId
+    const deleteToCancel = upsertCounterpartMap[input.type];
+    if (deleteToCancel) {
+      filteredQueue = filteredQueue.filter(
+        (op) => !(op.type === deleteToCancel && op.entityId === input.entityId)
+      );
+    }
+
+    // Coalesce if an operation of the same type + entityId already exists in queue
+    const existingIdx = filteredQueue.findIndex(
+      (op) => op.type === input.type && op.entityId === input.entityId
+    );
+
+    if (existingIdx >= 0) {
+      const existingOp = filteredQueue[existingIdx];
+      const updatedOp: PendingSyncOperation = {
+        ...existingOp,
+        payload: input.payload,
+        previousEmail: existingOp.previousEmail || input.previousEmail,
+        clientEmail: input.clientEmail || existingOp.clientEmail,
+        createdAt: nowIso,
+      };
+      filteredQueue[existingIdx] = updatedOp;
+      this.savePendingOperations(filteredQueue);
+      return updatedOp;
+    }
+
+    const newOp: PendingSyncOperation = {
+      id: `qop-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      type: input.type,
+      entityId: input.entityId,
+      payload: input.payload,
+      previousEmail: input.previousEmail,
+      clientEmail: input.clientEmail,
+      createdAt: nowIso,
+      retryCount: 0,
+    };
+
+    filteredQueue.push(newOp);
+    this.savePendingOperations(filteredQueue);
+    return newOp;
+  },
+
+  removePendingOperation(operationId: string) {
+    const queue = this.getPendingOperations();
+    const next = queue.filter((op) => op.id !== operationId);
+    if (next.length !== queue.length) {
+      this.savePendingOperations(next);
+    }
+  },
+
+  markPendingOperationAttempt(operationId: string) {
+    const queue = this.getPendingOperations();
+    const next = queue.map((op) =>
+      op.id === operationId
+        ? {
+            ...op,
+            retryCount: (op.retryCount || 0) + 1,
+            lastAttemptAt: new Date().toISOString(),
+          }
+        : op
+    );
+    this.savePendingOperations(next);
+  },
+
+  clearPendingOperations() {
+    this.savePendingOperations([]);
   },
 };
 

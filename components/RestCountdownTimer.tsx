@@ -226,7 +226,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   const isFinished = timeLeft === 0;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-20 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in slide-in-from-bottom-6 duration-200">
+    <div className="fixed bottom-[calc(4.75rem+var(--sab))] sm:bottom-20 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in slide-in-from-bottom-6 duration-200">
       <div
         className={`p-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl transition-colors ${
           isFinished
@@ -255,7 +255,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                   </span>
                 )}
               </h4>
-              <p className="text-[11px] text-slate-400 truncate max-w-[190px]">
+              <p className="text-[11px] text-slate-400 truncate max-w-[180px] min-[390px]:max-w-[210px]">
                 {exerciseName}
               </p>
             </div>
@@ -267,7 +267,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
               <button
                 type="button"
                 onClick={handleTestNotification}
-                className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition active:scale-90"
+                className="p-2 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition active:scale-90"
                 title="Notificações ativas em segundo plano. Clique para testar alerta."
               >
                 <BellRing className="w-4 h-4" />
@@ -280,7 +280,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                     'Notificações bloqueadas nas permissões do navegador. Habilite nas configurações.'
                   )
                 }
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-400 transition"
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-400 transition"
                 title="Notificações bloqueadas no navegador"
               >
                 <BellOff className="w-4 h-4" />
@@ -289,7 +289,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
               <button
                 type="button"
                 onClick={handleRequestPermission}
-                className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/10 animate-pulse transition active:scale-90"
+                className="p-2 rounded-lg text-amber-400 hover:bg-amber-500/10 animate-pulse transition active:scale-90"
                 title="Clique para ativar notificações em segundo plano"
               >
                 <Bell className="w-4 h-4" />
@@ -303,7 +303,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 vibration.lightTap();
                 setIsMuted(!isMuted);
               }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               title={isMuted ? 'Ativar som do bip' : 'Silenciar som'}
             >
               {isMuted ? (
@@ -321,7 +321,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 notificationService.cancelRestNotification();
                 onClose();
               }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               title="Fechar Cronômetro"
             >
               <X className="w-4 h-4" />
@@ -330,10 +330,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
         </div>
 
         {/* Big Countdown Timer Display & Controls */}
-        <div className="py-2.5 flex items-center justify-between gap-4">
-          <div className="flex items-baseline gap-2">
+        <div className="py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-1.5 sm:gap-2">
             <span
-              className={`text-4xl font-black font-mono tracking-tight transition-colors ${
+              className={`text-3xl min-[390px]:text-4xl font-black font-mono tracking-tight transition-colors ${
                 isFinished
                   ? 'text-emerald-400'
                   : timeLeft <= 5
@@ -349,7 +349,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
           </div>
 
           {/* Stepper buttons for quick +30s / -15s / Pause */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => {
@@ -362,7 +362,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 sounds.playTickSound();
                 vibration.lightTap();
               }}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition cursor-pointer"
+              className="min-h-[40px] px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition cursor-pointer"
               title="-15 segundos"
             >
               -15s
@@ -381,7 +381,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 sounds.playTickSound();
                 vibration.lightTap();
               }}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition cursor-pointer"
+              className="min-h-[40px] px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold active:scale-95 transition cursor-pointer"
               title="+30 segundos"
             >
               +30s
@@ -401,7 +401,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
                 }
                 vibration.mediumPulse();
               }}
-              className={`p-2 rounded-xl text-xs font-bold active:scale-95 transition cursor-pointer ${
+              className={`min-h-[40px] min-w-[40px] p-2 rounded-xl text-xs font-bold active:scale-95 transition flex items-center justify-center cursor-pointer ${
                 isRunning
                   ? 'bg-slate-800 text-amber-300 hover:bg-slate-700'
                   : 'bg-emerald-600 text-white hover:bg-emerald-500'

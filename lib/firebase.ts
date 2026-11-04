@@ -37,8 +37,15 @@ import {
   TrainerProfile,
   ClientDietPlan,
   NutritionProfessionalLibrary,
+  StudentAccessAccount,
+  StudentSessionContext,
+  PendingSyncOperation,
 } from '@/types';
-import { storage } from './storage';
+import { storage, isStudentAccessComplete } from './storage';
+
+export function normalizeStudentEmailKey(email: string): string {
+  return email.trim().toLowerCase().replace(/[^a-z0-9@._-]/g, '');
+}
 
 // Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -240,6 +247,139 @@ export async function updateTrainerDisplayName(displayName: string): Promise<voi
   }
 }
 
+export async function loginExclusiveStudent(
+  email: string,
+  password: string
+): Promise<{ user: User; studentSession: StudentSessionContext }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPassword = password.trim();
+  const emailKey = normalizeStudentEmailKey(cleanEmail);
+
+  if (!emailKey || !cleanEmail.includes('@')) {
+    throw new Error('Informe o e-mail válido cadastrado pelo seu treinador.');
+  }
+  if (!cleanPassword || cleanPassword.length < 6) {
+    throw new Error('Informe a senha gerada pelo seu treinador (mínimo de 6 caracteres).');
+  }
+
+  // 1. Consultar registro do aluno no diretório na nuvem (studentAccounts) ou no armazenamento local
+  let accountRecord: StudentAccessAccount | null = null;
+  try {
+    const snap = await getDoc(doc(db, 'studentAccounts', emailKey));
+    if (snap.exists()) {
+      accountRecord = snap.data() as StudentAccessAccount;
+    }
+  } catch (err) {
+    console.warn('Could not query studentAccounts from Firestore, checking local clients:', err);
+  }
+
+  // Fallback / verificação complementar na lista local de clientes
+  if (!accountRecord) {
+    const localClients = storage.getClients();
+    const matchedLocal = localClients.find(
+      (c) => c.email.trim().toLowerCase() === cleanEmail
+    );
+    if (matchedLocal) {
+      if (!isStudentAccessComplete(matchedLocal)) {
+        throw new Error(
+          'Seu cadastro ainda está incompleto. O treinador precisa preencher Nome completo, Data de nascimento, E-mail, Telefone e gerar sua senha de acesso.'
+        );
+      }
+      accountRecord = {
+        clientId: matchedLocal.id,
+        trainerUid: matchedLocal.trainerUid || auth.currentUser?.uid || 'local-trainer',
+        name: matchedLocal.name.trim(),
+        birthDate: matchedLocal.birthDate.trim(),
+        email: matchedLocal.email.trim().toLowerCase(),
+        phone: (matchedLocal.phone || '').trim(),
+        accessPassword: (matchedLocal.accessPassword || '').trim(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  if (!accountRecord) {
+    throw new Error(
+      'Acesso negado: Este e-mail não foi encontrado. Você só pode acessar a plataforma após o Treinador cadastrar seu Nome completo, Data de nascimento, E-mail, Telefone e gerar sua senha.'
+    );
+  }
+
+  // 2. Validar obrigatoriamente os 4 dados cadastrais + senha gerada pelo treinador
+  const hasAllFourFields =
+    Boolean(accountRecord.name && accountRecord.name.trim().length >= 3) &&
+    Boolean(accountRecord.birthDate && accountRecord.birthDate.trim().length >= 8) &&
+    Boolean(accountRecord.email && accountRecord.email.includes('@')) &&
+    Boolean(accountRecord.phone && accountRecord.phone.replace(/\D/g, '').length >= 8) &&
+    Boolean(accountRecord.accessPassword && accountRecord.accessPassword.trim().length >= 6);
+
+  if (!hasAllFourFields) {
+    throw new Error(
+      'Seu cadastro está pendente de conclusão pelo treinador. Solicite que ele confira seu Nome completo, Data de nascimento, E-mail, Telefone e Senha.'
+    );
+  }
+
+  if (accountRecord.accessPassword.trim() !== cleanPassword) {
+    throw new Error('Senha incorreta. Utilize a senha exclusiva gerada pelo seu treinador.');
+  }
+
+  // 3. Autenticar ou provisionar sessão no Firebase Auth para sincronização em tempo real
+  let authenticatedUser: User | null = null;
+  try {
+    const cred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+    authenticatedUser = cred.user;
+  } catch (signInErr: unknown) {
+    const errCode = (signInErr as { code?: string })?.code || '';
+    if (
+      errCode === 'auth/user-not-found' ||
+      errCode === 'auth/invalid-credential' ||
+      errCode === 'auth/wrong-password'
+    ) {
+      try {
+        const created = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        try {
+          await updateProfile(created.user, { displayName: accountRecord.name });
+        } catch {
+          // ignore displayName error
+        }
+        authenticatedUser = created.user;
+      } catch (createErr: unknown) {
+        const createCode = (createErr as { code?: string })?.code || '';
+        // Se o e-mail já existe no Firebase Auth com outra senha anterior (ex: treinador gerou nova senha)
+        if (createCode === 'auth/email-already-in-use' && auth.currentUser) {
+          authenticatedUser = auth.currentUser;
+        } else if (createCode === 'auth/email-already-in-use') {
+          throw new Error(
+            'A senha foi atualizada pelo treinador, mas este e-mail já possuía uma senha anterior no Firebase Auth. Use a senha original ou peça ao treinador para usar um novo e-mail.'
+          );
+        } else {
+          throw createErr;
+        }
+      }
+    } else {
+      throw signInErr;
+    }
+  }
+
+  if (!authenticatedUser) {
+    throw new Error('Não foi possível estabelecer a sessão do aluno.');
+  }
+
+  const studentSession: StudentSessionContext = {
+    clientId: accountRecord.clientId,
+    trainerUid: accountRecord.trainerUid,
+    email: accountRecord.email,
+    name: accountRecord.name,
+    birthDate: accountRecord.birthDate,
+    phone: accountRecord.phone,
+  };
+
+  storage.saveStudentSession(studentSession);
+  storage.saveAppRole('student');
+  storage.saveActiveStudentId(accountRecord.clientId);
+
+  return { user: authenticatedUser, studentSession };
+}
+
 export function getFirebaseAuthErrorMessage(error: unknown): string {
   if (!error) return 'Ocorreu um erro inesperado. Tente novamente.';
   const code = (error as { code?: string })?.code || '';
@@ -303,7 +443,41 @@ class FirestoreSyncService {
   private currentCallbacks: CloudSyncCallbacks | null = null;
   private lastSyncTimestamp: number = Date.now();
   private isSyncingNow: boolean = false;
+  private isProcessingQueue: boolean = false;
   private lastSessionClearedAt: number = 0;
+  private queueRetryTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.processPendingQueue().then(() => {
+          if (this.currentUserId) {
+            this.forceSync(this.currentUserId);
+          }
+        });
+      });
+
+      this.queueRetryTimer = setInterval(() => {
+        if (
+          typeof navigator !== 'undefined' &&
+          navigator.onLine &&
+          (this.currentUserId || auth.currentUser?.uid) &&
+          storage.getPendingOperations().length > 0
+        ) {
+          this.processPendingQueue();
+        }
+      }, 10000);
+    }
+  }
+
+  private isNetworkOnline(): boolean {
+    if (typeof navigator === 'undefined') return true;
+    return navigator.onLine;
+  }
+
+  public getPendingQueueCount(): number {
+    return storage.getPendingOperations().length;
+  }
 
   public subscribe(userId: string, callbacks: CloudSyncCallbacks) {
     this.unsubscribe();
@@ -311,8 +485,13 @@ class FirestoreSyncService {
     this.currentCallbacks = callbacks;
     callbacks.onSyncStatusChange?.('syncing');
 
+    // Flush any pending offline operations first when subscribing
+    if (this.isNetworkOnline() && storage.getPendingOperations().length > 0) {
+      this.processPendingQueue(userId);
+    }
+
     try {
-      // 1. Clients listener
+      // 1. Clients listener (merged with offline queue)
       const clientsRef = collection(db, 'users', userId, 'clients');
       const unsubClients = onSnapshot(
         clientsRef,
@@ -322,8 +501,8 @@ class FirestoreSyncService {
             snapshot.forEach((docSnap) => {
               list.push(docSnap.data() as Client);
             });
-            storage.saveClients(list);
-            callbacks.onClientsChange?.(list);
+            const merged = storage.mergeClients(list);
+            callbacks.onClientsChange?.(merged);
           } else {
             // First time cloud sync: seed local data to cloud
             this.seedLocalToCloud(userId);
@@ -337,7 +516,7 @@ class FirestoreSyncService {
       );
       this.activeUnsubscribers.push(unsubClients);
 
-      // 2. Workouts listener
+      // 2. Workouts listener (merged with offline queue)
       const workoutsRef = collection(db, 'users', userId, 'workouts');
       const unsubWorkouts = onSnapshot(
         workoutsRef,
@@ -347,8 +526,8 @@ class FirestoreSyncService {
             snapshot.forEach((docSnap) => {
               list.push(docSnap.data() as WorkoutProgram);
             });
-            storage.saveWorkouts(list);
-            callbacks.onWorkoutsChange?.(list);
+            const merged = storage.mergeWorkouts(list);
+            callbacks.onWorkoutsChange?.(merged);
           }
         },
         (error) => {
@@ -357,7 +536,7 @@ class FirestoreSyncService {
       );
       this.activeUnsubscribers.push(unsubWorkouts);
 
-      // 3. Calendar listener
+      // 3. Calendar listener (merged with offline queue)
       const calendarRef = collection(db, 'users', userId, 'calendar');
       const unsubCalendar = onSnapshot(
         calendarRef,
@@ -367,8 +546,8 @@ class FirestoreSyncService {
             snapshot.forEach((docSnap) => {
               list.push(docSnap.data() as CalendarEvent);
             });
-            storage.saveCalendarEvents(list);
-            callbacks.onCalendarChange?.(list);
+            const merged = storage.mergeCalendarEvents(list);
+            callbacks.onCalendarChange?.(merged);
           }
         },
         (error) => {
@@ -377,7 +556,7 @@ class FirestoreSyncService {
       );
       this.activeUnsubscribers.push(unsubCalendar);
 
-      // 4. Completed Workouts History listener
+      // 4. Completed Workouts History listener (merged with local Data Persist & offline queue)
       const completedRef = collection(db, 'users', userId, 'completedWorkouts');
       const unsubCompleted = onSnapshot(
         completedRef,
@@ -386,16 +565,9 @@ class FirestoreSyncService {
           snapshot.forEach((docSnap) => {
             list.push(docSnap.data() as CompletedWorkoutRecord);
           });
-          // Sort by completion date descending
-          list.sort(
-            (a, b) =>
-              new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-          );
-          if (list.length > 0) {
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('ironcoach_completed_workouts_v1', JSON.stringify(list));
-            }
-            callbacks.onCompletedWorkoutsChange?.(list);
+          const merged = storage.mergeCompletedWorkouts(list);
+          if (merged.length > 0) {
+            callbacks.onCompletedWorkoutsChange?.(merged);
           }
         },
         (error) => {
@@ -468,7 +640,29 @@ class FirestoreSyncService {
       );
       this.activeUnsubscribers.push(unsubSnapshots);
 
-      // 8. Trainer Profile listener
+      // 8. Diet Plans listener (so students receive their prescribed diet in real time)
+      const dietPlansRef = collection(db, 'users', userId, 'dietPlans');
+      const unsubDietPlans = onSnapshot(
+        dietPlansRef,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const plans: ClientDietPlan[] = [];
+            snapshot.forEach((docSnap) => {
+              plans.push(docSnap.data() as ClientDietPlan);
+            });
+            storage.saveDietPlans(plans);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('ironcoach:data-synced'));
+            }
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, `users/${userId}/dietPlans`);
+        }
+      );
+      this.activeUnsubscribers.push(unsubDietPlans);
+
+      // 9. Trainer Profile listener
       const profileDocRef = doc(db, 'users', userId, 'settings', 'trainerProfile');
       const unsubProfile = onSnapshot(
         profileDocRef,
@@ -532,9 +726,26 @@ class FirestoreSyncService {
         const ref = doc(db, 'users', userId, 'clients', client.id);
         batch.set(
           ref,
-          sanitizeForFirestore({ ...client, userId, updatedAt: new Date().toISOString() }),
+          sanitizeForFirestore({ ...client, userId, trainerUid: userId, updatedAt: new Date().toISOString() }),
           { merge: true }
         );
+        if (isStudentAccessComplete(client)) {
+          const emailKey = normalizeStudentEmailKey(client.email);
+          if (emailKey) {
+            const studentRef = doc(db, 'studentAccounts', emailKey);
+            const studentAcc: StudentAccessAccount = {
+              clientId: client.id,
+              trainerUid: userId,
+              name: client.name.trim(),
+              birthDate: client.birthDate.trim(),
+              email: client.email.trim().toLowerCase(),
+              phone: (client.phone || '').trim(),
+              accessPassword: (client.accessPassword || '').trim(),
+              updatedAt: new Date().toISOString(),
+            };
+            batch.set(studentRef, sanitizeForFirestore(studentAcc), { merge: true });
+          }
+        }
       });
 
       localWorkouts.forEach((w) => {
@@ -574,110 +785,264 @@ class FirestoreSyncService {
     }
   }
 
-  // Cloud Write Methods
-  public async syncClient(client: Client) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/clients/${client.id}`;
+  // Cloud Write Methods with Write-Ahead Offline Queueing
+  private async writeClientToFirestore(
+    targetUid: string,
+    client: Client,
+    previousEmail?: string
+  ) {
+    await setDoc(
+      doc(db, 'users', targetUid, 'clients', client.id),
+      sanitizeForFirestore({
+        ...client,
+        userId: targetUid,
+        trainerUid: targetUid,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+
+    if (
+      previousEmail &&
+      previousEmail.trim().toLowerCase() !== client.email.trim().toLowerCase()
+    ) {
+      const oldKey = normalizeStudentEmailKey(previousEmail);
+      if (oldKey) {
+        await deleteDoc(doc(db, 'studentAccounts', oldKey)).catch(() => {});
+      }
+    }
+
+    const emailKey = normalizeStudentEmailKey(client.email);
+    if (emailKey && isStudentAccessComplete(client)) {
+      const studentAcc: StudentAccessAccount = {
+        clientId: client.id,
+        trainerUid: targetUid,
+        name: client.name.trim(),
+        birthDate: client.birthDate.trim(),
+        email: client.email.trim().toLowerCase(),
+        phone: (client.phone || '').trim(),
+        accessPassword: (client.accessPassword || '').trim(),
+        updatedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'studentAccounts', emailKey), sanitizeForFirestore(studentAcc));
+    }
+  }
+
+  public async syncClient(client: Client, previousEmail?: string) {
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_CLIENT',
+      entityId: client.id,
+      payload: client,
+      previousEmail,
+    });
+
+    const targetUid = this.currentUserId || client.trainerUid || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/clients/${client.id}`;
     try {
-      await setDoc(
-        doc(db, 'users', this.currentUserId, 'clients', client.id),
-        sanitizeForFirestore({
-          ...client,
-          userId: this.currentUserId,
-          updatedAt: new Date().toISOString(),
-        })
-      );
+      await this.writeClientToFirestore(targetUid, client, previousEmail);
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
-  public async removeClient(clientId: string) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/clients/${clientId}`;
+  public async removeClient(clientId: string, clientEmail?: string) {
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'DELETE_CLIENT',
+      entityId: clientId,
+      payload: { clientId, clientEmail },
+      clientEmail,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/clients/${clientId}`;
     try {
-      await deleteDoc(doc(db, 'users', this.currentUserId, 'clients', clientId));
+      await deleteDoc(doc(db, 'users', targetUid, 'clients', clientId));
+      if (clientEmail) {
+        const emailKey = normalizeStudentEmailKey(clientEmail);
+        if (emailKey) {
+          await deleteDoc(doc(db, 'studentAccounts', emailKey)).catch(() => {});
+        }
+      }
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 
   public async syncWorkout(workout: WorkoutProgram) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/workouts/${workout.id}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_WORKOUT',
+      entityId: workout.id,
+      payload: workout,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/workouts/${workout.id}`;
     try {
       await setDoc(
-        doc(db, 'users', this.currentUserId, 'workouts', workout.id),
+        doc(db, 'users', targetUid, 'workouts', workout.id),
         sanitizeForFirestore({
           ...workout,
-          userId: this.currentUserId,
+          userId: targetUid,
           updatedAt: new Date().toISOString(),
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async removeWorkout(workoutId: string) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/workouts/${workoutId}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'DELETE_WORKOUT',
+      entityId: workoutId,
+      payload: { workoutId },
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/workouts/${workoutId}`;
     try {
-      await deleteDoc(doc(db, 'users', this.currentUserId, 'workouts', workoutId));
+      await deleteDoc(doc(db, 'users', targetUid, 'workouts', workoutId));
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 
   public async syncCalendarEvent(event: CalendarEvent) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/calendar/${event.id}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_CALENDAR_EVENT',
+      entityId: event.id,
+      payload: event,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/calendar/${event.id}`;
     try {
       await setDoc(
-        doc(db, 'users', this.currentUserId, 'calendar', event.id),
+        doc(db, 'users', targetUid, 'calendar', event.id),
         sanitizeForFirestore({
           ...event,
-          userId: this.currentUserId,
+          userId: targetUid,
           updatedAt: new Date().toISOString(),
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async removeCalendarEvent(eventId: string) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/calendar/${eventId}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'DELETE_CALENDAR_EVENT',
+      entityId: eventId,
+      payload: { eventId },
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/calendar/${eventId}`;
     try {
-      await deleteDoc(doc(db, 'users', this.currentUserId, 'calendar', eventId));
+      await deleteDoc(doc(db, 'users', targetUid, 'calendar', eventId));
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 
   public async syncCompletedWorkout(record: CompletedWorkoutRecord) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/completedWorkouts/${record.id}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_COMPLETED_WORKOUT',
+      entityId: record.id,
+      payload: record,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/completedWorkouts/${record.id}`;
     try {
       await setDoc(
-        doc(db, 'users', this.currentUserId, 'completedWorkouts', record.id),
+        doc(db, 'users', targetUid, 'completedWorkouts', record.id),
         sanitizeForFirestore({
           ...record,
-          userId: this.currentUserId,
+          userId: targetUid,
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async removeCompletedWorkout(workoutId: string) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/completedWorkouts/${workoutId}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'DELETE_COMPLETED_WORKOUT',
+      entityId: workoutId,
+      payload: { workoutId },
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/completedWorkouts/${workoutId}`;
     try {
-      await deleteDoc(doc(db, 'users', this.currentUserId, 'completedWorkouts', workoutId));
+      await deleteDoc(doc(db, 'users', targetUid, 'completedWorkouts', workoutId));
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
@@ -688,67 +1053,134 @@ class FirestoreSyncService {
     } else {
       this.lastSessionClearedAt = 0;
     }
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/settings/activeSession`;
+
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_ACTIVE_SESSION',
+      entityId: session?.clientId || 'activeSession',
+      payload: session,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/settings/activeSession`;
     try {
       await setDoc(
-        doc(db, 'users', this.currentUserId, 'settings', 'activeSession'),
+        doc(db, 'users', targetUid, 'settings', 'activeSession'),
         sanitizeForFirestore({
           session: session || null,
-          userId: this.currentUserId,
+          userId: targetUid,
           updatedAt: new Date().toISOString(),
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async syncExerciseDatabase(exercise: DatabaseExercise) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/customExercises/${exercise.id}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_CUSTOM_EXERCISE',
+      entityId: exercise.id,
+      payload: exercise,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/customExercises/${exercise.id}`;
     try {
       await setDoc(
-        doc(db, 'users', this.currentUserId, 'customExercises', exercise.id),
+        doc(db, 'users', targetUid, 'customExercises', exercise.id),
         sanitizeForFirestore({
           ...exercise,
-          userId: this.currentUserId,
+          userId: targetUid,
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async removeExerciseFromDatabase(exerciseId: string) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/customExercises/${exerciseId}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'DELETE_CUSTOM_EXERCISE',
+      entityId: exerciseId,
+      payload: { exerciseId },
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/customExercises/${exerciseId}`;
     try {
-      await deleteDoc(doc(db, 'users', this.currentUserId, 'customExercises', exerciseId));
+      await deleteDoc(doc(db, 'users', targetUid, 'customExercises', exerciseId));
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 
   public async syncFinishedExerciseSnapshot(snapshot: ExerciseFinishedSnapshot) {
-    if (!this.currentUserId) return;
-    const path = `users/${this.currentUserId}/exerciseSnapshots/${snapshot.id}`;
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_EXERCISE_SNAPSHOT',
+      entityId: snapshot.id,
+      payload: snapshot,
+    });
+
+    const targetUid = this.currentUserId || auth.currentUser?.uid;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
+    const path = `users/${targetUid}/exerciseSnapshots/${snapshot.id}`;
     try {
       await setDoc(
-        doc(db, 'users', this.currentUserId, 'exerciseSnapshots', snapshot.id),
+        doc(db, 'users', targetUid, 'exerciseSnapshots', snapshot.id),
         sanitizeForFirestore({
           ...snapshot,
-          userId: this.currentUserId,
+          userId: targetUid,
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async syncTrainerProfile(profile: TrainerProfile) {
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_TRAINER_PROFILE',
+      entityId: 'trainerProfile',
+      payload: profile,
+    });
+
     const targetUid = this.currentUserId || auth.currentUser?.uid;
-    if (!targetUid) return;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
     const path = `users/${targetUid}/settings/trainerProfile`;
     try {
       await setDoc(
@@ -759,14 +1191,27 @@ class FirestoreSyncService {
           updatedAt: new Date().toISOString(),
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async syncDietPlan(plan: ClientDietPlan) {
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_DIET_PLAN',
+      entityId: plan.id,
+      payload: plan,
+    });
+
     const targetUid = this.currentUserId || auth.currentUser?.uid;
-    if (!targetUid) return;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
     const path = `users/${targetUid}/dietPlans/${plan.id}`;
     try {
       await setDoc(
@@ -777,25 +1222,51 @@ class FirestoreSyncService {
           updatedAt: new Date().toISOString(),
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   }
 
   public async removeDietPlan(planId: string) {
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'DELETE_DIET_PLAN',
+      entityId: planId,
+      payload: { planId },
+    });
+
     const targetUid = this.currentUserId || auth.currentUser?.uid;
-    if (!targetUid) return;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
     const path = `users/${targetUid}/dietPlans/${planId}`;
     try {
       await deleteDoc(doc(db, 'users', targetUid, 'dietPlans', planId));
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 
   public async syncNutritionLibrary(library: NutritionProfessionalLibrary) {
+    const queuedOp = storage.enqueuePendingOperation({
+      type: 'UPSERT_NUTRITION_LIBRARY',
+      entityId: 'nutritionLibrary',
+      payload: library,
+    });
+
     const targetUid = this.currentUserId || auth.currentUser?.uid;
-    if (!targetUid) return;
+    if (!targetUid || !this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return;
+    }
+
     const path = `users/${targetUid}/settings/nutritionLibrary`;
     try {
       await setDoc(
@@ -806,8 +1277,229 @@ class FirestoreSyncService {
           updatedAt: new Date().toISOString(),
         })
       );
+      storage.removePendingOperation(queuedOp.id);
     } catch (error) {
+      storage.markPendingOperationAttempt(queuedOp.id);
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
       handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  }
+
+  /**
+   * Executa uma operação individual da fila pendente no Firestore.
+   */
+  private async executeQueuedOperation(
+    op: PendingSyncOperation,
+    targetUid: string
+  ): Promise<void> {
+    switch (op.type) {
+      case 'UPSERT_CLIENT': {
+        const client = op.payload as Client;
+        const resolvedUid = client.trainerUid || targetUid;
+        await this.writeClientToFirestore(resolvedUid, client, op.previousEmail);
+        break;
+      }
+      case 'DELETE_CLIENT': {
+        const clientId = op.entityId;
+        await deleteDoc(doc(db, 'users', targetUid, 'clients', clientId));
+        if (op.clientEmail) {
+          const emailKey = normalizeStudentEmailKey(op.clientEmail);
+          if (emailKey) {
+            await deleteDoc(doc(db, 'studentAccounts', emailKey)).catch(() => {});
+          }
+        }
+        break;
+      }
+      case 'UPSERT_WORKOUT': {
+        const workout = op.payload as WorkoutProgram;
+        await setDoc(
+          doc(db, 'users', targetUid, 'workouts', workout.id),
+          sanitizeForFirestore({
+            ...workout,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        break;
+      }
+      case 'DELETE_WORKOUT': {
+        await deleteDoc(doc(db, 'users', targetUid, 'workouts', op.entityId));
+        break;
+      }
+      case 'UPSERT_CALENDAR_EVENT': {
+        const event = op.payload as CalendarEvent;
+        await setDoc(
+          doc(db, 'users', targetUid, 'calendar', event.id),
+          sanitizeForFirestore({
+            ...event,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        break;
+      }
+      case 'DELETE_CALENDAR_EVENT': {
+        await deleteDoc(doc(db, 'users', targetUid, 'calendar', op.entityId));
+        break;
+      }
+      case 'UPSERT_COMPLETED_WORKOUT': {
+        const record = op.payload as CompletedWorkoutRecord;
+        await setDoc(
+          doc(db, 'users', targetUid, 'completedWorkouts', record.id),
+          sanitizeForFirestore({
+            ...record,
+            userId: targetUid,
+          })
+        );
+        break;
+      }
+      case 'DELETE_COMPLETED_WORKOUT': {
+        await deleteDoc(doc(db, 'users', targetUid, 'completedWorkouts', op.entityId));
+        break;
+      }
+      case 'UPSERT_ACTIVE_SESSION': {
+        const session = (op.payload as ActiveWorkoutSession | null) ?? null;
+        await setDoc(
+          doc(db, 'users', targetUid, 'settings', 'activeSession'),
+          sanitizeForFirestore({
+            session,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        break;
+      }
+      case 'UPSERT_EXERCISE_SNAPSHOT': {
+        const snapshot = op.payload as ExerciseFinishedSnapshot;
+        await setDoc(
+          doc(db, 'users', targetUid, 'exerciseSnapshots', snapshot.id),
+          sanitizeForFirestore({
+            ...snapshot,
+            userId: targetUid,
+          })
+        );
+        break;
+      }
+      case 'UPSERT_CUSTOM_EXERCISE': {
+        const exercise = op.payload as DatabaseExercise;
+        await setDoc(
+          doc(db, 'users', targetUid, 'customExercises', exercise.id),
+          sanitizeForFirestore({
+            ...exercise,
+            userId: targetUid,
+          })
+        );
+        break;
+      }
+      case 'DELETE_CUSTOM_EXERCISE': {
+        await deleteDoc(doc(db, 'users', targetUid, 'customExercises', op.entityId));
+        break;
+      }
+      case 'UPSERT_DIET_PLAN': {
+        const plan = op.payload as ClientDietPlan;
+        await setDoc(
+          doc(db, 'users', targetUid, 'dietPlans', plan.id),
+          sanitizeForFirestore({
+            ...plan,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        break;
+      }
+      case 'DELETE_DIET_PLAN': {
+        await deleteDoc(doc(db, 'users', targetUid, 'dietPlans', op.entityId));
+        break;
+      }
+      case 'UPSERT_TRAINER_PROFILE': {
+        const profile = op.payload as TrainerProfile;
+        await setDoc(
+          doc(db, 'users', targetUid, 'settings', 'trainerProfile'),
+          sanitizeForFirestore({
+            profile,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        break;
+      }
+      case 'UPSERT_NUTRITION_LIBRARY': {
+        const library = op.payload as NutritionProfessionalLibrary;
+        await setDoc(
+          doc(db, 'users', targetUid, 'settings', 'nutritionLibrary'),
+          sanitizeForFirestore({
+            library,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        break;
+      }
+    }
+  }
+
+  /**
+   * Processa e sincroniza todas as operações pendentes da fila offline com o Firestore.
+   */
+  public async processPendingQueue(
+    userId?: string
+  ): Promise<{ processed: number; remaining: number }> {
+    const studentSession = storage.getStudentSession();
+    const targetUid =
+      userId ||
+      this.currentUserId ||
+      (studentSession?.trainerUid && studentSession.trainerUid !== 'local-trainer'
+        ? studentSession.trainerUid
+        : auth.currentUser?.uid);
+
+    const initialQueue = storage.getPendingOperations();
+    if (!targetUid || !this.isNetworkOnline() || initialQueue.length === 0) {
+      return { processed: 0, remaining: initialQueue.length };
+    }
+
+    if (this.isProcessingQueue) {
+      return { processed: 0, remaining: initialQueue.length };
+    }
+
+    this.isProcessingQueue = true;
+    this.currentCallbacks?.onSyncStatusChange?.('syncing');
+    let processedCount = 0;
+
+    try {
+      for (const op of initialQueue) {
+        if (!this.isNetworkOnline()) break;
+        try {
+          await this.executeQueuedOperation(op, targetUid);
+          storage.removePendingOperation(op.id);
+          processedCount++;
+        } catch (err) {
+          storage.markPendingOperationAttempt(op.id);
+          console.warn(`Error flushing queued op ${op.type} (${op.entityId}):`, err);
+        }
+      }
+
+      const remaining = storage.getPendingOperations().length;
+      if (remaining === 0) {
+        this.lastSyncTimestamp = Date.now();
+        this.currentCallbacks?.onSyncStatusChange?.('synced');
+        if (typeof window !== 'undefined' && processedCount > 0) {
+          window.dispatchEvent(
+            new CustomEvent('ironcoach:data-synced', {
+              detail: {
+                timestamp: new Date().toISOString(),
+                userId: targetUid,
+                flushedCount: processedCount,
+              },
+            })
+          );
+        }
+      } else {
+        this.currentCallbacks?.onSyncStatusChange?.('offline');
+      }
+
+      return { processed: processedCount, remaining };
+    } finally {
+      this.isProcessingQueue = false;
     }
   }
 
@@ -816,17 +1508,29 @@ class FirestoreSyncService {
   }
 
   public isSyncing(): boolean {
-    return this.isSyncingNow;
+    return this.isSyncingNow || this.isProcessingQueue;
   }
 
   /**
-   * Força a sincronização imediata de todos os dados com o Firestore,
-   * recarregando treinos, clientes, agenda e histórico de exercícios com PSE.
+   * Força a sincronização imediata de todos os dados com o Firestore:
+   * 1. Esvazia a fila de operações offline pendentes (queue)
+   * 2. Recarrega e mescla treinos, clientes, agenda e histórico de exercícios com PSE.
    */
   public async forceSync(userId?: string): Promise<{ success: boolean; error?: string; count?: number }> {
-    const targetUid = userId || this.currentUserId || auth.currentUser?.uid;
+    const studentSession = storage.getStudentSession();
+    const targetUid =
+      userId ||
+      this.currentUserId ||
+      (studentSession?.trainerUid && studentSession.trainerUid !== 'local-trainer'
+        ? studentSession.trainerUid
+        : auth.currentUser?.uid);
     if (!targetUid) {
       return { success: false, error: 'Usuário não autenticado' };
+    }
+
+    if (!this.isNetworkOnline()) {
+      this.currentCallbacks?.onSyncStatusChange?.('offline');
+      return { success: false, error: 'Sem conexão com a internet' };
     }
 
     if (this.isSyncingNow) {
@@ -837,21 +1541,32 @@ class FirestoreSyncService {
     this.currentCallbacks?.onSyncStatusChange?.('syncing');
 
     try {
-      // 1. Forçar busca do histórico completo de treinos concluídos com PSE
+      // 0. Primeiro processar toda a fila de operações offline pendentes
+      if (storage.getPendingOperations().length > 0) {
+        await this.processPendingQueue(targetUid);
+      }
+
+      // 1. Forçar busca e mesclagem do histórico completo de treinos concluídos com PSE
       const completedRef = collection(db, 'users', targetUid, 'completedWorkouts');
       const completedSnap = await getDocs(completedRef);
       const completedList: CompletedWorkoutRecord[] = [];
       completedSnap.forEach((docSnap) => {
         completedList.push(docSnap.data() as CompletedWorkoutRecord);
       });
-      completedList.sort(
-        (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-      );
-      if (completedList.length > 0) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('ironcoach_completed_workouts_v1', JSON.stringify(completedList));
+      const cloudCompletedIds = new Set(completedList.map((r) => r.id));
+      const mergedCompleted = storage.mergeCompletedWorkouts(completedList);
+      if (mergedCompleted.length > 0) {
+        this.currentCallbacks?.onCompletedWorkoutsChange?.(mergedCompleted);
+      }
+
+      // Enviar treinos concluídos locais (Data Persist) que ainda não estavam no Firestore
+      for (const localRec of mergedCompleted) {
+        if (!cloudCompletedIds.has(localRec.id)) {
+          await setDoc(
+            doc(db, 'users', targetUid, 'completedWorkouts', localRec.id),
+            sanitizeForFirestore({ ...localRec, userId: targetUid })
+          ).catch(() => {});
         }
-        this.currentCallbacks?.onCompletedWorkoutsChange?.(completedList);
       }
 
       // 2. Forçar busca de snapshots de exercícios ("Concluir e Recolher" com PSE)
@@ -866,7 +1581,7 @@ class FirestoreSyncService {
         this.currentCallbacks?.onExerciseSnapshotsChange?.(snapList);
       }
 
-      // 3. Forçar busca de alunos
+      // 3. Forçar busca e mesclagem de alunos
       const clientsRef = collection(db, 'users', targetUid, 'clients');
       const clientsSnap = await getDocs(clientsRef);
       if (!clientsSnap.empty) {
@@ -874,11 +1589,11 @@ class FirestoreSyncService {
         clientsSnap.forEach((docSnap) => {
           clientsList.push(docSnap.data() as Client);
         });
-        storage.saveClients(clientsList);
-        this.currentCallbacks?.onClientsChange?.(clientsList);
+        const mergedClients = storage.mergeClients(clientsList);
+        this.currentCallbacks?.onClientsChange?.(mergedClients);
       }
 
-      // 4. Forçar busca de fichas de treino
+      // 4. Forçar busca e mesclagem de fichas de treino
       const workoutsRef = collection(db, 'users', targetUid, 'workouts');
       const workoutsSnap = await getDocs(workoutsRef);
       if (!workoutsSnap.empty) {
@@ -886,11 +1601,11 @@ class FirestoreSyncService {
         workoutsSnap.forEach((docSnap) => {
           workoutsList.push(docSnap.data() as WorkoutProgram);
         });
-        storage.saveWorkouts(workoutsList);
-        this.currentCallbacks?.onWorkoutsChange?.(workoutsList);
+        const mergedWorkouts = storage.mergeWorkouts(workoutsList);
+        this.currentCallbacks?.onWorkoutsChange?.(mergedWorkouts);
       }
 
-      // 5. Forçar busca da agenda
+      // 5. Forçar busca e mesclagem da agenda
       const calendarRef = collection(db, 'users', targetUid, 'calendar');
       const calendarSnap = await getDocs(calendarRef);
       if (!calendarSnap.empty) {
@@ -898,20 +1613,41 @@ class FirestoreSyncService {
         calendarSnap.forEach((docSnap) => {
           calendarList.push(docSnap.data() as CalendarEvent);
         });
-        storage.saveCalendarEvents(calendarList);
-        this.currentCallbacks?.onCalendarChange?.(calendarList);
+        const mergedCalendar = storage.mergeCalendarEvents(calendarList);
+        this.currentCallbacks?.onCalendarChange?.(mergedCalendar);
       }
 
-      // 6. Forçar busca da sessão ativa
+      // 6. Forçar busca da sessão ativa (preservando progresso local caso haja sessão ativa em andamento)
+      const localActiveSession = storage.getActiveSession();
+      const hasLocalStarted = Boolean(localActiveSession && localActiveSession.isStarted);
       const sessionDocRef = doc(db, 'users', targetUid, 'settings', 'activeSession');
       const sessionSnap = await getDoc(sessionDocRef);
       if (sessionSnap.exists()) {
         const data = sessionSnap.data();
-        const session = (data?.session as ActiveWorkoutSession | null) ?? null;
-        if (!(session && Date.now() - this.lastSessionClearedAt < 5000)) {
-          storage.saveActiveSession(session);
-          this.currentCallbacks?.onActiveSessionChange?.(session);
+        const cloudSession = (data?.session as ActiveWorkoutSession | null) ?? null;
+        if (!hasLocalStarted && !(cloudSession && Date.now() - this.lastSessionClearedAt < 5000)) {
+          storage.saveActiveSession(cloudSession);
+          this.currentCallbacks?.onActiveSessionChange?.(cloudSession);
+        } else if (hasLocalStarted && localActiveSession) {
+          // Sincronizar a sessão local mais recente de volta para a nuvem
+          await setDoc(
+            sessionDocRef,
+            sanitizeForFirestore({
+              session: localActiveSession,
+              userId: targetUid,
+              updatedAt: new Date().toISOString(),
+            })
+          ).catch(() => {});
         }
+      } else if (hasLocalStarted && localActiveSession) {
+        await setDoc(
+          sessionDocRef,
+          sanitizeForFirestore({
+            session: localActiveSession,
+            userId: targetUid,
+            updatedAt: new Date().toISOString(),
+          })
+        ).catch(() => {});
       }
 
       // 7. Forçar busca do banco de exercícios customizados
@@ -941,7 +1677,7 @@ class FirestoreSyncService {
         );
       }
 
-      return { success: true, count: completedList.length };
+      return { success: true, count: mergedCompleted.length };
     } catch (err) {
       console.error('Error during forceSync with Firestore:', err);
       this.currentCallbacks?.onSyncStatusChange?.('offline');

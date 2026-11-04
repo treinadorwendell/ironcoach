@@ -1,121 +1,67 @@
-# Compatibilidade iPhone 11+ (Notch, Dynamic Island e Home Bar)
+# Plano de Implementação — Compatibilidade Mobile Automática para iPhone 11+ (Notch & Dynamic Island)
 
-Compatibilização ergonômica completa do IronCoach PWA para todos os modelos de iPhone da geração 11 em diante (iPhone 11, 12, 13, 14, 15 e 16), com suporte nativo a áreas seguras (`safe-area-inset`), preenchimento superior contínuo e simulador visual de Entalhe e Ilha Dinâmica.
-
-## Decisões Confirmadas pelo Usuário
-
-> [!IMPORTANT]
-> As seguintes decisões foram confirmadas na fase de alinhamento interativo e guiam a arquitetura desta implementação:
-
-- **Cabeçalho Superior e Entalhe/Dynamic Island**: Adaptação automática com preenchimento seguro dinâmico (`env(safe-area-inset-top)`) e fundo escuro contínuo (`bg-slate-950/95`), garantindo que o status bar e os recortes físicos do topo nunca sobreponham botões, perfis ou títulos.
-- **Barra de Navegação Inferior e Home Bar (Gesto de Início)**: Aplicação de `env(safe-area-inset-bottom)` na base da barra inferior (`pb-safe`) e aumento compensatório da folga de rolagem (`pb-28` a `pb-36`) no container principal (`<main>`), evitando toques acidentais na linha do sistema iOS.
-- **Simulador Visual no Modo Teste**: Inclusão de seletor rápido no topo permitindo alternar entre modo nativo, iPhone Notch (11/12/13/14), iPhone Dynamic Island (14 Pro/15/16) e Tablet vertical, possibilitando teste visual instantâneo em qualquer navegador desktop ou mobile.
+## 1. Visão Geral & Objetivos
+Adaptar automaticamente o layout mobile do **IronCoach** para todas as gerações do iPhone a partir do **iPhone 11** (`375px` a `440px` de largura CSS), garantindo:
+- **Separação dedicada abaixo da barra de status do iOS (Notch / Dynamic Island)**: O cabeçalho principal ficará posicionado imediatamente abaixo de uma faixa superior dedicada à área segura da barra de status (`44px–48px` para modelos com Notch e `54px–59px` para modelos com Dynamic Island), impedindo qualquer colisão visual com a câmera frontal, sensores ou relógio/indicadores do iOS.
+- **Detecção automática em PWA, Safari e Preview Mobile**: Um motor reativo identificará automaticamente a geometria da tela e o perfil do dispositivo (`Notch` para iPhone 11/12/13/14 ou `Dynamic Island` para iPhone 14 Pro/15/16) tanto quando instalado na Tela de Início (PWA) quanto no navegador ou em janelas mobile de preview (`375px–440px`), sincronizando variáveis CSS (`--sat`, `--sab`, `--sal`, `--sar`) em tempo real.
+- **Otimização completa de Cabeçalho, Barra Inferior, Modais e Tela de Treino**: Ajuste de alturas dinâmicas (`100dvh`), áreas de toque ergonômicas (`≥ 44px`), recuo inferior para a barra Home do iOS (`34px`) e densidade responsiva nos cards de execução de treino, cronômetro de descanso e janelas modais.
 
 ---
 
-## 1. Visão Geral & Ergonomia Mobile (iOS)
+## 2. Perfis de Dispositivos Suportados Automaticamente
 
-A partir do iPhone 11, todos os modelos da Apple utilizam telas sem bordas com cantos arredondados e recortes físicos no topo:
-1. **Entalhe Tradicional (Notch)**: iPhone 11, 11 Pro/Max, 12, 13, 14 e 14 Plus (~$44\text{px}$ a $47\text{px}$ no topo).
-2. **Ilha Dinâmica (Dynamic Island)**: iPhone 14 Pro/Max, linha iPhone 15 e linha iPhone 16 (~$54\text{px}$ no topo, em formato de pílula central flutuante).
-3. **Indicador de Início (Home Indicator Bar)**: Faixa de gesto na parte inferior de todos os modelos (~$34\text{px}$ na base).
-
-No modo PWA (`apple-mobile-web-app-capable: yes` com `viewport-fit=cover`), o navegador renderiza o conteúdo sob o vidro completo. O IronCoach precisa garantir que nenhum controle tocável fique posicionado sob esses recortes e que a barra de abas inferior tenha área de descanso ergonômica para o polegar.
-
-```
-+-------------------------------------------------------+
-|  ••• 9:41             ( DYNAMIC ISLAND )          [=] | <- pt-safe / env(safe-area-inset-top)
-+-------------------------------------------------------+
-|  [Logo] IronCoach       [Treinador v]       [Instalar] | <- Header protegido contra sobreposição
-+-------------------------------------------------------+
-|                                                       |
-|  [ CONTEUDO DO TREINO / LISTA / EXERCICIOS ]          | <- Área de rolagem com folga inferior
-|                                                       |
-+-------------------------------------------------------+
-|  [ Cliente ]   [ Agenda ]   [ Criar ]   [ Execução ]  | <- Barra de abas elevada
-+-------------------------------------------------------+
-|                  ────── (Home Bar) ──────             | <- pb-safe / env(safe-area-inset-bottom)
-+-------------------------------------------------------+
-```
+| Geração / Modelo | Largura × Altura CSS (pt) | Recorte Superior | Inset Topo (`--sat`) | Inset Base (`--sab`) |
+| :--- | :--- | :--- | :--- | :--- |
+| **iPhone 11 Pro / 12 mini / 13 mini** | `375 × 812` | Notch | `44px` – `50px` | `34px` |
+| **iPhone 11 / XR / 11 Pro Max** | `414 × 896` | Notch | `48px` / `44px` | `34px` |
+| **iPhone 12 / 12 Pro / 13 / 13 Pro / 14** | `390 × 844` | Notch | `47px` | `34px` |
+| **iPhone 12 Pro Max / 13 Pro Max / 14 Plus** | `428 × 926` | Notch | `47px` | `34px` |
+| **iPhone 14 Pro / 15 / 15 Pro / 16** | `393 × 852` | Dynamic Island | `59px` | `34px` |
+| **iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus** | `430 × 932` | Dynamic Island | `59px` | `34px` |
+| **iPhone 16 Pro / 16 Pro Max** | `402 × 874` / `440 × 956` | Dynamic Island | `62px` | `34px` |
 
 ---
 
-## 2. Experiência do Usuário & Design Visual
+## 3. Arquitetura da Solução
 
-### A. Cabeçalho Dinâmico com Fundo Contínuo
-- O cabeçalho (`Header.tsx`) receberá classes de utilitário `pt-safe` para preenchimento vertical automático respeitando a safe area.
-- O fundo escuro (`bg-slate-950/95`) se estende até o topo absoluto da tela, criando uma transição visual contínua com a barra de status do iOS (configurada com `statusBarStyle: 'black-translucent'`).
-- Os botões de alternância de perfil, seleção de aluno e botão PWA se manterão alinhados horizontalmente com altura mínima de toque de $44\text{px}$.
+### 3.1. Detecção Automática de Geometria iPhone (`hooks/useIPhoneSafeArea.ts`)
+- Criar o hook e provedor leve que inspeciona:
+  1. `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` nativos do WebKit/iOS.
+  2. Dimensões de `window.screen` e `window.innerWidth` / `window.visualViewport` (`375px` a `440px`) para classificar automaticamente entre:
+     - **Perfil Notch** (`375px`, `390px`, `414px`, `428px` em modo retrato): aplica `--sat: max(env(safe-area-inset-top, 0px), 47px)` e `--sab: max(env(safe-area-inset-bottom, 0px), 34px)`.
+     - **Perfil Dynamic Island** (`393px`, `402px`, `430px`, `440px` em modo retrato): aplica `--sat: max(env(safe-area-inset-top, 0px), 59px)` e `--sab: max(env(safe-area-inset-bottom, 0px), 34px)`.
+     - **Modo Paisagem (Landscape)**: ajusta recuos laterais (`--sal` / `--sar: 47px–59px`) e reduz o topo para `0px` mantendo a barra inferior segura (`21px`).
+- Atualiza atributos `data-iphone-cutout="notch | dynamic-island | none"` no `<html>` em mudanças de orientação (`orientationchange`) e redimensionamento (`resize`).
 
-### B. Barra Inferior com Safe Area e Thumb Ergonomics
-- A `BottomNav.tsx` receberá `pb-safe` com padding base seguro, elevando os ícones e rótulos cerca de $24\text{px}$–$34\text{px}$ acima da barra de gestos do iOS.
-- O fundo com efeito de vidro fosco (`backdrop-blur-xl bg-slate-950/95`) continuará até a borda inferior absoluta da tela, garantindo estética nativa.
-- O container principal `<main>` terá compensação de rolagem (`pb-32 sm:pb-36`) para que botões de ação final (como "Concluir Série" ou "Finalizar Treino") nunca fiquem escondidos atrás da barra inferior.
+### 3.2. Folha de Estilos Global e Variáveis Safe-Area (`app/globals.css` & `app/layout.tsx`)
+- Configurar `min-h-[100dvh]` e `overscroll-behavior-y: none` para evitar saltos de barra de endereço no Safari iOS.
+- Criar utilitários dedicados para a separação da barra de status do iOS:
+  - `.ios-status-bar-spacer`: faixa fixa/sticky no topo com altura `var(--sat)` e fundo sólido (`bg-slate-950`) que isola a área do Notch / Dynamic Island.
+  - `.sticky-below-status-bar`: posiciona o cabeçalho principal em `top: var(--sat)` logo abaixo da área de status do iOS.
+  - `.modal-safe-container`: garante que todos os modais respeitem `padding-top: calc(var(--sat) + 0.75rem)` e `padding-bottom: calc(var(--sab) + 0.75rem)`.
 
-### C. Seletor de Simulação Interativo (Notch, Dynamic Island & Tablet)
-- Na barra de controle do topo, o botão de alternância de moldura será aprimorado com um menu seletor rápido:
-  1. **Nativo / Tela Cheia** (para uso direto no iPhone real).
-  2. **Simular iPhone Notch** (proporção 19.5:9, recorte do entalhe com câmera e sensor no topo, simulação de safe area).
-  3. **Simular iPhone Dynamic Island** (proporção 19.5:9, pílula preta com lente de câmera frontal e sensor TrueDepth, simulação de safe area expandida).
-  4. **Simular Tablet Vertical** (proporção iPad 3:4 com moldura para sala de musculação).
+### 3.3. Cabeçalho Separado Abaixo da Barra de Status (`components/Header.tsx`)
+- Renderizar a faixa superior dedicada da barra de status (`height: var(--sat)`) com acabamento escuro integrado ao iOS, separada por uma linha sutil, mantendo o `<header>` principal logo abaixo.
+- Ajustar dimensões para telas de `375px–430px`:
+  - Compactar o seletor `"Treinador | Ver como Aluno"` e os botões laterais para nunca truncarem o nome do aluno ou a logo **IronCoach** em telas de `375px` (iPhone 11 Pro / 12 mini / 13 mini) e `390px`/`393px` (iPhone 12–16).
+  - Garantir área mínima de toque de `44px` nos botões interativos do topo.
 
-### D. Modais e Telas Cheias (Overlay)
-- A tela dedicada de execução de exercício (`ExerciseDedicatedPageView.tsx`) e modais de tela cheia (`PsePickerModal.tsx`, `DynamicSubstitutionModal.tsx`, etc.) receberão proteções `pt-safe` e `pb-safe`, impedindo que botões de fechar/voltar colidam com o recorte da câmera.
+### 3.4. Barra de Navegação Inferior & Home Indicator (`components/BottomNav.tsx`)
+- Ajustar a altura e o `padding-bottom` para `calc(var(--sab) + 0.375rem)`, isolando os botões de navegação (`Cliente`, `Agenda`, `Criar Treino`, `Execução` / `Meu Treino`, `Minha Dieta`, `Meu Progresso`) da barra Home do iOS (`34px`).
+- Otimizar tipografia e espaçamento interno das abas para `375px–430px`, mantendo alvos de toque de `52px–56px` sem ultrapassar o orçamento de altura fixa da tela.
 
----
-
-## 3. Decisões Técnicas & Arquitetura
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    Root Layout & Viewport                     │
-│    viewport-fit=cover  |  appleWebApp.statusBarStyle='black' │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
-                ┌──────────────┴──────────────┐
-                ▼                             ▼
-  ┌───────────────────────────┐ ┌───────────────────────────┐
-  │   CSS Safe-Area Helpers   │ │  Device Simulator Engine  │
-  │  pt-safe: env(safe-top)   │ │  - none                   │
-  │  pb-safe: env(safe-bot)   │ │  - iphone-notch           │
-  │  pl-safe: env(safe-left)  │ │  - iphone-dynamic-island  │
-  │  pr-safe: env(safe-right) │ │  - tablet-portrait        │
-  └─────────────┬─────────────┘ └─────────────┬─────────────┘
-                │                             │
-                ▼                             ▼
-  ┌─────────────────────────────────────────────────────────┐
-  │                   App Components Tree                   │
-  │  - Header (pt-safe + Device Selector)                   │
-  │  - Main Container (pb-safe + scroll clearance)          │
-  │  - BottomNav (pb-safe + touch hitboxes)                 │
-  │  - Modais & Overlays (pt-safe + pb-safe)                │
-  └─────────────────────────────────────────────────────────┘
-```
-
-### Decisão 1: Abordagem Híbrida (CSS Nativo + Variáveis de Simulação)
-- *Abordagem*: Utilizaremos `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com fallbacks baseados em variáveis CSS (`--safe-top`, `--safe-bottom`). Em dispositivos reais, o navegador injeta os valores do hardware. No simulador desktop, as variáveis assumem os valores precisos do iPhone 11–14 (Notch: $44\text{px}$) ou iPhone 14 Pro–16 (Dynamic Island: $54\text{px}$).
-- *Vantagem*: Permite validar e demonstrar o funcionamento diretamente na interface web sem exigir um iPhone físico conectado.
-
-### Decisão 2: Prevenção de Zoom Involuntário em Formulários iOS
-- No Safari iOS, campos de texto (`<input>`, `<select>`) com tamanho de fonte menor que $16\text{px}$ disparam um zoom automático que quebra o layout. Adicionaremos regra de segurança garantindo `text-base sm:text-sm` em inputs focados e `touch-action: manipulation` para evitar duplo toque acidental.
+### 3.5. Tela de Execução de Treino, Cronômetro e Modais (`app/page.tsx`, `WorkoutExecutionSection.tsx`, `ExerciseDedicatedPageView.tsx`, `RestCountdownTimer.tsx`, Modais)
+- **Container Principal (`app/page.tsx`)**: Ajustar o `padding-bottom` da `<main>` para `calc(5.25rem + var(--sab))` e posicionar notificações flutuantes (`syncNotice`) em `top: calc(var(--sat) + 4rem)` para nunca ficarem atrás da Dynamic Island.
+- **Execução de Treino & Página Dedicada de Exercício (`WorkoutExecutionSection.tsx` & `ExerciseDedicatedPageView.tsx`)**:
+  - Compactar paddings laterais e grades de inputs (Carga `kg`, Repetições, RIR/PSE) para encaixar perfeitamente em `375px–430px` sem rolagem horizontal.
+  - Posicionar cabeçalhos fixos e barras de ação inferiores respeitando `--sat` e `--sab`.
+- **Cronômetro de Descanso (`RestCountdownTimer.tsx`)**: Posicionar o banner flutuante acima do `BottomNav` levando em conta `var(--sab)`.
+- **Modais e Tela de Login (`AuthScreen.tsx`, `StudentSettingsModal.tsx`, `TrainerProfileModal.tsx`, `PsePickerModal.tsx`, `DynamicSubstitutionModal.tsx`, `ExerciseInstructionsModal.tsx`)**:
+  - Usar `max-h-[calc(100dvh-var(--sat)-var(--sab)-1.5rem)]` e recuos seguros para que botões de fechar (no topo) e botões de salvar/confirmar (no rodapé) fiquem 100% livres do Notch/Dynamic Island e da barra Home.
 
 ---
 
-## 4. Etapas de Execução
-
-1. **Definição de Classes de Safe Area no CSS Global (`app/globals.css`)**:
-   - Criação de utilitários `@layer utilities` para `pt-safe`, `pb-safe`, `pl-safe`, `pr-safe` e `h-screen-safe`.
-   - Regras de scroll suave iOS (`-webkit-overflow-scrolling: touch`) e controle de zoom de formulários.
-2. **Atualização do Cabeçalho (`components/Header.tsx`)**:
-   - Aplicação de `pt-safe` no container principal.
-   - Integração do seletor visual de dispositivos (Nativo / iPhone Notch / iPhone Dynamic Island / Tablet).
-3. **Atualização da Barra Inferior (`components/BottomNav.tsx`)**:
-   - Aplicação de `pb-safe` para separação da Home Bar.
-   - Ajuste dos botões de toque com tamanho mínimo de $44\text{px}$.
-4. **Atualização do Container Principal e Simulador de Dispositivo (`app/page.tsx`)**:
-   - Renderização dos mockups realistas de Entalhe e Dynamic Island quando o modo de teste estiver ativo.
-   - Ajuste do padding inferior de `<main>` para acomodar a barra inferior mais a safe area.
-5. **Ajustes nos Modais de Tela Cheia e Execução de Treino**:
-   - Garantir que a visualização de execução do exercício e os modais flutuantes usem `pt-safe` e `pb-safe`.
-6. **Verificação de Compilação & Lint**:
-   - Execução de `lint_applet` e `compile_applet` para assegurar integridade completa do código.
+## 4. Verificação
+1. Validar que todas as larguras de iPhone (`375px`, `390px`, `393px`, `402px`, `414px`, `428px`, `430px`, `440px`) recebem automaticamente o perfil de área segura correspondente (`Notch` vs `Dynamic Island`).
+2. Confirmar que o cabeçalho fica posicionado abaixo da barra de status do iOS e a barra inferior respeita o Home Indicator (`34px`).
+3. Executar `lint_applet` e `compile_applet` para assegurar zero erros de TypeScript ou build.

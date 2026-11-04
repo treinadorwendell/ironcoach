@@ -16,11 +16,29 @@
         "contractType": { "type": "string", "maxLength": 50 },
         "contractValue": { "type": "number" },
         "phone": { "type": "string", "maxLength": 50 },
+        "accessPassword": { "type": "string", "maxLength": 100 },
+        "trainerUid": { "type": "string", "maxLength": 128 },
         "notes": { "type": "string", "maxLength": 2000 },
         "createdAt": { "type": "string", "maxLength": 50 },
         "updatedAt": { "type": "string", "maxLength": 50 }
       },
-      "required": ["id", "name", "email", "contractType", "contractValue"]
+      "required": ["id", "name", "birthDate", "email", "phone", "contractType", "contractValue"]
+    },
+    "StudentAccessAccount": {
+      "title": "StudentAccessAccount",
+      "description": "Credencial de acesso exclusivo do aluno gerada após o cadastro completo pelo treinador",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "maxLength": 128 },
+        "trainerUid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "birthDate": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "accessPassword": { "type": "string", "maxLength": 100 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["clientId", "trainerUid", "name", "birthDate", "email", "phone", "accessPassword"]
     },
     "WorkoutProgram": {
       "title": "WorkoutProgram",
@@ -161,6 +179,10 @@
     }
   },
   "firestore": {
+    "/studentAccounts/{emailKey}": {
+      "schema": "StudentAccessAccount",
+      "description": "Diretório de contas de alunos autorizados pelo treinador para login exclusivo do aluno"
+    },
     "/users/{userId}/clients/{clientId}": {
       "schema": "Client",
       "description": "Coleção de alunos cadastrados pelo personal trainer"

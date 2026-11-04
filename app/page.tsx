@@ -9,7 +9,7 @@ import {
   TrainerProfile,
   AppUserRole,
   StudentNavSection,
-  DevicePreviewMode,
+  StudentSessionContext,
 } from '@/types';
 import {
   storage,
@@ -28,6 +28,7 @@ import { StudentDietView } from '@/components/StudentDietView';
 import { WorkoutHistoryPage } from '@/components/WorkoutHistoryPage';
 import { AuthScreen } from '@/components/AuthScreen';
 import { TrainerProfileModal } from '@/components/TrainerProfileModal';
+import { StudentSettingsModal } from '@/components/StudentSettingsModal';
 import { testConnection, cloudSync, auth, logoutUser } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { RefreshCw, GraduationCap, ShieldCheck } from 'lucide-react';
@@ -36,10 +37,10 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState<MainNavSection>('agenda');
-  const [deviceMode, setDeviceMode] = useState<DevicePreviewMode>('none');
 
   // Role & Student Portal states
   const [appRole, setAppRole] = useState<AppUserRole>('trainer');
+  const [studentSession, setStudentSession] = useState<StudentSessionContext | null>(null);
   const [studentSection, setStudentSection] = useState<StudentNavSection>('meu-treino');
   const [activeStudentId, setActiveStudentId] = useState<string>('');
 
@@ -61,6 +62,7 @@ export default function Home() {
   // Trainer Profile state & modal
   const [trainerProfile, setTrainerProfile] = useState<TrainerProfile | null>(null);
   const [isTrainerProfileModalOpen, setIsTrainerProfileModalOpen] = useState(false);
+  const [isStudentSettingsModalOpen, setIsStudentSettingsModalOpen] = useState(false);
 
   // Hook de sincronização forçada com o Firestore ao retornar ao app após inatividade
   const { isSyncing: isResumingSync, syncNotice } = useInactivitySync({
@@ -80,16 +82,23 @@ export default function Home() {
       const loadedCalendar = storage.getCalendarEvents();
       const savedRole = storage.getAppRole();
       const savedStudentId = storage.getActiveStudentId();
+      const savedStudentSession = storage.getStudentSession();
 
       setClients(loadedClients);
       setWorkouts(loadedWorkouts);
       setCalendarEvents(loadedCalendar);
-      setAppRole(savedRole);
 
-      if (savedStudentId && loadedClients.some((c) => c.id === savedStudentId)) {
-        setActiveStudentId(savedStudentId);
-      } else if (loadedClients.length > 0) {
-        setActiveStudentId(loadedClients[0].id);
+      if (savedStudentSession) {
+        setStudentSession(savedStudentSession);
+        setAppRole('student');
+        setActiveStudentId(savedStudentSession.clientId);
+      } else {
+        setAppRole(savedRole);
+        if (savedStudentId && loadedClients.some((c) => c.id === savedStudentId)) {
+          setActiveStudentId(savedStudentId);
+        } else if (loadedClients.length > 0) {
+          setActiveStudentId(loadedClients[0].id);
+        }
       }
 
       if (loadedWorkouts.length > 0) {
@@ -110,15 +119,41 @@ export default function Home() {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user) {
+        const activeStudSession = storage.getStudentSession();
+        const isLockedStudent = Boolean(
+          activeStudSession &&
+            (!user.email ||
+              user.email.trim().toLowerCase() === activeStudSession.email.trim().toLowerCase())
+        );
+
+        if (isLockedStudent && activeStudSession) {
+          setStudentSession(activeStudSession);
+          setAppRole('student');
+          setActiveStudentId(activeStudSession.clientId);
+          setIsTrainerProfileModalOpen(false);
+        } else {
+          setStudentSession(null);
+          storage.saveStudentSession(null);
+        }
+
+        const targetSyncUid =
+          isLockedStudent &&
+          activeStudSession?.trainerUid &&
+          activeStudSession.trainerUid !== 'local-trainer'
+            ? activeStudSession.trainerUid
+            : user.uid;
+
         // Hydrate local profile immediately if available for this user
-        const localProfile = storage.getTrainerProfile(user.uid);
+        const localProfile = storage.getTrainerProfile(targetSyncUid);
         if (localProfile) {
           setTrainerProfile(localProfile);
         }
 
-        // Guarantee trainer always lands on Agenda after login or registration
-        setCurrentSection('agenda');
-        cloudSync.subscribe(user.uid, {
+        if (!isLockedStudent) {
+          setCurrentSection('agenda');
+        }
+
+        cloudSync.subscribe(targetSyncUid, {
           onClientsChange: (cloudClients) => {
             setClients(cloudClients);
           },
@@ -146,15 +181,18 @@ export default function Home() {
             }
           },
           onTrainerProfileChange: (cloudProfile) => {
+            const currentStudSession = storage.getStudentSession();
             if (cloudProfile && cloudProfile.name?.trim() && cloudProfile.isProfileCompleted) {
               setTrainerProfile(cloudProfile);
             } else {
-              const fallback = storage.getTrainerProfile(user.uid);
+              const fallback = storage.getTrainerProfile(targetSyncUid);
               if (fallback && fallback.name?.trim() && fallback.isProfileCompleted) {
                 setTrainerProfile(fallback);
               } else {
                 setTrainerProfile(cloudProfile || fallback || null);
-                setIsTrainerProfileModalOpen(true);
+                if (!currentStudSession) {
+                  setIsTrainerProfileModalOpen(true);
+                }
               }
             }
           },
@@ -214,26 +252,50 @@ export default function Home() {
 
   // CLIENT HANDLERS
   const handleAddClient = (newClient: Client) => {
-    const updated = [newClient, ...clients];
+    const withTrainer: Client = {
+      ...newClient,
+      trainerUid: currentUser?.uid || newClient.trainerUid,
+    };
+    const updated = [withTrainer, ...clients];
     setClients(updated);
     storage.saveClients(updated);
-    cloudSync.syncClient(newClient);
+    cloudSync.syncClient(withTrainer);
   };
 
-  const handleUpdateClient = (updatedClient: Client) => {
-    const updated = clients.map((c) =>
-      c.id === updatedClient.id ? updatedClient : c
-    );
+  const handleUpdateClient = (updatedClient: Client, previousEmail?: string) => {
+    const resolvedTrainerUid =
+      studentSession?.trainerUid || updatedClient.trainerUid || currentUser?.uid;
+    const withTrainer: Client = {
+      ...updatedClient,
+      trainerUid: resolvedTrainerUid,
+    };
+    const exists = clients.some((c) => c.id === withTrainer.id);
+    const updated = exists
+      ? clients.map((c) => (c.id === withTrainer.id ? withTrainer : c))
+      : [withTrainer, ...clients];
     setClients(updated);
     storage.saveClients(updated);
-    cloudSync.syncClient(updatedClient);
+    cloudSync.syncClient(withTrainer, previousEmail);
+
+    if (studentSession && studentSession.clientId === withTrainer.id) {
+      const updatedSession: StudentSessionContext = {
+        ...studentSession,
+        name: withTrainer.name,
+        birthDate: withTrainer.birthDate,
+        email: withTrainer.email,
+        phone: withTrainer.phone || studentSession.phone,
+      };
+      setStudentSession(updatedSession);
+      storage.saveStudentSession(updatedSession);
+    }
   };
 
   const handleDeleteClient = (clientId: string) => {
+    const clientToRemove = clients.find((c) => c.id === clientId);
     const updatedClients = clients.filter((c) => c.id !== clientId);
     setClients(updatedClients);
     storage.saveClients(updatedClients);
-    cloudSync.removeClient(clientId);
+    cloudSync.removeClient(clientId, clientToRemove?.email);
 
     // Cascade clean up workouts
     const toDeleteWorkouts = workouts.filter((w) => w.clientId === clientId);
@@ -444,11 +506,27 @@ export default function Home() {
     (c) => c.id === activeWorkoutForExecution?.clientId
   );
 
+  const isStudentAccountLocked = Boolean(studentSession);
+
   // Student resolved for Student Portal view
-  const effectiveStudent =
-    clients.find((c) => c.id === activeStudentId) || clients[0] || null;
+  const effectiveStudent: Client | null = isStudentAccountLocked && studentSession
+    ? clients.find((c) => c.id === studentSession.clientId) || {
+        id: studentSession.clientId,
+        name: studentSession.name,
+        birthDate: studentSession.birthDate,
+        gender: 'Masculino',
+        weight: 75,
+        height: 175,
+        email: studentSession.email,
+        phone: studentSession.phone,
+        contractType: 'Presencial - Mensal',
+        contractValue: 750,
+        createdAt: new Date().toISOString().split('T')[0],
+      }
+    : clients.find((c) => c.id === activeStudentId) || clients[0] || null;
 
   const handleChangeRole = (nextRole: AppUserRole) => {
+    if (isStudentAccountLocked) return;
     setAppRole(nextRole);
     storage.saveAppRole(nextRole);
     if (nextRole === 'student') {
@@ -461,6 +539,7 @@ export default function Home() {
   };
 
   const handleSelectStudentId = (studentId: string) => {
+    if (isStudentAccountLocked) return;
     setActiveStudentId(studentId);
     storage.saveActiveStudentId(studentId);
     setActiveWorkoutForExecution(null);
@@ -469,105 +548,60 @@ export default function Home() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-3 sm:p-6">
+      <div className="min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-6 pt-[calc(var(--sat)+0.75rem)] pb-[calc(var(--sab)+0.75rem)]">
         <AuthScreen
           mode="fullscreen"
           isOpen={true}
           initialRole={appRole}
-          onSuccess={(user, chosenRole) => {
+          onSuccess={(user, chosenRole, loggedStudentSession) => {
             setCurrentUser(user);
-            if (chosenRole) {
-              setAppRole(chosenRole);
-              storage.saveAppRole(chosenRole);
+            if (chosenRole === 'student' && loggedStudentSession) {
+              setStudentSession(loggedStudentSession);
+              setAppRole('student');
+              setActiveStudentId(loggedStudentSession.clientId);
+              setStudentSection('meu-treino');
+            } else {
+              setStudentSession(null);
+              storage.saveStudentSession(null);
+              setAppRole('trainer');
+              storage.saveAppRole('trainer');
+              setCurrentSection('agenda');
             }
-            setCurrentSection('agenda');
           }}
         />
       </div>
     );
   }
 
-  const isFramed = deviceMode !== 'none';
-
   return (
-    <div
-      className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center transition-all ${
-        isFramed ? 'py-3 sm:py-8 px-2 sm:px-4 bg-slate-900/80 justify-center' : 'w-full'
-      }`}
-    >
-      {/* Device Frame Wrapper (Supports iPhone Notch 11-14, iPhone Dynamic Island 14P-16, iPad Tablet, and Native Fullscreen) */}
-      <div
-        className={`w-full flex flex-col transition-all relative ${
-          deviceMode === 'notch'
-            ? 'device-sim-notch max-w-[400px] h-[844px] min-h-[844px] bg-slate-950 rounded-[48px] border-[10px] border-slate-800 shadow-[0_25px_70px_rgba(0,0,0,0.95)] ring-1 ring-slate-700/60 overflow-hidden'
-            : deviceMode === 'dynamic-island'
-            ? 'device-sim-island max-w-[400px] h-[852px] min-h-[852px] bg-slate-950 rounded-[50px] border-[10px] border-slate-800 shadow-[0_25px_70px_rgba(0,0,0,0.95)] ring-1 ring-slate-700/60 overflow-hidden'
-            : deviceMode === 'tablet'
-            ? 'device-sim-tablet max-w-[768px] min-h-[960px] bg-slate-950 rounded-[32px] border-[8px] border-slate-800 shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden ring-1 ring-slate-700/50'
-            : 'w-full max-w-none flex-1'
-        }`}
-      >
-        {/* iPhone Notch Simulation (iPhone 11, 12, 13, 14) */}
-        {deviceMode === 'notch' && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 pointer-events-none select-none flex flex-col items-center">
-            <div className="w-40 h-7 bg-black rounded-b-2xl flex items-center justify-center gap-3 px-3 shadow-md">
-              <div className="w-12 h-1 bg-slate-800 rounded-full" />
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700/80 flex items-center justify-center">
-                <div className="w-1 h-1 rounded-full bg-blue-900/60" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* iPhone Dynamic Island Simulation (iPhone 14 Pro, 15, 16) */}
-        {deviceMode === 'dynamic-island' && (
-          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-50 pointer-events-none select-none">
-            <div className="w-28 h-8 bg-black rounded-full flex items-center justify-between px-2.5 shadow-lg border border-slate-900/80">
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
-                <div className="w-1 h-1 rounded-full bg-blue-900/50" />
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-mono text-slate-300 font-bold">IronCoach</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tablet Camera / Speaker Notch Simulation (when tablet framed) */}
-        {deviceMode === 'tablet' && (
-          <div className="w-full flex justify-center py-2 bg-slate-950 select-none">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-800 border border-slate-700" />
-              <span className="w-10 h-1.5 rounded-full bg-slate-800" />
-            </div>
-          </div>
-        )}
-
-        {/* iPhone Home Indicator Gesture Bar Simulation */}
-        {(deviceMode === 'notch' || deviceMode === 'dynamic-island') && (
-          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-50 pointer-events-none select-none">
-            <div className="w-32 h-1 bg-slate-400/80 rounded-full" />
-          </div>
-        )}
-
+    <div className="min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col items-center w-full transition-all">
+      <div className="w-full max-w-none flex-1 flex flex-col transition-all relative">
         {/* Global Header */}
         <Header
-          deviceMode={deviceMode}
-          onChangeDeviceMode={(mode) => setDeviceMode(mode)}
           activeClientName={
             currentSection === 'execucao' ? activeClient?.name : undefined
           }
           currentUser={currentUser}
           trainerProfile={trainerProfile}
-          onOpenTrainerProfile={() => setIsTrainerProfileModalOpen(true)}
-          appRole={appRole}
-          onChangeRole={handleChangeRole}
+          onOpenTrainerProfile={() => {
+            if (!isStudentAccountLocked) {
+              setIsTrainerProfileModalOpen(true);
+            }
+          }}
+          onOpenStudentSettings={() => {
+            setIsStudentSettingsModalOpen(true);
+          }}
+          appRole={isStudentAccountLocked ? 'student' : appRole}
+          onChangeRole={isStudentAccountLocked ? undefined : handleChangeRole}
+          isStudentAccountLocked={isStudentAccountLocked}
           clients={clients}
           activeStudentId={effectiveStudent?.id}
-          onSelectStudentId={handleSelectStudentId}
+          onSelectStudentId={isStudentAccountLocked ? undefined : handleSelectStudentId}
           onLogout={async () => {
             try {
+              setIsStudentSettingsModalOpen(false);
+              storage.saveStudentSession(null);
+              setStudentSession(null);
               await logoutUser();
               setCurrentUser(null);
             } catch (e) {
@@ -577,8 +611,8 @@ export default function Home() {
         />
 
         {/* Main Section Content with Safe-Area Clearance */}
-        <main className="flex-1 p-3 sm:p-5 lg:p-6 pb-28 sm:pb-32 pb-safe overflow-y-auto w-full min-w-0">
-          {appRole === 'student' ? (
+        <main className="flex-1 pt-3 sm:pt-5 lg:pt-6 pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-5 lg:px-6 pb-[calc(5.75rem+var(--sab))] sm:pb-32 overflow-y-auto w-full min-w-0">
+          {(isStudentAccountLocked || appRole === 'student') ? (
             /* VISÃO DO ALUNO (PORTAL DE RECEBIMENTO E EXECUÇÃO) */
             !effectiveStudent ? (
               <div className="max-w-xl mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
@@ -781,16 +815,15 @@ export default function Home() {
 
         {/* Toast Notificação de Sincronização após Inatividade com o Firestore */}
         {syncNotice && (
-          <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-md text-emerald-300 text-xs font-bold animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-none">
+          <div className="fixed top-[calc(var(--sat)+4.25rem)] left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-md text-emerald-300 text-xs font-bold animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-none max-w-[92vw]">
             <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 shrink-0 ${isResumingSync ? 'animate-spin' : ''}`} />
-            <span>{syncNotice}</span>
+            <span className="truncate">{syncNotice}</span>
           </div>
         )}
 
         {/* Fixed Touch-Friendly Bottom Navigation Bar */}
         <BottomNav
-          isFramed={isFramed}
-          appRole={appRole}
+          appRole={isStudentAccountLocked ? 'student' : appRole}
           studentSection={studentSection}
           onSelectStudentSection={(sec) => {
             if (sec === 'meu-treino') {
@@ -800,6 +833,7 @@ export default function Home() {
           }}
           currentSection={currentSection}
           onSelectSection={(sec) => {
+            if (isStudentAccountLocked) return;
             if (sec === 'execucao') {
               const savedSession = storage.getActiveSession();
               if (savedSession && savedSession.isStarted) {
@@ -821,7 +855,7 @@ export default function Home() {
         />
 
         {/* Modal de Perfil do Treinador (Obrigatório no 1º acesso no Perfil Treinador) */}
-        {isTrainerProfileModalOpen && appRole === 'trainer' && (
+        {isTrainerProfileModalOpen && !isStudentAccountLocked && appRole === 'trainer' && (
           <TrainerProfileModal
             key={trainerProfile?.updatedAt || currentUser?.uid || 'trainer-profile'}
             isOpen={isTrainerProfileModalOpen}
@@ -832,9 +866,35 @@ export default function Home() {
             currentUser={currentUser}
             onClose={() => setIsTrainerProfileModalOpen(false)}
             onSaveProfile={handleSaveTrainerProfile}
-            onLogout={async () => {
+              onLogout={async () => {
               try {
                 setIsTrainerProfileModalOpen(false);
+                storage.saveStudentSession(null);
+                setStudentSession(null);
+                await logoutUser();
+                setCurrentUser(null);
+              } catch (e) {
+                console.error('Logout error:', e);
+              }
+            }}
+          />
+        )}
+
+        {/* Modal de Configurações do Aluno ao clicar na logo IronCoach */}
+        {isStudentSettingsModalOpen && (isStudentAccountLocked || appRole === 'student') && (
+          <StudentSettingsModal
+            isOpen={isStudentSettingsModalOpen}
+            student={effectiveStudent}
+            trainerProfile={trainerProfile}
+            currentUser={currentUser}
+            isStudentAccountLocked={isStudentAccountLocked}
+            onClose={() => setIsStudentSettingsModalOpen(false)}
+            onSaveStudent={handleUpdateClient}
+            onLogout={async () => {
+              try {
+                setIsStudentSettingsModalOpen(false);
+                storage.saveStudentSession(null);
+                setStudentSession(null);
                 await logoutUser();
                 setCurrentUser(null);
               } catch (e) {

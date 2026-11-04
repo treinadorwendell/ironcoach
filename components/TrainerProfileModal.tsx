@@ -2204,7 +2204,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 pt-safe pb-safe overflow-y-auto animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-5 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] overflow-y-auto animate-in fade-in duration-200">
         <div
           className={`w-full ${
             isFirstLoginMandatory
@@ -2212,7 +2212,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               : activeMainTab === 'dieta'
               ? 'max-w-6xl'
               : 'max-w-4xl'
-          } rounded-3xl bg-slate-900 border border-emerald-500/30 shadow-2xl shadow-emerald-950/50 overflow-hidden my-auto max-h-[92vh] flex flex-col`}
+          } rounded-3xl bg-slate-900 border border-emerald-500/30 shadow-2xl shadow-emerald-950/50 overflow-hidden my-auto max-h-modal-safe sm:max-h-[90dvh] flex flex-col`}
         >
           {/* Modal Header */}
           <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 border-b border-slate-800 flex items-start justify-between gap-3 shrink-0">

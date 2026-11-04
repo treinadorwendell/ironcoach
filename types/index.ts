@@ -35,8 +35,30 @@ export interface Client {
   contractType: ContractType;
   contractValue: number; // R$
   phone?: string;
+  accessPassword?: string; // Senha de acesso gerada pelo treinador
+  trainerUid?: string; // UID do treinador que cadastrou o aluno
   notes?: string;
   createdAt: string;
+}
+
+export interface StudentAccessAccount {
+  clientId: string;
+  trainerUid: string;
+  name: string;
+  birthDate: string;
+  email: string;
+  phone: string;
+  accessPassword: string;
+  updatedAt: string;
+}
+
+export interface StudentSessionContext {
+  clientId: string;
+  trainerUid: string;
+  email: string;
+  name: string;
+  birthDate: string;
+  phone: string;
 }
 
 export type MuscleGroup =
@@ -697,5 +719,41 @@ export interface ClientDietPlan {
 
 export type DevicePreviewMode = 'none' | 'notch' | 'dynamic-island' | 'tablet';
 
+export type PendingSyncOperationType =
+  | 'UPSERT_CLIENT'
+  | 'DELETE_CLIENT'
+  | 'UPSERT_WORKOUT'
+  | 'DELETE_WORKOUT'
+  | 'UPSERT_CALENDAR_EVENT'
+  | 'DELETE_CALENDAR_EVENT'
+  | 'UPSERT_COMPLETED_WORKOUT'
+  | 'DELETE_COMPLETED_WORKOUT'
+  | 'UPSERT_ACTIVE_SESSION'
+  | 'UPSERT_EXERCISE_SNAPSHOT'
+  | 'UPSERT_CUSTOM_EXERCISE'
+  | 'DELETE_CUSTOM_EXERCISE'
+  | 'UPSERT_DIET_PLAN'
+  | 'DELETE_DIET_PLAN'
+  | 'UPSERT_TRAINER_PROFILE'
+  | 'UPSERT_NUTRITION_LIBRARY';
 
+export interface PendingSyncOperation {
+  id: string;
+  type: PendingSyncOperationType;
+  entityId: string;
+  payload: unknown;
+  previousEmail?: string;
+  clientEmail?: string;
+  createdAt: string;
+  retryCount: number;
+  lastAttemptAt?: string;
+}
 
+export interface StudentIndependentProgressPersist {
+  clientId: string;
+  activeSession: ActiveWorkoutSession | null;
+  sessionsByProgram: Record<string, ActiveWorkoutSession>;
+  completedWorkouts: CompletedWorkoutRecord[];
+  exerciseSnapshots: ExerciseFinishedSnapshot[];
+  updatedAt: string;
+}

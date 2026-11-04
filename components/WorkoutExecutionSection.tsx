@@ -3666,11 +3666,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
       {/* WORKOUT FINISHED CELEBRATION & FEEDBACK REPORT MODAL */}
       {isFinishedModalOpen && workoutSummary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
           <div
             className={`w-full ${
               isReportViewOpen ? 'max-w-2xl' : 'max-w-md'
-            } my-auto max-h-[92vh] overflow-y-auto rounded-3xl bg-slate-900 border border-emerald-500/50 p-5 sm:p-6 shadow-2xl space-y-4 transition-all duration-200`}
+            } my-auto max-h-modal-safe sm:max-h-[90dvh] overflow-y-auto rounded-3xl bg-slate-900 border border-emerald-500/50 p-5 sm:p-6 shadow-2xl space-y-4 transition-all duration-200`}
           >
             <div className="text-center space-y-2">
               <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border-2 border-emerald-400">
@@ -4111,12 +4111,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       {/* MODAL DE ANÁLISE PRÉ-TREINO E HISTÓRICO DE RELATÓRIOS / METAS */}
       {preWorkoutHistoryModal && preWorkoutHistoryModal.isOpen && !isStudentView && (
         <div
-          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/85 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] overflow-y-auto animate-in fade-in duration-200"
           onClick={() => setPreWorkoutHistoryModal(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto rounded-3xl bg-slate-900 border border-cyan-500/50 p-5 sm:p-6 shadow-2xl space-y-4"
+            className="w-full max-w-2xl my-auto max-h-modal-safe sm:max-h-[90dvh] overflow-y-auto rounded-3xl bg-slate-900 border border-cyan-500/50 p-5 sm:p-6 shadow-2xl space-y-4"
           >
             {(() => {
               const analysis = storage.getPreWorkoutHistoryAnalysis(
@@ -4388,7 +4388,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       <AnimatePresence>
         {swapConfirmModal && swapConfirmModal.isOpen && (
           <div
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)]"
             onClick={() => setSwapConfirmModal(null)}
           >
             <motion.div
@@ -4396,7 +4396,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden p-5 sm:p-6 space-y-5"
+              className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-5 sm:p-6 space-y-5"
             >
               <div className="flex items-start gap-3.5">
                 <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
@@ -4456,7 +4456,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
       {/* Toast Feedback ao clicar em Concluir e Recolher */}
       {exerciseFinishedToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-emerald-500/60 text-emerald-200 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-[calc(5rem+var(--sab))] sm:bottom-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-emerald-500/60 text-emerald-200 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-4 duration-200 max-w-[92vw]">
           <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
             <Check className="w-3.5 h-3.5 stroke-[3]" />
           </div>
@@ -4490,11 +4490,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       {/* MODAL EXPLICATIVO: MODO VISUALIZAÇÃO DO TREINO */}
       {isViewModeModalOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[80] flex items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsViewModeModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">

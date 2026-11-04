@@ -21,53 +21,65 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User-scoped data: strictly private to each authenticated coach/trainer
+    // Student Access Directory (created by trainers so registered students can authenticate)
+    match /studentAccounts/{emailKey} {
+      allow get: if true;
+      allow list, write: if isSignedIn();
+    }
+
+    // User-scoped data (trainer & linked authenticated students)
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isSignedIn();
 
       // Clients
       match /clients/{clientId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
 
       // Workout Programs
       match /workouts/{workoutId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
 
       // Calendar Events
       match /calendar/{eventId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
 
       // Completed Workout History (exclusive per client profile)
       match /completedWorkouts/{workoutId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
 
       // Exercise History (weight progressions)
       match /exerciseHistory/{historyId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
 
       // Custom Exercise Database
       match /customExercises/{exerciseId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isSignedIn();
+        allow write: if isOwner(userId);
       }
 
       // Snapshots de exercícios concluídos e PSE
       match /exerciseSnapshots/{snapshotId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
+      }
+
+      // Diet Plans prescribed by trainer
+      match /dietPlans/{planId} {
+        allow read, write: if isSignedIn();
       }
 
       // Settings and Active Sessions between tablets
       match /settings/{settingId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
 
       // Any subcollection for this owner
       match /{allChildren=**} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn();
       }
     }
   }

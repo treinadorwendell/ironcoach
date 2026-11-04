@@ -50,6 +50,7 @@ import {
   Flame,
   Pencil,
   Plus,
+  Save,
   Scale,
   Search,
   Sparkles,
@@ -99,6 +100,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
   const [officialFoods, setOfficialFoods] = useState<NutritionFoodItem[]>([]);
   const [isLoadingFoods, setIsLoadingFoods] = useState<boolean>(true);
   const [saveToast, setSaveToast] = useState<string | null>(null);
+  const [isPrescriptionSaved, setIsPrescriptionSaved] = useState<boolean>(false);
   const [isIdrExpanded, setIsIdrExpanded] = useState<boolean>(false);
 
   // Add Item Inline Drawer State per Meal
@@ -112,6 +114,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>('');
 
   // New Schedule Modal / Inline State
+  const [isScheduleDropdownOpen, setIsScheduleDropdownOpen] = useState<boolean>(false);
   const [isNewScheduleOpen, setIsNewScheduleOpen] = useState<boolean>(false);
   const [newScheduleName, setNewScheduleName] = useState<string>('Cardápio Especial');
   const [newScheduleDays, setNewScheduleDays] = useState<number[]>([1, 3, 5]);
@@ -240,6 +243,29 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
       setSaveToast(toastMessage);
       setTimeout(() => setSaveToast(null), 2500);
     }
+  };
+
+  const handleSaveDietPrescription = () => {
+    const updatedPlan: ClientDietPlan = {
+      ...dietPlan,
+      updatedAt: new Date().toISOString(),
+    };
+    persistPlan(
+      updatedPlan,
+      `Prescrição da dieta de ${client.name} salva com sucesso!`
+    );
+    if (
+      onUpdateClient &&
+      updatedPlan.metabolicConfig.bodyFatPercent !== undefined &&
+      updatedPlan.metabolicConfig.bodyFatPercent !== client.bodyFatPercent
+    ) {
+      onUpdateClient({
+        ...client,
+        bodyFatPercent: updatedPlan.metabolicConfig.bodyFatPercent,
+      });
+    }
+    setIsPrescriptionSaved(true);
+    setTimeout(() => setIsPrescriptionSaved(false), 3000);
   };
 
   // Active Schedule
@@ -1079,32 +1105,100 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
       ==================================================================== */}
       {activeTab === 'prescricao' && (
         <div className="space-y-5">
-          {/* Seletor de Cardápios por Dias da Semana */}
+          {/* Seletor de Cardápios por Dias da Semana (Botão Dropdown com Nome do Cardápio) */}
           <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                {dietPlan.schedules.map((sched) => {
-                  const isSelected = sched.id === activeSchedule?.id;
-                  return (
-                    <button
-                      key={sched.id}
-                      type="button"
-                      onClick={() =>
-                        persistPlan({
-                          ...dietPlan,
-                          activeScheduleId: sched.id,
-                        })
-                      }
-                      className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
-                        isSelected
-                          ? 'bg-emerald-600 text-white border-emerald-400 shadow-md'
-                          : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      {sched.name}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-2 flex-wrap relative">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleDropdownOpen((prev) => !prev)}
+                    aria-expanded={isScheduleDropdownOpen}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-md text-xs font-extrabold flex items-center gap-2.5 transition cursor-pointer"
+                  >
+                    <Utensils className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+                    <span className="truncate max-w-[240px] sm:max-w-[320px]">
+                      {activeSchedule?.name || 'Selecionar Cardápio'}
+                    </span>
+                    {isScheduleDropdownOpen ? (
+                      <ChevronUp className="w-4 h-4 text-emerald-100 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-emerald-100 shrink-0" />
+                    )}
+                  </button>
+
+                  {isScheduleDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-slate-950 border border-slate-800 shadow-2xl p-2 z-40 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="px-2.5 py-1.5 border-b border-slate-800/80 flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                          Cardápios do Cliente ({dietPlan.schedules.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsScheduleDropdownOpen(false)}
+                          className="text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="max-h-60 overflow-y-auto space-y-1">
+                        {dietPlan.schedules.map((sched) => {
+                          const isSelected = sched.id === activeSchedule?.id;
+                          const schedDays = (sched.weekDays || [])
+                            .map((d) => WEEK_DAYS_SHORT.find((w) => w.day === d)?.short || '')
+                            .filter(Boolean)
+                            .join(', ');
+                          return (
+                            <button
+                              key={sched.id}
+                              type="button"
+                              onClick={() => {
+                                persistPlan({
+                                  ...dietPlan,
+                                  activeScheduleId: sched.id,
+                                });
+                                setIsScheduleDropdownOpen(false);
+                              }}
+                              className={`w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer border ${
+                                isSelected
+                                  ? 'bg-emerald-600/20 text-white border-emerald-500/60'
+                                  : 'bg-slate-900/70 hover:bg-slate-900 text-slate-300 border-transparent'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <span className="block truncate font-extrabold">
+                                  {sched.name}
+                                </span>
+                                <span className="block text-[10px] text-slate-400 truncate mt-0.5">
+                                  {sched.meals.length} refeições
+                                  {schedDays ? ` · Dias: ${schedDays}` : ''}
+                                </span>
+                              </div>
+                              {isSelected && (
+                                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pt-1.5 border-t border-slate-800/80">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsScheduleDropdownOpen(false);
+                            setIsNewScheduleOpen(true);
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Novo Cardápio por Dias</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="button"
@@ -2430,9 +2524,52 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
       )}
 
       {/* ====================================================================
-          VISÃO 4: PAINEL DO PROFISSIONAL (ALIMENTOS, RECEITAS, REFEIÇÕES & PORÇÕES)
+          BARRA FINAL: SALVAR PRESCRIÇÃO DA DIETA DO CLIENTE
       ==================================================================== */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs sm:text-sm font-extrabold text-white">
+              Prescrição Nutricional de {client.name}
+            </span>
+            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 tabular-nums">
+              {activeSchedule?.name} · {activeSchedule?.meals.length || 0} refeições ·{' '}
+              {Math.round(dayTotals.energyKcal)} kcal
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">
+            {isPrescriptionSaved ? (
+              <span className="text-emerald-400 font-bold">
+                ✓ Prescrição sincronizada e disponível imediatamente no painel do aluno.
+              </span>
+            ) : (
+              'Salve a prescrição para consolidar o cardápio, metas metabólicas e hidratação do cliente.'
+            )}
+          </p>
+        </div>
 
+        <button
+          type="button"
+          onClick={handleSaveDietPrescription}
+          className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg transition active:scale-95 cursor-pointer touch-manipulation shrink-0 ${
+            isPrescriptionSaved
+              ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/25'
+              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/60'
+          }`}
+        >
+          {isPrescriptionSaved ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+              <span>Prescrição Salva com Sucesso!</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+              <span>Salvar Prescrição do Cliente</span>
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Modal de Substituição Dinâmica (Alimento ou Refeição Inteira por Receita) */}
       <DynamicSubstitutionModal

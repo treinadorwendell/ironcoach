@@ -218,7 +218,7 @@ export function PsePickerModal({
   return (
     <AnimatePresence>
       <div
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md"
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--sat)+0.5rem)] bg-slate-950/80 backdrop-blur-md"
         onClick={onClose}
       >
         <motion.div
@@ -227,7 +227,7 @@ export function PsePickerModal({
           exit={{ opacity: 0, y: 40, scale: 0.96 }}
           transition={{ duration: 0.18 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh]"
+          className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-var(--sat)-0.5rem)] sm:max-h-[85dvh]"
         >
           {/* Header */}
           <div className="px-5 py-4 border-b border-slate-800/80 bg-slate-950/60 flex items-center justify-between shrink-0">

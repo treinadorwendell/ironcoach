@@ -1000,8 +1000,8 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
 
       {/* MODAL: COMENTÁRIO DA SESSÃO ATUAL */}
       {isCurrentCommentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col space-y-0 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg max-h-modal-safe rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col space-y-0 animate-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80">
               <div className="flex items-center gap-2.5">
@@ -1111,11 +1111,11 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
       {/* MODAL EXPLICATIVO: MODO VISUALIZAÇÃO DO TREINO */}
       {isViewModeModalOpen && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[80] flex items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsViewModeModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">

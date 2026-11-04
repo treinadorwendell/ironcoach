@@ -1,6 +1,5 @@
 [install]
-backend = "hardlink"
-prefer = "offline"
+backend = "copyfile"
 networkConcurrency = 16
 concurrentScripts = 4
 

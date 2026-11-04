@@ -12,7 +12,7 @@ import {
   CompletedWorkoutRecord,
   TrainerProfile,
 } from '@/types';
-import { storage } from '@/lib/storage';
+import { storage, isStudentAccessComplete } from '@/lib/storage';
 import { calculateHydrationTarget } from '@/lib/nutritionEngine';
 import { WorkoutHistoryPage } from './WorkoutHistoryPage';
 import { ClientNutritionWorkspace } from './ClientNutritionWorkspace';
@@ -45,6 +45,11 @@ import {
   SlidersHorizontal,
   Utensils,
   Droplet,
+  KeyRound,
+  Copy,
+  RefreshCw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface ClientSectionProps {
@@ -52,7 +57,7 @@ interface ClientSectionProps {
   trainerProfile?: TrainerProfile | null;
   onOpenTrainerProfile?: () => void;
   onAddClient: (client: Client) => void;
-  onUpdateClient: (client: Client) => void;
+  onUpdateClient: (client: Client, previousEmail?: string) => void;
   onDeleteClient: (clientId: string) => void;
   onStartWorkoutForClient: (client: Client) => void;
   onCreateWorkoutForClient: (client: Client) => void;
@@ -117,6 +122,30 @@ export function formatBirthDateMask(raw: string): string {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
 }
 
+export function formatPhoneMask(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+export function generateStudentPassword(studentName?: string): string {
+  const cleanFirst = (studentName || 'iron')
+    .trim()
+    .split(/\s+/)[0]
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z]/g, '')
+    .toLowerCase()
+    .slice(0, 5) || 'iron';
+  const randomDigits = Math.floor(1000 + Math.random() * 9000);
+  return `${cleanFirst}${randomDigits}`;
+}
+
 export const ClientSection: React.FC<ClientSectionProps> = ({
   clients,
   trainerProfile,
@@ -128,7 +157,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   onCreateWorkoutForClient,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [contractFilter, setContractFilter] = useState<DetailedPlanFilter>('Todos');
+  const [selectedPlanFilters, setSelectedPlanFilters] = useState<
+    Exclude<DetailedPlanFilter, 'Todos'>[]
+  >([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -186,6 +217,34 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     return clients.filter((c) => normalizeContractType(c.contractType) === filter).length;
   };
 
+  // Planejamentos / Planos disponíveis (com alunos vinculados ou já selecionados no filtro)
+  const availablePresencialPlans = PRESENCIAL_PLANS.filter(
+    (p) =>
+      clients.length === 0 ||
+      getPlanCount(p.fullType) > 0 ||
+      selectedPlanFilters.includes(p.fullType)
+  );
+
+  const availableOnlinePlans = ONLINE_PLANS.filter(
+    (p) =>
+      clients.length === 0 ||
+      getPlanCount(p.fullType) > 0 ||
+      selectedPlanFilters.includes(p.fullType)
+  );
+
+  const togglePlanFilter = (plan: Exclude<DetailedPlanFilter, 'Todos'>) => {
+    setSelectedPlanFilters((prev) =>
+      prev.includes(plan) ? prev.filter((item) => item !== plan) : [...prev, plan]
+    );
+  };
+
+  const selectedPlansStudentCount =
+    selectedPlanFilters.length === 0
+      ? clients.length
+      : clients.filter((c) =>
+          selectedPlanFilters.includes(normalizeContractType(c.contractType))
+        ).length;
+
   // Modal Form State (Quick Edit / New Client Registration)
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -194,6 +253,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   const [height, setHeight] = useState<string>('175');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [accessPassword, setAccessPassword] = useState('');
+  const [showModalPassword, setShowModalPassword] = useState(true);
+  const [copiedCredentialsToast, setCopiedCredentialsToast] = useState(false);
   const [contractCategory, setContractCategory] = useState<ContractCategory>('Presencial');
   const [contractType, setContractType] = useState<ContractType>('Presencial - Mensal');
   const [contractValue, setContractValue] = useState<string>('750');
@@ -201,6 +263,11 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
   const [formError, setFormError] = useState('');
 
   // Student Profile -> Informações Form State
+  const [infoName, setInfoName] = useState<string>('');
+  const [infoEmail, setInfoEmail] = useState<string>('');
+  const [infoPhone, setInfoPhone] = useState<string>('');
+  const [infoAccessPassword, setInfoAccessPassword] = useState<string>('');
+  const [showInfoPassword, setShowInfoPassword] = useState<boolean>(true);
   const [infoWeight, setInfoWeight] = useState<string>('75');
   const [infoHeight, setInfoHeight] = useState<string>('175');
   const [infoBirthDate, setInfoBirthDate] = useState<string>('');
@@ -213,11 +280,25 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
 
   const selectedProfileClient = clients.find((c) => c.id === selectedProfileClientId) || null;
 
+  const handleCopyCredentials = (studentName: string, studentEmail: string, studentPwd: string) => {
+    if (!studentEmail.trim() || !studentPwd.trim()) return;
+    const text = `Acesso do Aluno IronCoach\nAluno(a): ${studentName.trim() || 'Aluno'}\nE-mail: ${studentEmail.trim()}\nSenha: ${studentPwd.trim()}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+    setCopiedCredentialsToast(true);
+    setTimeout(() => setCopiedCredentialsToast(false), 2500);
+  };
+
   // Populate Info form whenever opening a student's Informações view
   const openStudentProfile = (client: Client, initialView: 'menu' | 'informacoes' | 'historico' | 'nutricao' = 'menu') => {
     const parsed = parseContractCategoryAndSub(client.contractType);
     setSelectedProfileClientId(client.id);
     setProfileSubView(initialView);
+    setInfoName(client.name || '');
+    setInfoEmail(client.email || '');
+    setInfoPhone(client.phone || '');
+    setInfoAccessPassword(client.accessPassword || '');
     setInfoWeight(String(client.weight || 75));
     setInfoHeight(String(client.height || 175));
     setInfoBirthDate(client.birthDate || '');
@@ -239,6 +320,8 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     setHeight('175');
     setEmail('');
     setPhone('');
+    setAccessPassword(generateStudentPassword('iron'));
+    setShowModalPassword(true);
     setContractCategory('Presencial');
     setContractType('Presencial - Mensal');
     setContractValue('750');
@@ -251,12 +334,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     const parsed = parseContractCategoryAndSub(client.contractType);
     setEditingClient(client);
     setName(client.name);
-    setBirthDate(client.birthDate);
+    setBirthDate(client.birthDate || '');
     setGender(client.gender);
     setWeight(String(client.weight));
     setHeight(String(client.height));
-    setEmail(client.email);
+    setEmail(client.email || '');
     setPhone(client.phone || '');
+    setAccessPassword(client.accessPassword || generateStudentPassword(client.name));
+    setShowModalPassword(true);
     setContractCategory(parsed.category);
     setContractType(parsed.normalized);
     setContractValue(String(client.contractValue));
@@ -301,16 +386,24 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
 
   const handleSubmitModal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setFormError('Por favor, informe o nome completo do aluno.');
+    if (!name.trim() || name.trim().length < 3) {
+      setFormError('Por favor, informe o Nome completo do aluno.');
       return;
     }
-    if (!birthDate.trim() || birthDate.trim().length < 8) {
-      setFormError('Informe a data de nascimento no formato DIA/MÊS/ANO (DD/MM/AAAA).');
+    if (!birthDate.trim() || birthDate.trim().length < 10) {
+      setFormError('Informe a Data de nascimento completa no formato DD/MM/AAAA.');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      setFormError('Informe um e-mail válido.');
+      setFormError('Informe um E-mail válido para o acesso do aluno.');
+      return;
+    }
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 8) {
+      setFormError('Informe o Número de telefone do aluno com DDD.');
+      return;
+    }
+    if (!accessPassword.trim() || accessPassword.trim().length < 6) {
+      setFormError('Gere ou digite uma Senha de acesso com pelo menos 6 caracteres para o aluno.');
       return;
     }
 
@@ -319,6 +412,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     const numValue = parseFloat(contractValue) || 0;
 
     if (editingClient) {
+      const previousEmail = editingClient.email;
       const updated: Client = {
         ...editingClient,
         name: name.trim(),
@@ -326,13 +420,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         gender,
         weight: numWeight,
         height: numHeight,
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         contractType,
         contractValue: numValue,
         phone: phone.trim(),
+        accessPassword: accessPassword.trim(),
         notes: notes.trim(),
       };
-      onUpdateClient(updated);
+      onUpdateClient(updated, previousEmail);
     } else {
       const newClient: Client = {
         id: `client-${Date.now()}`,
@@ -341,10 +436,11 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         gender,
         weight: numWeight,
         height: numHeight,
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         contractType,
         contractValue: numValue,
         phone: phone.trim(),
+        accessPassword: accessPassword.trim(),
         notes: notes.trim(),
         createdAt: new Date().toISOString().split('T')[0],
       };
@@ -358,8 +454,24 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
     e.preventDefault();
     if (!selectedProfileClient) return;
 
-    if (!infoBirthDate.trim() || infoBirthDate.trim().length < 8) {
-      setInfoError('Informe a data de nascimento em formato DIA/MÊS/ANO (ex: 15/08/1995).');
+    if (!infoName.trim() || infoName.trim().length < 3) {
+      setInfoError('Informe o Nome completo do aluno.');
+      return;
+    }
+    if (!infoBirthDate.trim() || infoBirthDate.trim().length < 10) {
+      setInfoError('Informe a Data de nascimento completa no formato DD/MM/AAAA (ex: 15/08/1995).');
+      return;
+    }
+    if (!infoEmail.trim() || !infoEmail.includes('@')) {
+      setInfoError('Informe um E-mail válido para o acesso exclusivo do aluno.');
+      return;
+    }
+    if (!infoPhone.trim() || infoPhone.replace(/\D/g, '').length < 8) {
+      setInfoError('Informe o Número de telefone do aluno com DDD.');
+      return;
+    }
+    if (!infoAccessPassword.trim() || infoAccessPassword.trim().length < 6) {
+      setInfoError('A Senha de acesso do aluno deve ter pelo menos 6 caracteres.');
       return;
     }
 
@@ -374,9 +486,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       return;
     }
 
+    const previousEmail = selectedProfileClient.email;
     setInfoError('');
     const updated: Client = {
       ...selectedProfileClient,
+      name: infoName.trim(),
+      email: infoEmail.trim().toLowerCase(),
+      phone: infoPhone.trim(),
+      accessPassword: infoAccessPassword.trim(),
       weight: numWeight,
       height: numHeight,
       birthDate: infoBirthDate.trim(),
@@ -385,7 +502,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       notes: infoNotes.trim(),
     };
 
-    onUpdateClient(updated);
+    onUpdateClient(updated, previousEmail);
     setInfoSavedToast(true);
     setTimeout(() => setInfoSavedToast(false), 3000);
   };
@@ -398,7 +515,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       (c.phone || '').toLowerCase().includes(searchTerm.toLowerCase());
     const normalizedPlan = normalizeContractType(c.contractType);
     const matchesContract =
-      contractFilter === 'Todos' || normalizedPlan === contractFilter;
+      selectedPlanFilters.length === 0 || selectedPlanFilters.includes(normalizedPlan);
     return matchesSearch && matchesContract;
   });
 
@@ -493,19 +610,123 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           )}
 
           <form onSubmit={handleSaveStudentInfo} className="space-y-5">
-            {/* BLOCO 1: EDITAR CLIENTE (Peso, Altura cm, Data de Nascimento DIA/MÊS/ANO) */}
+            {/* BLOCO 1: DADOS OBRIGATÓRIOS E CREDENCIAL DE ACESSO DO ALUNO */}
             <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md space-y-4">
-              <div className="border-b border-slate-800 pb-3">
-                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Editar Cliente</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Atualize peso, estatura em centímetros e data de nascimento em formato DIA/MÊS/ANO.
+              <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Cadastro & Acesso Exclusivo do Aluno</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Complete os 4 dados obrigatórios (Nome completo, Data de nascimento, E-mail e Telefone) e a senha para liberar o login exclusivo do aluno.
+                  </p>
+                </div>
+                {copiedCredentialsToast && (
+                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> Credenciais copiadas!
+                  </span>
+                )}
+              </div>
+
+              {/* Linha 1: Nome Completo, E-mail e Telefone */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Nome Completo *</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={infoName}
+                    onChange={(e) => setInfoName(e.target.value)}
+                    placeholder="Nome completo do aluno"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>E-mail de Login *</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={infoEmail}
+                    onChange={(e) => setInfoEmail(e.target.value)}
+                    placeholder="aluno@email.com"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Número de Telefone *</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={infoPhone}
+                    onChange={(e) => setInfoPhone(formatPhoneMask(e.target.value))}
+                    placeholder="(11) 98765-4321"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Linha 2: Senha Gerada pelo Treinador */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-extrabold text-cyan-300 flex items-center gap-1.5">
+                    <KeyRound className="w-4 h-4 text-cyan-400" />
+                    <span>Senha de Acesso do Aluno (Gerada pelo Treinador) *</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setInfoAccessPassword(generateStudentPassword(infoName))}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold border border-slate-700 transition cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Gerar Nova Senha</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCredentials(infoName, infoEmail, infoAccessPassword)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-200 text-xs font-bold border border-cyan-500/40 transition cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copiar Acesso</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showInfoPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={infoAccessPassword}
+                    onChange={(e) => setInfoAccessPassword(e.target.value)}
+                    placeholder="Mínimo de 6 caracteres"
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono font-bold text-cyan-300 focus:outline-none focus:border-cyan-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowInfoPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showInfoPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Envie este E-mail e Senha para o aluno acessar exclusivamente o Portal do Aluno.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
                 {/* Peso */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
@@ -554,7 +775,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Data de Nascimento</span>
+                    <span>Data de Nascimento *</span>
                   </label>
                   <input
                     type="text"
@@ -1080,206 +1301,203 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         </button>
       </div>
 
-      {/* Filtro de Planos Detalhado (Presencial: Mensal, Semanal, Avulsa | Online: Mensal, Trimestral, Semestral, Anual) */}
-      <div className="w-full">
-        {/* Mobile e Tablet: Botão de Drop List Agrupado */}
-        <div className="block lg:hidden relative" ref={planDropdownRef}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 sm:p-3 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-              <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 shrink-0">
-                <Layers className="w-4 h-4" />
+      {/* Botão com Multi-Select Dropdown List para Selecionar o Planejamento Disponível */}
+      <div className="w-full relative" ref={planDropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsPlanDropdownOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 active:scale-[0.99] text-xs sm:text-sm font-bold text-white shadow-md transition touch-manipulation cursor-pointer"
+          aria-expanded={isPlanDropdownOpen}
+          aria-haspopup="listbox"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+              <Layers className="w-4 h-4" />
+            </span>
+            <div className="text-left min-w-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                Selecionar Planejamento Disponível
               </span>
-              <span>Filtrar por Plano:</span>
+              <span className="truncate block text-xs sm:text-sm font-extrabold text-white">
+                {selectedPlanFilters.length === 0
+                  ? 'Todos os Planejamentos Disponíveis'
+                  : selectedPlanFilters.length === 1
+                  ? selectedPlanFilters[0]
+                  : `${selectedPlanFilters.length} planejamentos: ${selectedPlanFilters.join(', ')}`}
+              </span>
             </div>
+          </div>
 
-            <div className="relative flex-1 sm:max-w-xs">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-extrabold text-emerald-400 tabular-nums">
+              {selectedPlansStudentCount}{' '}
+              {selectedPlansStudentCount === 1 ? 'aluno' : 'alunos'}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                isPlanDropdownOpen ? 'rotate-180 text-emerald-400' : ''
+              }`}
+            />
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {isPlanDropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+              role="listbox"
+              aria-multiselectable="true"
+              className="absolute left-0 right-0 top-full mt-2 z-40 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/90 space-y-2.5 backdrop-blur-xl max-h-96 overflow-y-auto"
+            >
+              {/* Cabeçalho do Multi-Select */}
+              <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-800">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
+                  Planejamentos Disponíveis (Multi-Select)
+                </span>
+                {selectedPlanFilters.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlanFilters([])}
+                    className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                  >
+                    Limpar seleção ({selectedPlanFilters.length})
+                  </button>
+                )}
+              </div>
+
+              {/* Opção: Todos os Planejamentos Disponíveis */}
               <button
                 type="button"
-                onClick={() => setIsPlanDropdownOpen((prev) => !prev)}
-                className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-850 border border-slate-700/80 hover:border-emerald-500/50 active:scale-[0.99] text-xs font-bold text-white shadow-xs transition touch-manipulation cursor-pointer"
-                aria-expanded={isPlanDropdownOpen}
-                aria-haspopup="listbox"
+                role="option"
+                aria-selected={selectedPlanFilters.length === 0}
+                onClick={() => setSelectedPlanFilters([])}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-left cursor-pointer ${
+                  selectedPlanFilters.length === 0
+                    ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
+                    : 'hover:bg-slate-800/80 text-slate-200 border border-transparent'
+                }`}
               >
-                <span className="truncate">
-                  {contractFilter === 'Todos' ? 'Todos os Planos' : contractFilter}
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[11px] font-bold text-emerald-400 tabular-nums">
-                    {getPlanCount(contractFilter)} {getPlanCount(contractFilter) === 1 ? 'aluno' : 'alunos'}
-                  </span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                      isPlanDropdownOpen ? 'rotate-180 text-emerald-400' : ''
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
+                      selectedPlanFilters.length === 0
+                        ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+                        : 'bg-slate-950 border-slate-700'
                     }`}
-                  />
+                  >
+                    {selectedPlanFilters.length === 0 && (
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    )}
+                  </span>
+                  <span>Todos os Planejamentos Disponíveis</span>
                 </div>
+                <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+                  {clients.length}
+                </span>
               </button>
 
-              <AnimatePresence>
-                {isPlanDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute left-0 right-0 top-full mt-1.5 z-40 p-2 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/90 space-y-2 backdrop-blur-xl max-h-96 overflow-y-auto"
-                  >
-                    {/* Opção Todos */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setContractFilter('Todos');
-                        setIsPlanDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-left cursor-pointer ${
-                        contractFilter === 'Todos'
-                          ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
-                          : 'hover:bg-slate-800/80 text-slate-200'
-                      }`}
-                    >
-                      <span>Todos os Planos</span>
-                      <span className="text-[11px] font-bold text-slate-400 tabular-nums">
-                        {clients.length}
-                      </span>
-                    </button>
-
-                    {/* Grupo Presencial */}
-                    <div className="pt-1 border-t border-slate-800 space-y-1">
-                      <span className="px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                        <MapPin className="w-3 h-3" /> Presencial
-                      </span>
-                      {PRESENCIAL_PLANS.map((p) => {
-                        const isSelected = contractFilter === p.fullType;
-                        const count = getPlanCount(p.fullType);
-                        return (
-                          <button
-                            key={p.fullType}
-                            type="button"
-                            onClick={() => {
-                              setContractFilter(p.fullType);
-                              setIsPlanDropdownOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
+              {/* Grupo Presencial Disponível */}
+              {availablePresencialPlans.length > 0 && (
+                <div className="pt-1.5 border-t border-slate-800 space-y-1">
+                  <span className="px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3" /> Presencial Disponível
+                  </span>
+                  {availablePresencialPlans.map((p) => {
+                    const isSelected = selectedPlanFilters.includes(p.fullType);
+                    const count = getPlanCount(p.fullType);
+                    return (
+                      <button
+                        key={p.fullType}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => togglePlanFilter(p.fullType)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
+                          isSelected
+                            ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
+                            : 'hover:bg-slate-800/80 text-slate-300 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
                               isSelected
-                                ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
-                                : 'hover:bg-slate-800/80 text-slate-300'
+                                ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+                                : 'bg-slate-950 border-slate-700'
                             }`}
                           >
-                            <span>Presencial – {p.label}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-slate-400 tabular-nums">{count}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </span>
+                          <span>Presencial – {p.label}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+                          {count} {count === 1 ? 'aluno' : 'alunos'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-                    {/* Grupo Online */}
-                    <div className="pt-1 border-t border-slate-800 space-y-1">
-                      <span className="px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                        <Globe className="w-3 h-3" /> Online
-                      </span>
-                      {ONLINE_PLANS.map((p) => {
-                        const isSelected = contractFilter === p.fullType;
-                        const count = getPlanCount(p.fullType);
-                        return (
-                          <button
-                            key={p.fullType}
-                            type="button"
-                            onClick={() => {
-                              setContractFilter(p.fullType);
-                              setIsPlanDropdownOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
+              {/* Grupo Online Disponível */}
+              {availableOnlinePlans.length > 0 && (
+                <div className="pt-1.5 border-t border-slate-800 space-y-1">
+                  <span className="px-2.5 text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                    <Globe className="w-3 h-3" /> Online Disponível
+                  </span>
+                  {availableOnlinePlans.map((p) => {
+                    const isSelected = selectedPlanFilters.includes(p.fullType);
+                    const count = getPlanCount(p.fullType);
+                    return (
+                      <button
+                        key={p.fullType}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => togglePlanFilter(p.fullType)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40'
+                            : 'hover:bg-slate-800/80 text-slate-300 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
                               isSelected
-                                ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40'
-                                : 'hover:bg-slate-800/80 text-slate-300'
+                                ? 'bg-cyan-500 border-cyan-400 text-slate-950'
+                                : 'bg-slate-950 border-slate-700'
                             }`}
                           >
-                            <span>Online – {p.label}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-slate-400 tabular-nums">{count}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </span>
+                          <span>Online – {p.label}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+                          {count} {count === 1 ? 'aluno' : 'alunos'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-        {/* Versão Desktop (lg+): Barra de Seleção de Planos com Presencial e Online detalhados */}
-        <div className="hidden lg:flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-900/60 border border-slate-800/80">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setContractFilter('Todos')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                contractFilter === 'Todos'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-              }`}
-            >
-              <span>Todos</span>
-              <span className="text-[10px] opacity-80 tabular-nums">({clients.length})</span>
-            </button>
-
-            <span className="text-slate-700">|</span>
-
-            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 px-1">
-              <MapPin className="w-3 h-3" /> Presencial:
-            </span>
-            {PRESENCIAL_PLANS.map((p) => {
-              const isSelected = contractFilter === p.fullType;
-              const count = getPlanCount(p.fullType);
-              return (
+              {/* Rodapé do Dropdown Multi-Select */}
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
                 <button
-                  key={p.fullType}
                   type="button"
-                  onClick={() => setContractFilter(p.fullType)}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-                  }`}
+                  onClick={() => setIsPlanDropdownOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition cursor-pointer"
                 >
-                  <span>{p.label}</span>
-                  <span className="text-[10px] opacity-80 tabular-nums">({count})</span>
+                  Concluir Seleção
                 </button>
-              );
-            })}
-
-            <span className="text-slate-700">|</span>
-
-            <span className="text-[11px] font-bold text-cyan-400 flex items-center gap-1 px-1">
-              <Globe className="w-3 h-3" /> Online:
-            </span>
-            {ONLINE_PLANS.map((p) => {
-              const isSelected = contractFilter === p.fullType;
-              const count = getPlanCount(p.fullType);
-              return (
-                <button
-                  key={p.fullType}
-                  type="button"
-                  onClick={() => setContractFilter(p.fullType)}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-cyan-600 text-white shadow-sm'
-                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-                  }`}
-                >
-                  <span>{p.label}</span>
-                  <span className="text-[10px] opacity-80 tabular-nums">({count})</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* LISTA DE CARDS DOS ALUNOS (Exibe apenas: Nome, Data de nascimento, E-mail, Telefone, Botão Editar e Botão Excluir) */}
@@ -1296,26 +1514,27 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
                 {clients.length === 0
                   ? 'Comece cadastrando seu primeiro aluno para gerenciar treinos, avaliações e agendamentos.'
-                  : contractFilter !== 'Todos'
-                  ? `Nenhum aluno encontrado com o filtro ${contractFilter}.`
+                  : selectedPlanFilters.length > 0
+                  ? `Nenhum aluno encontrado nos planejamentos selecionados (${selectedPlanFilters.join(', ')}).`
                   : 'Nenhum aluno corresponde aos filtros selecionados.'}
               </p>
             </div>
-            {contractFilter !== 'Todos' && clients.length > 0 && (
+            {selectedPlanFilters.length > 0 && clients.length > 0 && (
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={() => setContractFilter('Todos')}
+                  onClick={() => setSelectedPlanFilters([])}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-emerald-400 font-bold text-xs border border-slate-700 active:scale-95 transition cursor-pointer"
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  <span>Ver Todos os Planos ({clients.length})</span>
+                  <span>Ver Todos os Planejamentos ({clients.length})</span>
                 </button>
               </div>
             )}
           </div>
         ) : (
           filteredClients.map((client) => {
+            const accessReady = isStudentAccessComplete(client);
             return (
               <div
                 key={client.id}
@@ -1343,9 +1562,20 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   </div>
 
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-emerald-300 transition tracking-tight truncate">
-                      {client.name}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-emerald-300 transition tracking-tight truncate">
+                        {client.name}
+                      </h3>
+                      {accessReady ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                          <KeyRound className="w-3 h-3" /> Acesso Liberado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
+                          <AlertCircle className="w-3 h-3" /> Completar Cadastro p/ Acesso
+                        </span>
+                      )}
+                    </div>
 
                     <div className="space-y-1 text-xs text-slate-400">
                       {/* Data de Nascimento */}
@@ -1391,7 +1621,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       openEditModal(client);
                     }}
                     className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
-                    title="Editar Cadastro do Cliente"
+                    title="Editar Cadastro e Senha do Aluno"
                     aria-label={`Editar cadastro de ${client.name}`}
                   >
                     <Edit2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
@@ -1427,10 +1657,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">
-                    {editingClient ? 'Editar Cadastro do Cliente' : 'Cadastrar Novo Aluno'}
+                    {editingClient ? 'Editar Cadastro e Acesso do Aluno' : 'Cadastrar Novo Aluno'}
                   </h2>
                   <p className="text-xs text-slate-400">
-                    Dados de identificação e contato do aluno
+                    Preencha os 4 dados obrigatórios e gere a senha para liberar o acesso exclusivo do aluno
                   </p>
                 </div>
               </div>
@@ -1447,6 +1677,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-2 text-xs text-rose-300">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{formError}</span>
+              </div>
+            )}
+
+            {copiedCredentialsToast && (
+              <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center gap-2 text-xs font-bold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>E-mail e senha copiados para a área de transferência!</span>
               </div>
             )}
 
@@ -1470,7 +1707,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Data de Nascimento
+                    Data de Nascimento *
                   </label>
                   <input
                     type="text"
@@ -1519,7 +1756,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    E-mail *
+                    E-mail (Login do Aluno) *
                   </label>
                   <input
                     type="email"
@@ -1532,16 +1769,66 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Número de Telefone
+                    Número de Telefone *
                   </label>
                   <input
                     type="tel"
+                    required
                     placeholder="(11) 98765-4321"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-emerald-500"
                   />
                 </div>
+              </div>
+
+              {/* Senha de Acesso do Aluno Gerada pelo Treinador */}
+              <div className="p-3 rounded-xl bg-slate-950 border border-cyan-500/30 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Senha de Acesso do Aluno *</span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setAccessPassword(generateStudentPassword(name))}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-cyan-300 border border-slate-700 transition cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Gerar Senha</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCredentials(name, email, accessPassword)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-[11px] font-bold text-cyan-200 border border-cyan-500/40 transition cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copiar Acesso</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showModalPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={accessPassword}
+                    onChange={(e) => setAccessPassword(e.target.value)}
+                    placeholder="Mínimo de 6 caracteres"
+                    className="w-full px-3.5 py-2 pr-10 rounded-xl bg-slate-900 border border-slate-800 text-sm font-mono font-bold text-cyan-300 focus:outline-none focus:border-cyan-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowModalPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showModalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  O aluno entrará no aplicativo usando o e-mail acima e esta senha gerada por você.
+                </p>
               </div>
 
               {/* No cadastro inicial, também permite definir medidas e plano iniciais */}
