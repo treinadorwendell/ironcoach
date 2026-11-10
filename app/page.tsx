@@ -164,7 +164,6 @@ export default function Home() {
             const { events: normalized, changedEvents } = expandLegacyRecurringEvents(cloudEvents);
             if (changedEvents.length > 0) {
               storage.saveCalendarEvents(normalized);
-              changedEvents.forEach((evt) => cloudSync.syncCalendarEvent(evt));
             }
             setCalendarEvents(normalized);
           },
@@ -345,7 +344,19 @@ export default function Home() {
     }
   };
 
-  // CALENDAR HANDLERS
+  // CALENDAR HANDLERS (Sincroniza com o Firestore de acordo com o status do agendamento)
+  const hasCalendarStatusChanged = (prev: CalendarEvent | undefined, next: CalendarEvent): boolean => {
+    if (!prev) return Boolean(next.status);
+    if (prev.status !== next.status) return true;
+    if (
+      next.status === 'reagendado' &&
+      (prev.rescheduledDate !== next.rescheduledDate || prev.rescheduledTime !== next.rescheduledTime)
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   const handleAddCalendarEvent = (newEvent: CalendarEvent) => {
     const existingIndex = calendarEvents.findIndex(
       (e) =>
@@ -356,16 +367,22 @@ export default function Home() {
     );
     let updated: CalendarEvent[];
     if (existingIndex >= 0) {
-      updated = [...calendarEvents];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
+      const prevEvt = calendarEvents[existingIndex];
+      const mergedEvt: CalendarEvent = {
+        ...prevEvt,
         ...newEvent,
-        id: updated[existingIndex].id,
+        id: prevEvt.id,
       };
-      cloudSync.syncCalendarEvent(updated[existingIndex]);
+      updated = [...calendarEvents];
+      updated[existingIndex] = mergedEvt;
+      if (hasCalendarStatusChanged(prevEvt, mergedEvt)) {
+        cloudSync.syncCalendarEvent(mergedEvt);
+      }
     } else {
       updated = [newEvent, ...calendarEvents];
-      cloudSync.syncCalendarEvent(newEvent);
+      if (hasCalendarStatusChanged(undefined, newEvent)) {
+        cloudSync.syncCalendarEvent(newEvent);
+      }
     }
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
@@ -385,30 +402,42 @@ export default function Home() {
             (!e.recurringDays || e.recurringDays.length === 0))
       );
       if (existingIndex >= 0) {
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        const prevEvt = updated[existingIndex];
+        const mergedEvt: CalendarEvent = {
+          ...prevEvt,
           ...newEvent,
-          id: updated[existingIndex].id,
+          id: prevEvt.id,
         };
-        toSync.push(updated[existingIndex]);
+        updated[existingIndex] = mergedEvt;
+        if (hasCalendarStatusChanged(prevEvt, mergedEvt)) {
+          toSync.push(mergedEvt);
+        }
       } else {
         updated.unshift(newEvent);
-        toSync.push(newEvent);
+        if (hasCalendarStatusChanged(undefined, newEvent)) {
+          toSync.push(newEvent);
+        }
       }
     });
 
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
-    toSync.forEach((evt) => cloudSync.syncCalendarEvent(evt));
+    if (toSync.length > 0) {
+      cloudSync.syncCalendarEventsBatch(toSync);
+    }
   };
 
   const handleUpdateCalendarEvent = (updatedEvent: CalendarEvent) => {
+    const existing = calendarEvents.find((e) => e.id === updatedEvent.id);
+    const statusChanged = hasCalendarStatusChanged(existing, updatedEvent);
     const updated = calendarEvents.map((e) =>
       e.id === updatedEvent.id ? updatedEvent : e
     );
     setCalendarEvents(updated);
     storage.saveCalendarEvents(updated);
-    cloudSync.syncCalendarEvent(updatedEvent);
+    if (statusChanged) {
+      cloudSync.syncCalendarEvent(updatedEvent);
+    }
   };
 
   const handleDeleteCalendarEvent = (eventId: string) => {
@@ -445,7 +474,9 @@ export default function Home() {
       };
       updated = [...calendarEvents];
       updated[existingIndex] = updatedEvt;
-      cloudSync.syncCalendarEvent(updatedEvt);
+      if (hasCalendarStatusChanged(existing, updatedEvt)) {
+        cloudSync.syncCalendarEvent(updatedEvt);
+      }
     } else {
       // 2. Se não houver evento na data direta, verificar se há template de dia recorrente
       const [y, m, d] = dateIso.split('-').map(Number);

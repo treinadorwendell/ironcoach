@@ -235,10 +235,16 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
     );
   }, [library.recipes, selectedRecipeId]);
 
-  const persistPlan = (updated: ClientDietPlan, toastMessage?: string) => {
+  const persistPlan = (
+    updated: ClientDietPlan,
+    toastMessage?: string,
+    syncToCloud: boolean = false
+  ) => {
     setDietPlan(updated);
     storage.saveClientDietPlan(updated);
-    cloudSync.syncDietPlan(updated);
+    if (syncToCloud) {
+      cloudSync.syncDietPlan(updated);
+    }
     if (toastMessage) {
       setSaveToast(toastMessage);
       setTimeout(() => setSaveToast(null), 2500);
@@ -252,7 +258,8 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
     };
     persistPlan(
       updatedPlan,
-      `Prescrição da dieta de ${client.name} salva com sucesso!`
+      `Prescrição da dieta de ${client.name} salva e sincronizada com sucesso!`,
+      true
     );
     if (
       onUpdateClient &&
@@ -358,17 +365,6 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
       updatedAt: new Date().toISOString(),
     };
     persistPlan(updatedPlan);
-
-    if (
-      patch.bodyFatPercent !== undefined &&
-      onUpdateClient &&
-      patch.bodyFatPercent !== client.bodyFatPercent
-    ) {
-      onUpdateClient({
-        ...client,
-        bodyFatPercent: patch.bodyFatPercent,
-      });
-    }
   };
 
   // Update Active Schedule Helper

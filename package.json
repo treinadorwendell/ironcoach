@@ -6,7 +6,7 @@
     "dev": "NODE_OPTIONS='--max-old-space-size=1536' next dev -H 0.0.0.0 -p 3000",
     "build": "NODE_OPTIONS='--max-old-space-size=1536' next build",
     "start": "next start -H 0.0.0.0 -p 3000",
-    "lint": "eslint .",
+    "lint": "NODE_OPTIONS='--max-old-space-size=1024' eslint .",
     "clean": "next clean"
   },
   "dependencies": {

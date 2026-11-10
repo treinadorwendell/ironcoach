@@ -41,20 +41,33 @@ export function useInactivitySync({
     const user = auth.currentUser;
     if (!user) return;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    if (cloudSync.isQuotaExhausted()) return;
 
     const pendingBefore = cloudSync.getPendingQueueCount();
+    // On return from brief inactivity, only run full cloud sync if there are pending offline operations
+    if (reason === 'return' && pendingBefore === 0) {
+      return;
+    }
+
     setIsSyncing(true);
     if (reason === 'online' && pendingBefore > 0) {
       triggerToast(
         `Conexão restabelecida! Sincronizando ${pendingBefore} operação(ões) da fila...`,
         3000
       );
-    } else if (reason === 'return') {
-      triggerToast('Sincronizando treinos, fila offline e PSE com o Firestore...', 2500);
+    } else if (reason === 'return' && pendingBefore > 0) {
+      triggerToast('Sincronizando fila de alterações locais com o Firestore...', 2500);
     }
 
     try {
       const queueRes = await cloudSync.processPendingQueue();
+      if (cloudSync.isQuotaExhausted()) {
+        triggerToast(
+          'Limite diário gratuito do Firestore atingido. Seus dados seguem salvos localmente sem perda.',
+          4500
+        );
+        return;
+      }
       const res = await cloudSync.forceSync();
       if (res.success || queueRes.processed > 0) {
         setLastSyncTime(new Date());
@@ -63,8 +76,6 @@ export function useInactivitySync({
             `${queueRes.processed} alteração(ões) offline sincronizada(s) com o Firestore!`,
             3500
           );
-        } else if (reason === 'return' || reason === 'online') {
-          triggerToast('Histórico e PSE sincronizados com sucesso!', 3500);
         }
       }
     } catch (e) {
@@ -124,9 +135,18 @@ export function useInactivitySync({
       forceSyncNow('online');
     };
 
+    // Notifica apenas 1 vez caso a cota diária do Firestore seja excedida
+    const handleQuotaExhausted = () => {
+      triggerToast(
+        'Limite diário gratuito do Firestore atingido. Seus dados seguem salvos localmente sem perda.',
+        5000
+      );
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('online', handleOnline);
+    window.addEventListener('ironcoach:quota-exhausted', handleQuotaExhausted);
 
     return () => {
       activityEvents.forEach((evt) => {
@@ -135,9 +155,10 @@ export function useInactivitySync({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('ironcoach:quota-exhausted', handleQuotaExhausted);
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     };
-  }, [inactivityThresholdMs, forceSyncNow]);
+  }, [inactivityThresholdMs, forceSyncNow, triggerToast]);
 
   return {
     isSyncing,

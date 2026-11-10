@@ -79,8 +79,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const viewModeMenuRef = useRef<HTMLDivElement>(null);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
+  const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
+  const clientMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fecha o dropdown de seleção de visualização ou status ao clicar fora
+  // Fecha o dropdown de seleção de visualização, aluno ou status ao clicar fora
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (viewModeMenuRef.current && !viewModeMenuRef.current.contains(e.target as Node)) {
@@ -89,14 +91,17 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
         setIsStatusMenuOpen(false);
       }
+      if (clientMenuRef.current && !clientMenuRef.current.contains(e.target as Node)) {
+        setIsClientMenuOpen(false);
+      }
     };
-    if (isViewModeMenuOpen || isStatusMenuOpen) {
+    if (isViewModeMenuOpen || isStatusMenuOpen || isClientMenuOpen) {
       document.addEventListener('mousedown', handleOutsideClick);
     }
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [isViewModeMenuOpen, isStatusMenuOpen]);
+  }, [isViewModeMenuOpen, isStatusMenuOpen, isClientMenuOpen]);
 
   // Sempre inicializa com o dia atual de acordo com a data de hoje
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateStr);
@@ -105,7 +110,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(null);
 
-  // Status Filter State
+  // Client & Status Filter State
+  const [clientFilter, setClientFilter] = useState<'todos' | string>('todos');
   const [statusFilter, setStatusFilter] = useState<'todos' | CalendarEventStatus>('todos');
 
   // Form State
@@ -667,12 +673,20 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
     DAYS_NAMES[currentDateObj.getDay()]
   }, ${currentDateObj.getDate()} de ${MONTHS_NAMES[currentDateObj.getMonth()]} de ${currentDateObj.getFullYear()}`;
 
+  // Filter events by selected client first (used for status counters)
+  const clientFilteredEvents = useMemo(() => {
+    if (clientFilter === 'todos') return events;
+    return events.filter((e) => e.clientId === clientFilter);
+  }, [events, clientFilter]);
+
   // Filter events by status if requested
-  const filteredEvents = events.filter((e) => {
-    if (statusFilter === 'todos') return true;
-    if (statusFilter === 'confirmado') return !e.status || e.status === 'confirmado';
-    return e.status === statusFilter;
-  });
+  const filteredEvents = useMemo(() => {
+    return clientFilteredEvents.filter((e) => {
+      if (statusFilter === 'todos') return true;
+      if (statusFilter === 'confirmado') return !e.status || e.status === 'confirmado';
+      return e.status === statusFilter;
+    });
+  }, [clientFilteredEvents, statusFilter]);
 
   // Filter events for the current date (single date or matching recurring day strictly if defined)
   const currentDayOfWeek = currentDateObj.getDay();
@@ -941,132 +955,271 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             : formattedDayStr}
         </h2>
 
-        {/* Attendance Status Filter & Counters Bar */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-          <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+        {/* Attendance Client & Status Filter Bar */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 flex-wrap">
+          <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 shrink-0">
             <Filter className="w-3.5 h-3.5 text-purple-400" />
-            <span>Status da Agenda:</span>
+            <span>Filtros da Agenda:</span>
           </span>
 
-          {/* Touch-Friendly Status Selector Dropdown */}
-          <div ref={statusMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setIsStatusMenuOpen((prev) => !prev)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md border transition-all active:scale-95 cursor-pointer ${
-                isStatusMenuOpen
-                  ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
-                  : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
-              }`}
-              aria-expanded={isStatusMenuOpen}
-              aria-haspopup="true"
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full"
-                style={{
-                  backgroundColor:
-                    statusFilter === 'realizado'
-                      ? '#10b981'
-                      : statusFilter === 'reagendado'
-                      ? '#f59e0b'
-                      : statusFilter === 'falta'
-                      ? '#ef4444'
-                      : statusFilter === 'confirmado'
-                      ? '#a855f7'
-                      : '#94a3b8',
-                }}
-              />
-              <span className="font-extrabold tracking-tight">
-                {statusFilter === 'todos'
-                  ? `Todos (${events.length})`
-                  : statusFilter === 'realizado'
-                  ? `Realizado (${events.filter((e) => e.status === 'realizado').length})`
-                  : statusFilter === 'reagendado'
-                  ? `Reagendado (${events.filter((e) => e.status === 'reagendado').length})`
-                  : statusFilter === 'falta'
-                  ? `Falta (${events.filter((e) => e.status === 'falta').length})`
-                  : `Agendado (${
-                      events.filter((e) => !e.status || e.status === 'confirmado').length
-                    })`}
-              </span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                  isStatusMenuOpen ? 'rotate-180 text-white' : ''
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            {/* Touch-Friendly Client Selector Dropdown */}
+            <div ref={clientMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsClientMenuOpen((prev) => !prev)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md border transition-all active:scale-95 cursor-pointer whitespace-nowrap ${
+                  isClientMenuOpen || clientFilter !== 'todos'
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
+                    : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
                 }`}
-              />
-            </button>
-
-            {/* Dropdown Options with Auto-Close */}
-            {isStatusMenuOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 space-y-0.5"
+                aria-expanded={isClientMenuOpen}
+                aria-haspopup="true"
+                title="Filtrar agendamentos por aluno"
               >
-                <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
-                  Filtrar por Status
-                </div>
-                {[
-                  { id: 'todos', label: 'Todos', count: events.length, color: '#94a3b8' },
-                  {
-                    id: 'realizado',
-                    label: 'Realizado',
-                    count: events.filter((e) => e.status === 'realizado').length,
-                    color: '#10b981',
-                  },
-                  {
-                    id: 'reagendado',
-                    label: 'Reagendado',
-                    count: events.filter((e) => e.status === 'reagendado').length,
-                    color: '#f59e0b',
-                  },
-                  {
-                    id: 'falta',
-                    label: 'Falta',
-                    count: events.filter((e) => e.status === 'falta').length,
-                    color: '#ef4444',
-                  },
-                  {
-                    id: 'confirmado',
-                    label: 'Agendado',
-                    count: events.filter((e) => !e.status || e.status === 'confirmado').length,
-                    color: '#a855f7',
-                  },
-                ].map((item) => {
-                  const isSelected = statusFilter === item.id;
-                  return (
+                <User
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    isClientMenuOpen || clientFilter !== 'todos' ? 'text-white' : 'text-purple-400'
+                  }`}
+                />
+                <span className="font-extrabold tracking-tight truncate max-w-[140px] sm:max-w-[200px] tabular-nums">
+                  {clientFilter === 'todos'
+                    ? `Todos os Alunos (${events.length})`
+                    : `${clients.find((c) => c.id === clientFilter)?.name || 'Aluno'} (${
+                        clientFilteredEvents.length
+                      })`}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-200 shrink-0 ${
+                    isClientMenuOpen
+                      ? 'rotate-180 text-white'
+                      : clientFilter !== 'todos'
+                      ? 'text-white/90'
+                      : 'text-slate-400'
+                  }`}
+                />
+              </button>
+
+              {isClientMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 sm:left-0 top-full mt-2 w-64 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1 flex items-center justify-between">
+                    <span>Filtrar por Aluno</span>
+                    {clientFilter !== 'todos' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientFilter('todos');
+                          setIsClientMenuOpen(false);
+                        }}
+                        className="text-[10px] font-bold text-purple-400 hover:text-purple-300"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-0.5 pr-0.5">
                     <button
-                      key={item.id}
                       type="button"
                       role="menuitem"
                       onClick={() => {
-                        setStatusFilter(item.id as any);
-                        setIsStatusMenuOpen(false); // Fechamento automático após escolher
+                        setClientFilter('todos');
+                        setIsClientMenuOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
-                        isSelected
+                        clientFilter === 'todos'
                           ? 'bg-purple-600 text-white shadow-sm'
                           : 'text-slate-300 hover:text-white hover:bg-slate-800'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span>{item.label}</span>
+                      <div className="flex items-center gap-2 truncate">
+                        <User className="w-3.5 h-3.5 shrink-0 text-purple-300" />
+                        <span className="truncate">Todos os Alunos</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span
-                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                            isSelected ? 'bg-purple-950/80 text-white' : 'bg-slate-900 text-slate-400'
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums font-bold ${
+                            clientFilter === 'todos'
+                              ? 'bg-purple-950/80 text-white'
+                              : 'bg-slate-900 text-slate-400'
                           }`}
                         >
-                          {item.count}
+                          {events.length}
                         </span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" />}
+                        {clientFilter === 'todos' && (
+                          <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                        )}
                       </div>
                     </button>
-                  );
-                })}
-              </div>
-            )}
+
+                    {clients.map((client) => {
+                      const isSelected = clientFilter === client.id;
+                      const clientCount = events.filter((e) => e.clientId === client.id).length;
+                      return (
+                        <button
+                          key={client.id}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setClientFilter(client.id);
+                            setIsClientMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
+                            isSelected
+                              ? 'bg-purple-600 text-white shadow-sm'
+                              : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate pr-2">
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${
+                                isSelected ? 'bg-white' : 'bg-purple-400'
+                              }`}
+                            />
+                            <span className="truncate">{client.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums font-bold ${
+                                isSelected
+                                  ? 'bg-purple-950/80 text-white'
+                                  : 'bg-slate-900 text-slate-400'
+                              }`}
+                            >
+                              {clientCount}
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Touch-Friendly Status Selector Dropdown */}
+            <div ref={statusMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsStatusMenuOpen((prev) => !prev)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md border transition-all active:scale-95 cursor-pointer whitespace-nowrap ${
+                  isStatusMenuOpen
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
+                    : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
+                }`}
+                aria-expanded={isStatusMenuOpen}
+                aria-haspopup="true"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor:
+                      statusFilter === 'realizado'
+                        ? '#10b981'
+                        : statusFilter === 'reagendado'
+                        ? '#f59e0b'
+                        : statusFilter === 'falta'
+                        ? '#ef4444'
+                        : statusFilter === 'confirmado'
+                        ? '#a855f7'
+                        : '#94a3b8',
+                  }}
+                />
+                <span className="font-extrabold tracking-tight tabular-nums">
+                  {statusFilter === 'todos'
+                    ? `Todos (${clientFilteredEvents.length})`
+                    : statusFilter === 'realizado'
+                    ? `Realizado (${clientFilteredEvents.filter((e) => e.status === 'realizado').length})`
+                    : statusFilter === 'reagendado'
+                    ? `Reagendado (${clientFilteredEvents.filter((e) => e.status === 'reagendado').length})`
+                    : statusFilter === 'falta'
+                    ? `Falta (${clientFilteredEvents.filter((e) => e.status === 'falta').length})`
+                    : `Agendado (${
+                        clientFilteredEvents.filter((e) => !e.status || e.status === 'confirmado').length
+                      })`}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${
+                    isStatusMenuOpen ? 'rotate-180 text-white' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown Options with Auto-Close */}
+              {isStatusMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 space-y-0.5"
+                >
+                  <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
+                    Filtrar por Status
+                  </div>
+                  {[
+                    { id: 'todos', label: 'Todos', count: clientFilteredEvents.length, color: '#94a3b8' },
+                    {
+                      id: 'realizado',
+                      label: 'Realizado',
+                      count: clientFilteredEvents.filter((e) => e.status === 'realizado').length,
+                      color: '#10b981',
+                    },
+                    {
+                      id: 'reagendado',
+                      label: 'Reagendado',
+                      count: clientFilteredEvents.filter((e) => e.status === 'reagendado').length,
+                      color: '#f59e0b',
+                    },
+                    {
+                      id: 'falta',
+                      label: 'Falta',
+                      count: clientFilteredEvents.filter((e) => e.status === 'falta').length,
+                      color: '#ef4444',
+                    },
+                    {
+                      id: 'confirmado',
+                      label: 'Agendado',
+                      count: clientFilteredEvents.filter((e) => !e.status || e.status === 'confirmado').length,
+                      color: '#a855f7',
+                    },
+                  ].map((item) => {
+                    const isSelected = statusFilter === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setStatusFilter(item.id as 'todos' | CalendarEventStatus);
+                          setIsStatusMenuOpen(false); // Fechamento automático após escolher
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
+                          isSelected
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          <span>{item.label}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums font-bold ${
+                              isSelected ? 'bg-purple-950/80 text-white' : 'bg-slate-900 text-slate-400'
+                            }`}
+                          >
+                            {item.count}
+                          </span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1454,8 +1607,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             <span className="font-black text-base tracking-wide">
               {monthData.monthName} {monthData.year}
             </span>
-            <span className="text-xs text-purple-400 font-semibold bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
-              {events.filter((e) => e.date.startsWith(`${monthData.year}-${String(monthData.monthIndex + 1).padStart(2, '0')}`)).length} agendamentos no mês
+            <span className="text-xs text-purple-400 font-semibold tabular-nums bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
+              {filteredEvents.filter((e) => e.date.startsWith(`${monthData.year}-${String(monthData.monthIndex + 1).padStart(2, '0')}`)).length} agendamentos no mês
             </span>
           </div>
 
@@ -1469,7 +1622,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
           <div className="grid grid-cols-7 gap-1.5">
             {monthData.cells.map((cell) => {
-              const directEvts = events.filter(
+              const directEvts = filteredEvents.filter(
                 (e) =>
                   e.date === cell.dateKey &&
                   !(e.recurringDays && e.recurringDays.length > 0 && e.recurringExceptions?.includes(cell.dateKey))
@@ -1478,7 +1631,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               const [cy, cm, cd] = cell.dateKey.split('-').map(Number);
               const cellDayIdx = new Date(cy, cm - 1, cd).getDay();
 
-              const recurringEvts = events.filter((e) => {
+              const recurringEvts = filteredEvents.filter((e) => {
                 if (e.date === cell.dateKey) return false;
                 if (e.recurringExceptions && e.recurringExceptions.includes(cell.dateKey)) return false;
                 if (cell.dateKey < e.date) return false;
@@ -1570,7 +1723,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
           {MONTHS_NAMES.map((m, idx) => {
             const yearStr = selectedDate.split('-')[0];
             const monthPrefix = `${yearStr}-${String(idx + 1).padStart(2, '0')}`;
-            const monthEvts = events.filter((e) => e.date.startsWith(monthPrefix));
+            const monthEvts = filteredEvents.filter((e) => e.date.startsWith(monthPrefix));
 
             return (
               <div
@@ -1584,7 +1737,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               >
                 <h4 className="text-xs font-bold text-white">{m}</h4>
                 <p className="text-[10px] text-slate-400 mt-1">{yearStr}</p>
-                <span className="mt-2 inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-purple-300 font-semibold border border-slate-700/60">
+                <span className="mt-2 inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-purple-300 font-semibold tabular-nums border border-slate-700/60">
                   {monthEvts.length} {monthEvts.length === 1 ? 'aula' : 'aulas'}
                 </span>
               </div>
@@ -1598,8 +1751,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-semibold">
             <span>Lista Cronológica de Aulas</span>
-            <span>
-              {filteredEvents.length} de {events.length} compromissos
+            <span className="tabular-nums">
+              {filteredEvents.length} de {clientFilteredEvents.length} compromissos
             </span>
           </div>
 

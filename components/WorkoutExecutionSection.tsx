@@ -765,8 +765,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     };
 
     setSession(updatedSession);
-    storage.saveActiveSession(updatedSession);
-    cloudSync.syncActiveSession(updatedSession);
     sounds.playTickSound();
     vibration.mediumPulse();
     setSwapConfirmModal(null);
@@ -810,16 +808,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     setSession(updatedSession);
     storage.saveActiveSession(updatedSession);
 
-    // Grava imediatamente o snapshot para o histórico de evolução de cada série
-    const savedSnapshot = storage.recordExerciseFinishedOnCollapse(
+    // Grava localmente o snapshot para o histórico de evolução de cada série (sincronização com Firestore ocorre ao concluir o treino)
+    storage.recordExerciseFinishedOnCollapse(
       session.clientId,
       ex.exerciseName,
       updatedSets
     );
-    if (savedSnapshot) {
-      cloudSync.syncFinishedExerciseSnapshot(savedSnapshot);
-    }
-    cloudSync.syncActiveSession(updatedSession);
 
     // Recolhe o exercício
     setExpandedExerciseIds((prev) => ({
@@ -916,8 +910,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     newSession.elapsedSeconds = 0;
 
     setSession(newSession);
-    storage.saveActiveSession(newSession);
-    cloudSync.syncActiveSession(newSession);
     setIsWorkoutExpanded(true);
     setExpandedExerciseIds({});
     setCurrentStep('execucao');
@@ -1395,8 +1387,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       startTime: baseStartTime,
     };
     setSession(updated);
-    storage.saveActiveSession(updated);
-    cloudSync.syncActiveSession(updated);
   };
 
   // Finish Workout Session (stops timer immediately and saves completed workout)
@@ -1431,14 +1421,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         (typeof finalExerciseIndex === 'number' && idx === finalExerciseIndex) ||
         sets.some((s) => s.completed)
       ) {
-        const savedSnapshot = storage.recordExerciseFinishedOnCollapse(
+        storage.recordExerciseFinishedOnCollapse(
           session.clientId,
           ex.exerciseName,
           sets
         );
-        if (savedSnapshot) {
-          cloudSync.syncFinishedExerciseSnapshot(savedSnapshot);
-        }
       }
 
       return {
@@ -1626,29 +1613,32 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
       return;
     }
 
-    // Salva o relatório (se gerado) e a descrição da próxima meta do treino no histórico
+    // Salva o relatório (se gerado) e a descrição da próxima meta do treino no histórico apenas se houve adição/alteração
     if (workoutSummary.completedRecord) {
       const cleanGoal = nextWorkoutGoalText.trim();
-      const updatedReport =
-        isReportViewOpen && workoutSummary.feedbackReport
-          ? {
-              ...workoutSummary.feedbackReport,
-              nextWorkoutGoal: cleanGoal,
-            }
-          : workoutSummary.completedRecord.feedbackReport;
+      const hasGoalOrReportUpdate = Boolean(cleanGoal) || isReportViewOpen;
+      if (hasGoalOrReportUpdate) {
+        const updatedReport =
+          isReportViewOpen && workoutSummary.feedbackReport
+            ? {
+                ...workoutSummary.feedbackReport,
+                nextWorkoutGoal: cleanGoal,
+              }
+            : workoutSummary.completedRecord.feedbackReport;
 
-      const updatedRecord: CompletedWorkoutRecord = {
-        ...workoutSummary.completedRecord,
-        nextWorkoutGoal: cleanGoal || workoutSummary.completedRecord.nextWorkoutGoal,
-        feedbackReport: updatedReport,
-      };
+        const updatedRecord: CompletedWorkoutRecord = {
+          ...workoutSummary.completedRecord,
+          nextWorkoutGoal: cleanGoal || workoutSummary.completedRecord.nextWorkoutGoal,
+          feedbackReport: updatedReport,
+        };
 
-      storage.updateCompletedWorkout(updatedRecord);
-      cloudSync.syncCompletedWorkout(updatedRecord);
+        storage.updateCompletedWorkout(updatedRecord);
+        cloudSync.syncCompletedWorkout(updatedRecord);
+      }
     }
 
     if (registerInAgendaConfirmed) {
-      // 1. Invocar callback fornecido pelo container principal (app/page.tsx)
+      // 1. Invocar callback fornecido pelo container principal (app/page.tsx), que já atualiza o estado, localStorage e sincroniza o status 'realizado' no Firestore
       if (onConfirmWorkoutCompletedInAgenda) {
         onConfirmWorkoutCompletedInAgenda(
           workoutSummary.clientId,
@@ -1658,79 +1648,81 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           workoutSummary.timeFormatted,
           workoutSummary.trainerNotes
         );
-      } else if (onRegisterWorkoutInAgenda) {
-        onRegisterWorkoutInAgenda(
-          workoutSummary.clientId,
-          workoutSummary.clientName,
-          workoutSummary.workoutName,
-          workoutSummary.dateIso
-        );
-      }
-
-      // 2. Garantia de persistência direta local e nuvem
-      try {
-        const currentEvents = storage.getCalendarEvents();
-        const existingIdx = currentEvents.findIndex(
-          (e) => e.clientId === workoutSummary.clientId && e.date === workoutSummary.dateIso
-        );
-
-        let updatedEvents: CalendarEvent[];
-        if (existingIdx >= 0) {
-          const ex = currentEvents[existingIdx];
-          const updated: CalendarEvent = {
-            ...ex,
-            status: 'realizado',
-            title: ex.title || workoutSummary.workoutName,
-            notes: workoutSummary.trainerNotes
-              ? `${ex.notes ? ex.notes + ' • ' : ''}${workoutSummary.trainerNotes}`
-              : ex.notes,
-          };
-          updatedEvents = [...currentEvents];
-          updatedEvents[existingIdx] = updated;
-          cloudSync.syncCalendarEvent(updated);
-        } else {
-          // Verificar se há evento recorrente do aluno para o dia da semana
-          const [y, m, d] = workoutSummary.dateIso.split('-').map(Number);
-          const dayOfWeek = new Date(y, m - 1, d).getDay();
-          const recEvt = currentEvents.find(
-            (e) =>
-              e.clientId === workoutSummary.clientId &&
-              e.recurringDays?.includes(dayOfWeek) &&
-              workoutSummary.dateIso >= e.date &&
-              (!e.recurringEndDate || workoutSummary.dateIso <= e.recurringEndDate)
-          );
-
-          const startH = workoutSummary.timeFormatted || '07:00';
-          const endHourNum = (parseInt(startH.split(':')[0], 10) + 1) % 24;
-          const endH = `${String(endHourNum).padStart(2, '0')}:${startH.split(':')[1] || '00'}`;
-
-          const newEvt: CalendarEvent = {
-            id: `evt-${crypto.randomUUID()}`,
-            clientId: workoutSummary.clientId,
-            clientName: workoutSummary.clientName,
-            title: recEvt?.title || workoutSummary.workoutName || 'Treino Realizado',
-            date: workoutSummary.dateIso,
-            startTime: recEvt?.startTime || startH,
-            endTime: recEvt?.endTime || endH,
-            status: 'realizado',
-            notes: workoutSummary.trainerNotes || 'Treino finalizado na Execução',
-          };
-          updatedEvents = [newEvt, ...currentEvents];
-          cloudSync.syncCalendarEvent(newEvt);
-        }
-
-        storage.saveCalendarEvents(updatedEvents);
-
-        // Disparar evento global para re-renderizar a Agenda
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('ironcoach:calendar-updated', {
-              detail: { clientId: workoutSummary.clientId, date: workoutSummary.dateIso },
-            })
+      } else {
+        if (onRegisterWorkoutInAgenda) {
+          onRegisterWorkoutInAgenda(
+            workoutSummary.clientId,
+            workoutSummary.clientName,
+            workoutSummary.workoutName,
+            workoutSummary.dateIso
           );
         }
-      } catch (err) {
-        console.error('Erro ao atualizar status na agenda:', err);
+
+        // 2. Fallback caso onConfirmWorkoutCompletedInAgenda não tenha sido passado
+        try {
+          const currentEvents = storage.getCalendarEvents();
+          const existingIdx = currentEvents.findIndex(
+            (e) => e.clientId === workoutSummary.clientId && e.date === workoutSummary.dateIso
+          );
+
+          let updatedEvents: CalendarEvent[];
+          if (existingIdx >= 0) {
+            const ex = currentEvents[existingIdx];
+            const updated: CalendarEvent = {
+              ...ex,
+              status: 'realizado',
+              title: ex.title || workoutSummary.workoutName,
+              notes: workoutSummary.trainerNotes
+                ? `${ex.notes ? ex.notes + ' • ' : ''}${workoutSummary.trainerNotes}`
+                : ex.notes,
+            };
+            updatedEvents = [...currentEvents];
+            updatedEvents[existingIdx] = updated;
+            if (ex.status !== 'realizado') {
+              cloudSync.syncCalendarEvent(updated);
+            }
+          } else {
+            const [y, m, d] = workoutSummary.dateIso.split('-').map(Number);
+            const dayOfWeek = new Date(y, m - 1, d).getDay();
+            const recEvt = currentEvents.find(
+              (e) =>
+                e.clientId === workoutSummary.clientId &&
+                e.recurringDays?.includes(dayOfWeek) &&
+                workoutSummary.dateIso >= e.date &&
+                (!e.recurringEndDate || workoutSummary.dateIso <= e.recurringEndDate)
+            );
+
+            const startH = workoutSummary.timeFormatted || '07:00';
+            const endHourNum = (parseInt(startH.split(':')[0], 10) + 1) % 24;
+            const endH = `${String(endHourNum).padStart(2, '0')}:${startH.split(':')[1] || '00'}`;
+
+            const newEvt: CalendarEvent = {
+              id: `evt-${crypto.randomUUID()}`,
+              clientId: workoutSummary.clientId,
+              clientName: workoutSummary.clientName,
+              title: recEvt?.title || workoutSummary.workoutName || 'Treino Realizado',
+              date: workoutSummary.dateIso,
+              startTime: recEvt?.startTime || startH,
+              endTime: recEvt?.endTime || endH,
+              status: 'realizado',
+              notes: workoutSummary.trainerNotes || 'Treino finalizado na Execução',
+            };
+            updatedEvents = [newEvt, ...currentEvents];
+            cloudSync.syncCalendarEvent(newEvt);
+          }
+
+          storage.saveCalendarEvents(updatedEvents);
+
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('ironcoach:calendar-updated', {
+                detail: { clientId: workoutSummary.clientId, date: workoutSummary.dateIso },
+              })
+            );
+          }
+        } catch (err) {
+          console.error('Erro ao atualizar status na agenda:', err);
+        }
       }
     }
 

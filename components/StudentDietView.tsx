@@ -139,7 +139,6 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
     };
     setDietPlan(updatedPlan);
     storage.saveClientDietPlan(updatedPlan);
-    cloudSync.syncDietPlan(updatedPlan);
     setToastMsg(
       deltaMl > 0
         ? `+${deltaMl}ml registrados na sua meta de hoje!`
@@ -212,7 +211,6 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
 
     setDietPlan(updatedPlan);
     storage.saveClientDietPlan(updatedPlan);
-    cloudSync.syncDietPlan(updatedPlan);
     setToastMsg(`Substituição aplicada: ${sub.targetName}`);
     setTimeout(() => setToastMsg(null), 2400);
   };

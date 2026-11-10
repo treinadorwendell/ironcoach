@@ -11,21 +11,40 @@ export const OfflineIndicator: React.FC = () => {
   const isMounted = useMounted();
   const isOnline = useOnlineStatus();
   const [pendingCount, setPendingCount] = useState(0);
+  const [isQuotaPaused, setIsQuotaPaused] = useState(false);
 
   useEffect(() => {
     const updateQueueCount = () => {
       setPendingCount(storage.getPendingOperations().length);
+      setIsQuotaPaused(cloudSync.isQuotaExhausted());
+    };
+    const handleQuotaExhausted = () => {
+      setIsQuotaPaused(true);
     };
     updateQueueCount();
     window.addEventListener('ironcoach:sync-queue-updated', updateQueueCount);
     window.addEventListener('ironcoach:data-synced', updateQueueCount);
+    window.addEventListener('ironcoach:quota-exhausted', handleQuotaExhausted);
     return () => {
       window.removeEventListener('ironcoach:sync-queue-updated', updateQueueCount);
       window.removeEventListener('ironcoach:data-synced', updateQueueCount);
+      window.removeEventListener('ironcoach:quota-exhausted', handleQuotaExhausted);
     };
   }, []);
 
   if (!isMounted || isOnline) {
+    if (isQuotaPaused) {
+      return (
+        <div
+          title="Limite diário gratuito do Firestore atingido. Todos os dados estão salvos com segurança no dispositivo (Data Persist Local)."
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-[11px] text-amber-300 font-semibold select-none"
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span className="hidden sm:inline">Data Persist Local (Cota Pausada)</span>
+        </div>
+      );
+    }
+
     if (pendingCount > 0) {
       return (
         <button

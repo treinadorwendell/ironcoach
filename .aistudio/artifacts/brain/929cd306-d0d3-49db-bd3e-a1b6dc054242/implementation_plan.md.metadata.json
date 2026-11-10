@@ -1,6 +1,6 @@
 {
-  "summary": "Plano de implementação para compatibilidade automática de dimensões mobile a partir do iPhone 11 (375px a 440px), com detecção automática de Notch (iPhone 11 a 14) e Dynamic Island (iPhone 14 Pro a 16), separação do topo abaixo da barra de status do iOS e otimização do cabeçalho, barra inferior, modais e tela de execução de treino.",
-  "updatedAt": "2026-11-03T21:57:04.698755025Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Plano de implementação para adicionar o filtro seletor de aluno na barra de filtros da Agenda, filtrando todas as visualizações (Dia, Semana, Mês, Ano e Programação) e atualizando os contadores de status.",
+  "updatedAt":  "2026-11-10T19:56:31.480507466Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

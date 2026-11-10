@@ -57,7 +57,14 @@ export function useActiveWorkoutPersistence({
     hasActiveProgressRef.current = hasActiveProgress;
   }, [hasActiveProgress]);
 
-  // Set session and immediately persist to localStorage (independent per-student Data Persist) + Firebase queue
+  // Helper to strip volatile clock counter so 1-second timer ticks never trigger cloud writes
+  const getStructuralSessionSignature = useCallback((sess: ActiveWorkoutSession | null): string => {
+    if (!sess) return 'null';
+    const { elapsedSeconds: _ignoredElapsed, ...rest } = sess;
+    return JSON.stringify(rest);
+  }, []);
+
+  // Set session and immediately persist to localStorage (independent per-student Data Persist) + smart debounced Firebase sync
   const setSessionAndPersist = useCallback(
     (
       newSessionOrUpdater:
@@ -74,16 +81,22 @@ export function useActiveWorkoutPersistence({
       sessionRef.current = next;
       isClearedRef.current = next === null;
       setSessionState(next);
-      storage.saveActiveSession(
-        next,
-        next?.clientId || activeWorkoutRef.current?.clientId,
-        next?.programId || activeWorkoutRef.current?.id
-      );
-      if (next && hasActiveProgressRef.current(next)) {
-        cloudSync.syncActiveSession(next);
+
+      const prevSig = getStructuralSessionSignature(prev);
+      const nextSig = getStructuralSessionSignature(next);
+      const hasStructuralChange = prevSig !== nextSig;
+
+      // Always save structural changes immediately to localStorage; for pure 1s clock ticks, save to localStorage every 10s.
+      // Cloud sync to Firestore happens strictly upon finishing the workout (Local-First execution).
+      if (hasStructuralChange || !next || (next.elapsedSeconds || 0) % 10 === 0) {
+        storage.saveActiveSession(
+          next,
+          next?.clientId || activeWorkoutRef.current?.clientId,
+          next?.programId || activeWorkoutRef.current?.id
+        );
       }
     },
-    []
+    [getStructuralSessionSignature]
   );
 
   // Initial hydration from localStorage on mount (preserves checked sets & custom loads/reps on page refresh or offline)

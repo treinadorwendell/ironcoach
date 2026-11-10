@@ -1,67 +1,89 @@
-# Plano de Implementação — Compatibilidade Mobile Automática para iPhone 11+ (Notch & Dynamic Island)
+# Filtro por Aluno na Agenda Principal
 
-## 1. Visão Geral & Objetivos
-Adaptar automaticamente o layout mobile do **IronCoach** para todas as gerações do iPhone a partir do **iPhone 11** (`375px` a `440px` de largura CSS), garantindo:
-- **Separação dedicada abaixo da barra de status do iOS (Notch / Dynamic Island)**: O cabeçalho principal ficará posicionado imediatamente abaixo de uma faixa superior dedicada à área segura da barra de status (`44px–48px` para modelos com Notch e `54px–59px` para modelos com Dynamic Island), impedindo qualquer colisão visual com a câmera frontal, sensores ou relógio/indicadores do iOS.
-- **Detecção automática em PWA, Safari e Preview Mobile**: Um motor reativo identificará automaticamente a geometria da tela e o perfil do dispositivo (`Notch` para iPhone 11/12/13/14 ou `Dynamic Island` para iPhone 14 Pro/15/16) tanto quando instalado na Tela de Início (PWA) quanto no navegador ou em janelas mobile de preview (`375px–440px`), sincronizando variáveis CSS (`--sat`, `--sab`, `--sal`, `--sar`) em tempo real.
-- **Otimização completa de Cabeçalho, Barra Inferior, Modais e Tela de Treino**: Ajuste de alturas dinâmicas (`100dvh`), áreas de toque ergonômicas (`≥ 44px`), recuo inferior para a barra Home do iOS (`34px`) e densidade responsiva nos cards de execução de treino, cronômetro de descanso e janelas modais.
+Adição de um **Menu Seletor de Aluno** na barra de filtros da Agenda (ao lado do seletor de *Status da Agenda*), permitindo visualizar exclusivamente os agendamentos de um aluno específico em todas as visões do calendário (**Dia**, **Semana**, **Mês**, **Ano** e **Programação**) e atualizando os contadores de status em tempo real.
 
----
+## User Review & Critical Decisions
 
-## 2. Perfis de Dispositivos Suportados Automaticamente
+> [!IMPORTANT]
+> As decisões abaixo foram confirmadas na etapa de alinhamento e definem o comportamento exato do novo filtro:
 
-| Geração / Modelo | Largura × Altura CSS (pt) | Recorte Superior | Inset Topo (`--sat`) | Inset Base (`--sab`) |
-| :--- | :--- | :--- | :--- | :--- |
-| **iPhone 11 Pro / 12 mini / 13 mini** | `375 × 812` | Notch | `44px` – `50px` | `34px` |
-| **iPhone 11 / XR / 11 Pro Max** | `414 × 896` | Notch | `48px` / `44px` | `34px` |
-| **iPhone 12 / 12 Pro / 13 / 13 Pro / 14** | `390 × 844` | Notch | `47px` | `34px` |
-| **iPhone 12 Pro Max / 13 Pro Max / 14 Plus** | `428 × 926` | Notch | `47px` | `34px` |
-| **iPhone 14 Pro / 15 / 15 Pro / 16** | `393 × 852` | Dynamic Island | `59px` | `34px` |
-| **iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus** | `430 × 932` | Dynamic Island | `59px` | `34px` |
-| **iPhone 16 Pro / 16 Pro Max** | `402 × 874` / `440 × 956` | Dynamic Island | `62px` | `34px` |
+- **Filtragem Global em Todas as Visões e Contadores**: Ao selecionar um aluno, todas as visualizações da Agenda (**Dia**, **Semana**, **Mês**, **Ano** e **Programação**) passam a exibir apenas os agendamentos daquele aluno, e os contadores do menu **Status da Agenda** (`Todos`, `Realizado`, `Reagendado`, `Falta`, `Agendado`) passam a refletir os números daquele aluno.
+- **Menu Seletor ao Lado do Status da Agenda**: Na barra inferior do cabeçalho da Agenda (elemento focado), será adicionado um menu suspenso interativo de **Aluno** ao lado do seletor de **Status da Agenda**, mantendo a mesma identidade visual e fechamento automático ao selecionar.
+- **Preservação do Comportamento de Novo Compromisso**: O botão **Novo Compromisso** mantém sua seleção padrão atual ao abrir o modal de criação.
 
 ---
 
-## 3. Arquitetura da Solução
+## 1. Overview & Core Concept
 
-### 3.1. Detecção Automática de Geometria iPhone (`hooks/useIPhoneSafeArea.ts`)
-- Criar o hook e provedor leve que inspeciona:
-  1. `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` nativos do WebKit/iOS.
-  2. Dimensões de `window.screen` e `window.innerWidth` / `window.visualViewport` (`375px` a `440px`) para classificar automaticamente entre:
-     - **Perfil Notch** (`375px`, `390px`, `414px`, `428px` em modo retrato): aplica `--sat: max(env(safe-area-inset-top, 0px), 47px)` e `--sab: max(env(safe-area-inset-bottom, 0px), 34px)`.
-     - **Perfil Dynamic Island** (`393px`, `402px`, `430px`, `440px` em modo retrato): aplica `--sat: max(env(safe-area-inset-top, 0px), 59px)` e `--sab: max(env(safe-area-inset-bottom, 0px), 34px)`.
-     - **Modo Paisagem (Landscape)**: ajusta recuos laterais (`--sal` / `--sar: 47px–59px`) e reduz o topo para `0px` mantendo a barra inferior segura (`21px`).
-- Atualiza atributos `data-iphone-cutout="notch | dynamic-island | none"` no `<html>` em mudanças de orientação (`orientationchange`) e redimensionamento (`resize`).
-
-### 3.2. Folha de Estilos Global e Variáveis Safe-Area (`app/globals.css` & `app/layout.tsx`)
-- Configurar `min-h-[100dvh]` e `overscroll-behavior-y: none` para evitar saltos de barra de endereço no Safari iOS.
-- Criar utilitários dedicados para a separação da barra de status do iOS:
-  - `.ios-status-bar-spacer`: faixa fixa/sticky no topo com altura `var(--sat)` e fundo sólido (`bg-slate-950`) que isola a área do Notch / Dynamic Island.
-  - `.sticky-below-status-bar`: posiciona o cabeçalho principal em `top: var(--sat)` logo abaixo da área de status do iOS.
-  - `.modal-safe-container`: garante que todos os modais respeitem `padding-top: calc(var(--sat) + 0.75rem)` e `padding-bottom: calc(var(--sab) + 0.75rem)`.
-
-### 3.3. Cabeçalho Separado Abaixo da Barra de Status (`components/Header.tsx`)
-- Renderizar a faixa superior dedicada da barra de status (`height: var(--sat)`) com acabamento escuro integrado ao iOS, separada por uma linha sutil, mantendo o `<header>` principal logo abaixo.
-- Ajustar dimensões para telas de `375px–430px`:
-  - Compactar o seletor `"Treinador | Ver como Aluno"` e os botões laterais para nunca truncarem o nome do aluno ou a logo **IronCoach** em telas de `375px` (iPhone 11 Pro / 12 mini / 13 mini) e `390px`/`393px` (iPhone 12–16).
-  - Garantir área mínima de toque de `44px` nos botões interativos do topo.
-
-### 3.4. Barra de Navegação Inferior & Home Indicator (`components/BottomNav.tsx`)
-- Ajustar a altura e o `padding-bottom` para `calc(var(--sab) + 0.375rem)`, isolando os botões de navegação (`Cliente`, `Agenda`, `Criar Treino`, `Execução` / `Meu Treino`, `Minha Dieta`, `Meu Progresso`) da barra Home do iOS (`34px`).
-- Otimizar tipografia e espaçamento interno das abas para `375px–430px`, mantendo alvos de toque de `52px–56px` sem ultrapassar o orçamento de altura fixa da tela.
-
-### 3.5. Tela de Execução de Treino, Cronômetro e Modais (`app/page.tsx`, `WorkoutExecutionSection.tsx`, `ExerciseDedicatedPageView.tsx`, `RestCountdownTimer.tsx`, Modais)
-- **Container Principal (`app/page.tsx`)**: Ajustar o `padding-bottom` da `<main>` para `calc(5.25rem + var(--sab))` e posicionar notificações flutuantes (`syncNotice`) em `top: calc(var(--sat) + 4rem)` para nunca ficarem atrás da Dynamic Island.
-- **Execução de Treino & Página Dedicada de Exercício (`WorkoutExecutionSection.tsx` & `ExerciseDedicatedPageView.tsx`)**:
-  - Compactar paddings laterais e grades de inputs (Carga `kg`, Repetições, RIR/PSE) para encaixar perfeitamente em `375px–430px` sem rolagem horizontal.
-  - Posicionar cabeçalhos fixos e barras de ação inferiores respeitando `--sat` e `--sab`.
-- **Cronômetro de Descanso (`RestCountdownTimer.tsx`)**: Posicionar o banner flutuante acima do `BottomNav` levando em conta `var(--sab)`.
-- **Modais e Tela de Login (`AuthScreen.tsx`, `StudentSettingsModal.tsx`, `TrainerProfileModal.tsx`, `PsePickerModal.tsx`, `DynamicSubstitutionModal.tsx`, `ExerciseInstructionsModal.tsx`)**:
-  - Usar `max-h-[calc(100dvh-var(--sat)-var(--sab)-1.5rem)]` e recuos seguros para que botões de fechar (no topo) e botões de salvar/confirmar (no rodapé) fiquem 100% livres do Notch/Dynamic Island e da barra Home.
+- **O Que Faz**: Permite ao treinador filtrar rapidamente a grade da Agenda por qualquer aluno cadastrado (ou retornar para **Todos os Alunos** com 1 toque), isolando na tela todos os horários, dias de treino e histórico de presença daquele aluno.
+- **Público-Alvo / Contexto de Uso**: Personal trainers que desejam consultar os dias de aula de um aluno específico na semana/mês ou verificar rapidamente o histórico de presença de um cliente diretamente na Agenda.
+- **Valor Principal**: Elimina a poluição visual quando há dezenas de aulas na semana, permitindo enxergar instantaneamente a grade exclusiva de um único aluno combinada com qualquer filtro de status.
 
 ---
 
-## 4. Verificação
-1. Validar que todas as larguras de iPhone (`375px`, `390px`, `393px`, `402px`, `414px`, `428px`, `430px`, `440px`) recebem automaticamente o perfil de área segura correspondente (`Notch` vs `Dynamic Island`).
-2. Confirmar que o cabeçalho fica posicionado abaixo da barra de status do iOS e a barra inferior respeita o Home Indicator (`34px`).
-3. Executar `lint_applet` e `compile_applet` para assegurar zero erros de TypeScript ou build.
+## 2. User Experience & Visual Design
+
+- **Fluxo do Usuário**:
+  1. Na barra de filtros do cabeçalho da Agenda, o treinador visualiza dois controles lado a lado: **Filtrar Aluno** e **Status da Agenda**.
+  2. Por padrão, o seletor de aluno exibe **Todos os Alunos** (com o total de agendamentos).
+  3. Ao tocar no botão seletor de aluno, abre-se um menu suspenso estilizado listando:
+     - **Todos os Alunos** (com contador total)
+     - Cada aluno cadastrado (exibindo o nome do aluno e um contador tabular com a quantidade de agendamentos dele)
+  4. Ao escolher um aluno, o menu fecha automaticamente, o botão destaca o nome do aluno selecionado (com opção rápida de limpar/voltar para todos), os contadores de **Status da Agenda** são recalculados para aquele aluno e as grades de **Dia**, **Semana**, **Mês**, **Ano** e **Programação** exibem somente os compromissos dele.
+
+- **Identidade Visual & Tema**:
+  - *Direção Estética*: Segue o padrão dark slate (`bg-slate-900` / `bg-slate-950`) com acentos em roxo (`purple-600` / `purple-400`) e bordas sutis (`border-slate-700/80`).
+  - *Tipografia & Hierarquia*: Rótulos em linha única (`whitespace-nowrap`), truncamento elegante para nomes longos (`truncate max-w-[150px] sm:max-w-[200px]`) e contadores numéricos em fonte monoespaçada tabular (`font-mono tabular-nums`).
+  - *Feedback Interativo*: Abertura suave (`animate-in fade-in zoom-in-95 duration-150`), fechamento automático ao clicar fora ou selecionar uma opção, e destaque visual roxo quando um aluno específico está filtrado.
+
+---
+
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decisão 1: Composição Combinada entre Filtro de Aluno e Filtro de Status**
+  - *Abordagem Escolhida*: Primeiro filtra-se a lista base de eventos pelo aluno selecionado (`clientFilteredEvents`) para alimentar os contadores do menu de Status (`Todos`, `Realizado`, `Reagendado`, `Falta`, `Agendado`), e em seguida aplica-se o filtro de status (`filteredEvents`), que alimenta todas as 5 visões da Agenda.
+  - *Por Quê*: Garante que, ao selecionar um aluno, o treinador veja imediatamente quantas aulas realizadas, agendadas, reagendadas ou faltas aquele aluno possui, podendo ainda refinar por status se desejar.
+- **Decisão 2: Unificação das Visões de Mês e Ano com os Filtros Ativos**
+  - *Abordagem Escolhida*: As visões de **Mês** e **Ano**, que antes liam a lista bruta de eventos, passarão a consumir `filteredEvents` (respeitando tanto o aluno selecionado quanto o status filtrado).
+  - *Por Quê*: Cumpre o requisito confirmado pelo usuário de que o filtro funcione de ponta a ponta em todas as visualizações da Agenda.
+
+---
+
+## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+
+- **Diagrama de Arquitetura e Fluxo de Filtragem na Agenda**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       Barra de Filtros da Agenda                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────┐  ┌──────────────────────────────┐  │
+│  │ Seletor de Aluno (clientFilter) │  │ Seletor de Status            │  │
+│  │ • 'todos' (Padrão)              │  │ (statusFilter)               │  │
+│  │ • ID do Aluno Selecionado       │  │ • Contadores baseados em     │  │
+│  └────────────────┬────────────────┘  │   clientFilteredEvents       │  │
+│                   │                   └──────────────┬───────────────┘  │
+│                   ▼                                  │                  │
+│  ┌─────────────────────────────────┐                 │                  │
+│  │ 1. clientFilteredEvents         │                 │                  │
+│  │    Filtra eventos por clientId  ├─────────────────┘                  │
+│  └────────────────┬────────────────┘                                    │
+│                   ▼                                                     │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ 2. filteredEvents (Aluno + Status)                                │  │
+│  │    Alimenta de forma unificada todas as visualizações:            │  │
+│  │    ├── Visão Dia (dayEvents)                                      │  │
+│  │    ├── Visão Semana (currentWeekDays)                             │  │
+│  │    ├── Visão Mês (monthData cells & contador mensal)              │  │
+│  │    ├── Visão Ano (contadores dos 12 meses)                        │  │
+│  │    └── Visão Programação (lista cronológica contínua)             │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Mapeamento de Estado & Interatividade**:
+  - Novo estado `clientFilter` (`'todos' | string`, inicializado como `'todos'`) e `isClientMenuOpen` (`boolean`, com `clientMenuRef` integrado ao listener de clique externo `handleOutsideClick`).
+  - `clientFilteredEvents`: `useMemo` que retorna todos os `events` quando `clientFilter === 'todos'` ou apenas os eventos cujo `e.clientId === clientFilter`.
+  - `filteredEvents`: `useMemo` que aplica `statusFilter` sobre `clientFilteredEvents`.
+  - Atualização das visões `mes` e `ano` para utilizarem `filteredEvents` tanto na contagem do cabeçalho mensal/anual quanto nos pontos indicadores de cada dia do calendário.

@@ -59,9 +59,9 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
   const [selectedClientId, setSelectedClientId] = useState<string>('todos');
   const [includedStatuses, setIncludedStatuses] = useState<Record<string, boolean>>({
     realizado: true,
+    confirmado: true,
     reagendado: true,
     falta: true,
-    confirmado: false, // O usuário solicitou Realizadas, Reagendadas e Faltas
   });
 
   // Ajustes de Valores Financeiros por Aluno no Relatório (Personalização em tempo real)
@@ -112,29 +112,39 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     }
   };
 
-  // Filtragem dos eventos
-  const filteredEvents = useMemo(() => {
+  // Eventos no período e aluno selecionados (antes do filtro de checkboxes de status)
+  const eventsInScope = useMemo(() => {
     return events.filter((evt) => {
-      // Filtro por data
       if (startDate && evt.date < startDate) return false;
       if (endDate && evt.date > endDate) return false;
-
-      // Filtro por Aluno
       if (selectedClientId !== 'todos' && evt.clientId !== selectedClientId) {
         return false;
       }
+      return true;
+    });
+  }, [events, startDate, endDate, selectedClientId]);
 
-      // Filtro por Status
+  const statusCountsInScope = useMemo(() => {
+    return {
+      realizado: eventsInScope.filter((e) => e.status === 'realizado').length,
+      confirmado: eventsInScope.filter((e) => (e.status || 'confirmado') === 'confirmado').length,
+      reagendado: eventsInScope.filter((e) => e.status === 'reagendado').length,
+      falta: eventsInScope.filter((e) => e.status === 'falta').length,
+    };
+  }, [eventsInScope]);
+
+  // Filtragem dos eventos
+  const filteredEvents = useMemo(() => {
+    return eventsInScope.filter((evt) => {
       const statusKey = evt.status || 'confirmado';
       if (!includedStatuses[statusKey]) return false;
-
       return true;
     }).sort((a, b) => {
       // Ordenação cronológica por data e hora
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return a.startTime.localeCompare(b.startTime);
     });
-  }, [events, startDate, endDate, selectedClientId, includedStatuses]);
+  }, [eventsInScope, includedStatuses]);
 
   // Cruzamento do evento com histórico de treino executado
   const getWorkoutDetailsForEvent = (event: CalendarEvent) => {
@@ -172,8 +182,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
   // Cálculos Financeiros por Plano do Cliente (Mensal, Semanal e Avulsa)
   const financialSummary = useMemo(() => {
     let avulsasCount = 0;
+    let avulsasRealizadasCount = 0;
+    let avulsasAgendadasCount = 0;
     let avulsasTotalValue = 0;
-    const avulsasDetails: Array<{ clientName: string; date: string; value: number }> = [];
+    const avulsasDetails: Array<{ clientName: string; date: string; value: number; status: string }> = [];
 
     // Conjuntos de alunos únicos que tiveram aulas no período
     const clientesComAulas = new Set<string>();
@@ -189,21 +201,28 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     let alunosOnlineCount = 0;
     let totalOnlineValue = 0;
 
-    // 1. Para aulas AVULSAS: somar o valor por cada aula realizada no período (requisito do usuário: somar o valor das avulsas)
+    // 1. Para aulas AVULSAS: somar o valor por cada aula realizada ou agendada (a realizar) no período
     filteredEvents.forEach((evt) => {
       const client = clients.find((c) => c.id === evt.clientId);
       const contract = client?.contractType || 'Presencial - Avulsa';
+      const statusKey = evt.status || 'confirmado';
 
-      // Se for contrato Avulso e status for 'realizado'
+      // Se for contrato Avulso e status for 'realizado' ou 'confirmado' (Agendada a realizar)
       if (contract === 'Avulsa' || contract === 'Presencial - Avulsa') {
-        if (evt.status === 'realizado') {
+        if (statusKey === 'realizado' || statusKey === 'confirmado') {
           avulsasCount++;
+          if (statusKey === 'realizado') {
+            avulsasRealizadasCount++;
+          } else {
+            avulsasAgendadasCount++;
+          }
           const val = client ? getClientValue(client) : 80;
           avulsasTotalValue += val;
           avulsasDetails.push({
             clientName: evt.clientName || client?.name || 'Aluno',
             date: evt.date,
             value: val,
+            status: statusKey,
           });
         }
       }
@@ -234,11 +253,14 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     // Contadores de status de aulas
     const totalAulas = filteredEvents.length;
     const realizadas = filteredEvents.filter((e) => e.status === 'realizado').length;
+    const agendadas = filteredEvents.filter((e) => (e.status || 'confirmado') === 'confirmado').length;
     const reagendadas = filteredEvents.filter((e) => e.status === 'reagendado').length;
     const faltas = filteredEvents.filter((e) => e.status === 'falta').length;
 
     return {
       avulsasCount,
+      avulsasRealizadasCount,
+      avulsasAgendadasCount,
       avulsasTotalValue,
       avulsasDetails,
       alunosMensalCount,
@@ -250,6 +272,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       totalGeral,
       totalAulas,
       realizadas,
+      agendadas,
       reagendadas,
       faltas,
     };
@@ -311,11 +334,15 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.text(`• Total de Aulas no Período: ${financialSummary.totalAulas}`, 18, 56);
-      doc.text(`• Aulas Realizadas: ${financialSummary.realizadas}`, 18, 61);
+      doc.text(
+        `• Realizadas: ${financialSummary.realizadas}   |   • Agendadas (a realizar): ${financialSummary.agendadas}`,
+        18,
+        61
+      );
       doc.text(`• Reagendadas: ${financialSummary.reagendadas}   |   • Faltas: ${financialSummary.faltas}`, 18, 66);
 
       doc.text(
-        `• Avulsas (${financialSummary.avulsasCount} realizadas): R$ ${financialSummary.avulsasTotalValue.toFixed(2)}`,
+        `• Avulsas (${financialSummary.avulsasCount} somadas: ${financialSummary.avulsasRealizadasCount} real. + ${financialSummary.avulsasAgendadasCount} a realizar): R$ ${financialSummary.avulsasTotalValue.toFixed(2)}`,
         105,
         56
       );
@@ -341,7 +368,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
             ? 'Reagendado'
             : evt.status === 'falta'
             ? 'Falta'
-            : 'Agendado';
+            : 'Agendada (A realizar)';
 
         const clientPlan = client ? `${client.contractType || 'Avulsa'}` : 'Avulsa';
         const clientVal = client ? `R$ ${getClientValue(client).toFixed(2)}` : 'R$ 80,00';
@@ -378,8 +405,8 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
         columnStyles: {
           0: { cellWidth: 26 },
           1: { cellWidth: 32, fontStyle: 'bold' },
-          2: { cellWidth: 22 },
-          3: { cellWidth: 72 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 69 },
           4: { cellWidth: 30 },
         },
         didParseCell: (data) => {
@@ -387,6 +414,9 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
             const val = data.cell.raw;
             if (val === 'Realizado') {
               data.cell.styles.textColor = [5, 150, 105];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (val === 'Agendada (A realizar)') {
+              data.cell.styles.textColor = [124, 58, 237];
               data.cell.styles.fontStyle = 'bold';
             } else if (val === 'Reagendado') {
               data.cell.styles.textColor = [217, 119, 6];
@@ -562,7 +592,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               </div>
             </div>
 
-            {/* Checkboxes de Status (Realizadas, Reagendadas, Faltas) */}
+            {/* Checkboxes de Status (Realizadas, Agendadas, Reagendadas, Faltas) */}
             <div className="flex items-center gap-3 pt-2 border-t border-slate-800/80 flex-wrap">
               <span className="text-[11px] font-bold text-slate-400">Incluir no Relatório:</span>
               
@@ -575,9 +605,24 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   }
                   className="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 w-3.5 h-3.5"
                 />
-                <span className="flex items-center gap-1 text-emerald-400">
+                <span className="flex items-center gap-1 text-emerald-400 tabular-nums">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Realizadas ({events.filter((e) => e.status === 'realizado').length})
+                  Realizadas ({statusCountsInScope.realizado})
+                </span>
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-300 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={includedStatuses.confirmado}
+                  onChange={(e) =>
+                    setIncludedStatuses((prev) => ({ ...prev, confirmado: e.target.checked }))
+                  }
+                  className="rounded bg-slate-900 border-slate-700 text-purple-500 focus:ring-0 w-3.5 h-3.5"
+                />
+                <span className="flex items-center gap-1 text-purple-400 tabular-nums">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Agendadas ({statusCountsInScope.confirmado} a realizar)
                 </span>
               </label>
 
@@ -590,9 +635,9 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   }
                   className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-0 w-3.5 h-3.5"
                 />
-                <span className="flex items-center gap-1 text-amber-400">
+                <span className="flex items-center gap-1 text-amber-400 tabular-nums">
                   <RotateCcw className="w-3.5 h-3.5" />
-                  Reagendadas ({events.filter((e) => e.status === 'reagendado').length})
+                  Reagendadas ({statusCountsInScope.reagendado})
                 </span>
               </label>
 
@@ -605,9 +650,9 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   }
                   className="rounded bg-slate-900 border-slate-700 text-rose-500 focus:ring-0 w-3.5 h-3.5"
                 />
-                <span className="flex items-center gap-1 text-rose-400">
+                <span className="flex items-center gap-1 text-rose-400 tabular-nums">
                   <XCircle className="w-3.5 h-3.5" />
-                  Faltas ({events.filter((e) => e.status === 'falta').length})
+                  Faltas ({statusCountsInScope.falta})
                 </span>
               </label>
 
@@ -656,27 +701,27 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
           {/* SEÇÃO 2: RESUMO FINANCEIRO E DE AULAS */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 print:text-black">
                 <DollarSign className="w-4 h-4 text-emerald-400 print:text-black" />
                 Resumo Financeiro & Desempenho
               </h3>
-              <span className="text-xs text-slate-400 print:text-slate-600">
-                {financialSummary.realizadas} aulas realizadas com sucesso
+              <span className="text-xs text-slate-400 tabular-nums print:text-slate-600">
+                {financialSummary.realizadas} realizadas • {financialSummary.agendadas} agendadas (a realizar)
               </span>
             </div>
 
             <div className={`grid grid-cols-2 ${financialSummary.alunosOnlineCount > 0 ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-4'} gap-3`}>
-              {/* Card 1: Aulas Avulsas (Soma do valor conforme solicitado pelo usuário) */}
+              {/* Card 1: Aulas Avulsas (Soma do valor das realizadas + agendadas conforme solicitado pelo usuário) */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide block print:text-black">
                   Aulas Avulsas
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-white font-mono block mt-1 print:text-black">
+                <span className="text-xl sm:text-2xl font-black text-white font-mono tabular-nums block mt-1 print:text-black">
                   R$ {financialSummary.avulsasTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-[11px] text-slate-400 mt-1 block print:text-slate-700">
-                  {financialSummary.avulsasCount} {financialSummary.avulsasCount === 1 ? 'aula avulsa' : 'aulas avulsas'} somadas
+                <span className="text-[11px] text-slate-400 tabular-nums mt-1 block print:text-slate-700">
+                  {financialSummary.avulsasCount} {financialSummary.avulsasCount === 1 ? 'aula somada' : 'aulas somadas'} ({financialSummary.avulsasRealizadasCount} real. • {financialSummary.avulsasAgendadasCount} a realizar)
                 </span>
               </div>
 
@@ -685,10 +730,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wide block print:text-black">
                   Planos Semanais
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-white font-mono block mt-1 print:text-black">
+                <span className="text-xl sm:text-2xl font-black text-white font-mono tabular-nums block mt-1 print:text-black">
                   R$ {financialSummary.totalSemanalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-[11px] text-slate-400 mt-1 block print:text-slate-700">
+                <span className="text-[11px] text-slate-400 tabular-nums mt-1 block print:text-slate-700">
                   {financialSummary.alunosSemanalCount} alunos com plano semanal
                 </span>
               </div>
@@ -698,10 +743,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wide block print:text-black">
                   Planos Mensais
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-white font-mono block mt-1 print:text-black">
+                <span className="text-xl sm:text-2xl font-black text-white font-mono tabular-nums block mt-1 print:text-black">
                   R$ {financialSummary.totalMensalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-[11px] text-slate-400 mt-1 block print:text-slate-700">
+                <span className="text-[11px] text-slate-400 tabular-nums mt-1 block print:text-slate-700">
                   {financialSummary.alunosMensalCount} alunos com plano mensal
                 </span>
               </div>
@@ -712,10 +757,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wide block print:text-black">
                     Planos Online
                   </span>
-                  <span className="text-xl sm:text-2xl font-black text-white font-mono block mt-1 print:text-black">
+                  <span className="text-xl sm:text-2xl font-black text-white font-mono tabular-nums block mt-1 print:text-black">
                     R$ {financialSummary.totalOnlineValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
-                  <span className="text-[11px] text-slate-400 mt-1 block print:text-slate-700">
+                  <span className="text-[11px] text-slate-400 tabular-nums mt-1 block print:text-slate-700">
                     {financialSummary.alunosOnlineCount} {financialSummary.alunosOnlineCount === 1 ? 'aluno com plano online' : 'alunos com plano online'}
                   </span>
                 </div>
@@ -726,7 +771,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wide block print:text-black">
                   Receita Consolidada
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono block mt-1 print:text-black">
+                <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono tabular-nums block mt-1 print:text-black">
                   R$ {financialSummary.totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
                 <span className="text-[11px] text-slate-400 mt-1 block print:text-slate-700">
@@ -736,24 +781,31 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
             </div>
 
             {/* Fita de Status das Aulas */}
-            <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-center">
               <div className="py-2 px-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-center gap-2 print:border-black">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 print:text-black" />
-                <span className="text-xs font-bold text-emerald-300 print:text-black">
+                <span className="text-xs font-bold tabular-nums text-emerald-300 print:text-black">
                   {financialSummary.realizadas} Realizadas
+                </span>
+              </div>
+
+              <div className="py-2 px-3 rounded-xl bg-purple-950/20 border border-purple-500/20 flex items-center justify-center gap-2 print:border-black">
+                <Calendar className="w-3.5 h-3.5 text-purple-400 print:text-black" />
+                <span className="text-xs font-bold tabular-nums text-purple-300 print:text-black">
+                  {financialSummary.agendadas} Agendadas (a realizar)
                 </span>
               </div>
 
               <div className="py-2 px-3 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-center justify-center gap-2 print:border-black">
                 <RotateCcw className="w-3.5 h-3.5 text-amber-400 print:text-black" />
-                <span className="text-xs font-bold text-amber-300 print:text-black">
+                <span className="text-xs font-bold tabular-nums text-amber-300 print:text-black">
                   {financialSummary.reagendadas} Reagendadas
                 </span>
               </div>
 
               <div className="py-2 px-3 rounded-xl bg-rose-950/20 border border-rose-500/20 flex items-center justify-center gap-2 print:border-black">
                 <XCircle className="w-3.5 h-3.5 text-rose-400 print:text-black" />
-                <span className="text-xs font-bold text-rose-300 print:text-black">
+                <span className="text-xs font-bold tabular-nums text-rose-300 print:text-black">
                   {financialSummary.faltas} Faltas
                 </span>
               </div>
@@ -792,6 +844,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                       const workoutDetails = getWorkoutDetailsForEvent(evt);
                       const contract = client?.contractType || 'Avulsa';
                       const value = client ? getClientValue(client) : 80;
+                      const statusKey = evt.status || 'confirmado';
 
                       // Badge de status
                       const statusMap = {
@@ -811,7 +864,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                           icon: XCircle,
                         },
                         confirmado: {
-                          label: 'Agendada',
+                          label: 'Agendada (A realizar)',
                           cls: 'bg-purple-500/10 text-purple-400 border border-purple-500/30 print:text-black',
                           icon: Calendar,
                         },
@@ -822,7 +875,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                         },
                       };
 
-                      const currentStatus = statusMap[evt.status] || statusMap.confirmado;
+                      const currentStatus = statusMap[statusKey] || statusMap.confirmado;
                       const StatusIcon = currentStatus.icon;
 
                       return (
@@ -832,10 +885,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                         >
                           {/* Data e Horário */}
                           <td className="p-3 whitespace-nowrap">
-                            <span className="font-mono font-bold text-white block print:text-black">
+                            <span className="font-mono tabular-nums font-bold text-white block print:text-black">
                               {evt.date.split('-').reverse().join('/')}
                             </span>
-                            <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1 mt-0.5 print:text-slate-600">
+                            <span className="text-[11px] text-slate-400 font-mono tabular-nums flex items-center gap-1 mt-0.5 print:text-slate-600">
                               <Clock className="w-3 h-3 text-purple-400 print:hidden" />
                               {evt.startTime} - {evt.endTime}
                             </span>
@@ -870,7 +923,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                               <span>{currentStatus.label}</span>
                             </span>
                             {evt.status === 'reagendado' && evt.rescheduledDate && (
-                              <span className="block text-[10px] text-amber-300 mt-1 font-mono">
+                              <span className="block text-[10px] text-amber-300 mt-1 font-mono tabular-nums">
                                 ↺ Nova data: {evt.rescheduledDate.split('-').reverse().join('/')} {evt.rescheduledTime ? `às ${evt.rescheduledTime}` : ''}
                               </span>
                             )}
@@ -889,7 +942,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                                 {workoutDetails.summary}
                               </span>
                               {workoutDetails.volumeKg && workoutDetails.volumeKg > 0 && (
-                                <span className="text-[10px] font-mono text-emerald-400 block print:text-black">
+                                <span className="text-[10px] font-mono tabular-nums text-emerald-400 block print:text-black">
                                   Volume: {workoutDetails.volumeKg.toLocaleString('pt-BR')} kg {workoutDetails.duration ? `• ${workoutDetails.duration}` : ''}
                                 </span>
                               )}
@@ -897,14 +950,24 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                           </td>
 
                           {/* Valor Financeiro */}
-                          <td className="p-3 text-right font-mono font-bold whitespace-nowrap">
+                          <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                             {contract === 'Avulsa' || contract === 'Presencial - Avulsa' ? (
                               <div>
                                 <span className="text-emerald-400 print:text-black">
                                   R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </span>
-                                <span className="text-[9px] text-slate-400 block font-sans">
-                                  {evt.status === 'realizado' ? 'faturado' : 'não faturado'}
+                                <span className={`text-[9px] block font-sans ${
+                                  statusKey === 'realizado'
+                                    ? 'text-emerald-400/80'
+                                    : statusKey === 'confirmado'
+                                    ? 'text-purple-400'
+                                    : 'text-slate-400'
+                                }`}>
+                                  {statusKey === 'realizado'
+                                    ? 'faturado (realizada)'
+                                    : statusKey === 'confirmado'
+                                    ? 'a realizar (somado)'
+                                    : 'não faturado'}
                                 </span>
                               </div>
                             ) : (

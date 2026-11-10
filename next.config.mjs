@@ -11,6 +11,9 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'motion'],
+    webpackMemoryOptimizations: true,
+    cpus: 1,
+    workerThreads: false,
   },
   serverExternalPackages: ['firebase', '@grpc/grpc-js', '@grpc/proto-loader'],
   // Allow access to remote image placeholder.
@@ -38,6 +41,10 @@ const nextConfig = {
       config.watchOptions = {
         ignored: /.*/,
       };
+    }
+    if (!dev) {
+      config.cache = false;
+      config.parallelism = 1;
     }
     return config;
   },

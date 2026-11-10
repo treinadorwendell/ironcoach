@@ -621,6 +621,26 @@ export const CreateWorkoutSection: React.FC<CreateWorkoutSectionProps> = ({
   // Active split currently displayed in editor
   const activeSplit = editingProgram?.splits?.find((s) => s.id === selectedSplitId) || editingProgram?.splits?.[0];
 
+  // Persist in-progress workout edits locally in localStorage (Local-First) without writing to Firestore until user clicks "Salvar"
+  useEffect(() => {
+    if (!editingProgram) return;
+    const allDays = Array.from(
+      new Set((editingProgram.splits || []).flatMap((s) => s.weekDays || []))
+    ).sort();
+    const localDraft: WorkoutProgram = {
+      ...editingProgram,
+      weekDays: allDays,
+      exercises: editingProgram.splits?.[0]?.exercises || [],
+    };
+    const currentLocal = storage.getWorkouts();
+    const existsIdx = currentLocal.findIndex((w) => w.id === localDraft.id);
+    if (existsIdx >= 0) {
+      const nextList = [...currentLocal];
+      nextList[existsIdx] = localDraft;
+      storage.saveWorkouts(nextList);
+    }
+  }, [editingProgram]);
+
   // Helper to log all alterations made while building/editing workout in real time
   const logWorkoutChange = useCallback(
     (
