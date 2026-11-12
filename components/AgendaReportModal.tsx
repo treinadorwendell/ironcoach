@@ -19,6 +19,12 @@ import {
   Sparkles,
   Layers,
   ChevronDown,
+  MessageCircle,
+  Send,
+  Share2,
+  Copy,
+  Check,
+  Phone,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -147,7 +153,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
   }, [eventsInScope, includedStatuses]);
 
   // Cruzamento do evento com histórico de treino executado
-  const getWorkoutDetailsForEvent = (event: CalendarEvent) => {
+  const getWorkoutDetailsForEvent = useCallback((event: CalendarEvent) => {
     // 1. Tentar encontrar CompletedWorkoutRecord que coincida com o aluno e data
     // Formato da data no record: "DD/MM/YYYY"
     const [y, m, d] = event.date.split('-');
@@ -177,7 +183,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
       summary: event.notes || 'Sem observações adicionais',
       isFromExecution: false,
     };
-  };
+  }, [completedWorkouts]);
 
   // Cálculos Financeiros por Plano do Cliente (Mensal, Semanal e Avulsa)
   const financialSummary = useMemo(() => {
@@ -280,160 +286,350 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  // Estados para Envio por WhatsApp (PDF + Mensagem Editável)
+  const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
+  const [whatsappRecipientId, setWhatsappRecipientId] = useState<string>('todos');
+  const [whatsappPhone, setWhatsappPhone] = useState<string>('');
+  const [whatsappMessage, setWhatsappMessage] = useState<string>('');
+  const [copiedWhatsappMsg, setCopiedWhatsappMsg] = useState(false);
+  const [whatsappFeedback, setWhatsappFeedback] = useState<string | null>(null);
+
+  // Construtor unificado do documento PDF (usado tanto no download direto quanto no envio via WhatsApp)
+  const buildReportPdfDoc = useCallback(() => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const primaryPurple: [number, number, number] = [124, 58, 237];
+    const darkSlate: [number, number, number] = [15, 23, 42];
+    const textMuted: [number, number, number] = [100, 116, 139];
+
+    // Header Banner
+    doc.setFillColor(...primaryPurple);
+    doc.rect(0, 0, 210, 22, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text('IRONCOACH - RELATÓRIO DE AULAS & FINANCEIRO', 14, 14);
+
+    // Metadata Info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...textMuted);
+    const generatedAt = new Date().toLocaleString('pt-BR');
+    doc.text(`Gerado em: ${generatedAt}`, 14, 29);
+    doc.text(
+      `Período: ${startDate.split('-').reverse().join('/')} até ${endDate.split('-').reverse().join('/')}`,
+      14,
+      34
+    );
+
+    const alunoNome =
+      selectedClientId === 'todos'
+        ? 'Todos os Alunos'
+        : clients.find((c) => c.id === selectedClientId)?.name || 'Aluno Selecionado';
+    doc.text(`Filtro Aluno: ${alunoNome}`, 14, 39);
+
+    // Card Resumo Financeiro & Métricas
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, 43, 182, 32, 2, 2, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...darkSlate);
+    doc.text('RESUMO GERAL DO PERÍODO', 18, 50);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`• Total de Aulas no Período: ${financialSummary.totalAulas}`, 18, 56);
+    doc.text(
+      `• Realizadas: ${financialSummary.realizadas}   |   • Agendadas (a realizar): ${financialSummary.agendadas}`,
+      18,
+      61
+    );
+    doc.text(`• Reagendadas: ${financialSummary.reagendadas}   |   • Faltas: ${financialSummary.faltas}`, 18, 66);
+
+    doc.text(
+      `• Avulsas (${financialSummary.avulsasCount} somadas: ${financialSummary.avulsasRealizadasCount} real. + ${financialSummary.avulsasAgendadasCount} a realizar): R$ ${financialSummary.avulsasTotalValue.toFixed(2)}`,
+      105,
+      56
+    );
+    doc.text(
+      `• Planos Mensais/Semanais/Online: R$ ${(financialSummary.totalMensalValue + financialSummary.totalSemanalValue + financialSummary.totalOnlineValue).toFixed(2)}`,
+      105,
+      61
+    );
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(5, 150, 105);
+    doc.setFontSize(9);
+    doc.text(`TOTAL FATURADO ESTIMADO: R$ ${financialSummary.totalGeral.toFixed(2)}`, 105, 68);
+
+    // Tabela de Aulas
+    const tableData = filteredEvents.map((evt) => {
+      const client = clients.find((c) => c.id === evt.clientId);
+      const workoutDetails = getWorkoutDetailsForEvent(evt);
+      const statusLabel =
+        evt.status === 'realizado'
+          ? 'Realizado'
+          : evt.status === 'reagendado'
+          ? 'Reagendado'
+          : evt.status === 'falta'
+          ? 'Falta'
+          : 'Agendada (A realizar)';
+
+      const clientPlan = client ? `${client.contractType || 'Avulsa'}` : 'Avulsa';
+      const clientVal = client ? `R$ ${getClientValue(client).toFixed(2)}` : 'R$ 80,00';
+
+      const workoutDesc = workoutDetails.isFromExecution
+        ? `${workoutDetails.title}\n(${workoutDetails.summary}${workoutDetails.duration ? ` • ${workoutDetails.duration}` : ''})`
+        : `${workoutDetails.title}${evt.notes ? `\nObs: ${evt.notes}` : ''}`;
+
+      return [
+        `${evt.date.split('-').reverse().join('/')}\n${evt.startTime} - ${evt.endTime}`,
+        evt.clientName || client?.name || 'Aluno',
+        statusLabel,
+        workoutDesc,
+        `${clientPlan}\n${clientVal}`,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 79,
+      head: [['Data / Hora', 'Aluno', 'Status', 'Descrição do Treino', 'Plano & Valor']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: primaryPurple,
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 8,
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 2,
+        valign: 'middle',
+      },
+      columnStyles: {
+        0: { cellWidth: 26 },
+        1: { cellWidth: 32, fontStyle: 'bold' },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 69 },
+        4: { cellWidth: 30 },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 2) {
+          const val = data.cell.raw;
+          if (val === 'Realizado') {
+            data.cell.styles.textColor = [5, 150, 105];
+            data.cell.styles.fontStyle = 'bold';
+          } else if (val === 'Agendada (A realizar)') {
+            data.cell.styles.textColor = [124, 58, 237];
+            data.cell.styles.fontStyle = 'bold';
+          } else if (val === 'Reagendado') {
+            data.cell.styles.textColor = [217, 119, 6];
+            data.cell.styles.fontStyle = 'bold';
+          } else if (val === 'Falta') {
+            data.cell.styles.textColor = [225, 29, 72];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+    });
+
+    const studentSlug =
+      selectedClientId !== 'todos'
+        ? `_${(clients.find((c) => c.id === selectedClientId)?.name || 'Aluno').replace(/\s+/g, '_')}`
+        : '';
+    const fileName = `Relatorio_Aulas_Financeiro${studentSlug}_${startDate}_a_${endDate}.pdf`;
+
+    return { doc, fileName };
+  }, [startDate, endDate, selectedClientId, clients, financialSummary, filteredEvents, getClientValue, getWorkoutDetailsForEvent]);
+
   // Exportação direta e garantida em arquivo PDF nativo (A4 Vetorial com tabelas e resumo financeiro)
   const handleExportPdf = () => {
     setIsGeneratingPdf(true);
     try {
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const primaryPurple: [number, number, number] = [124, 58, 237];
-      const darkSlate: [number, number, number] = [15, 23, 42];
-      const textMuted: [number, number, number] = [100, 116, 139];
-
-      // Header Banner
-      doc.setFillColor(...primaryPurple);
-      doc.rect(0, 0, 210, 22, 'F');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(255, 255, 255);
-      doc.text('IRONCOACH - RELATÓRIO DE AULAS & FINANCEIRO', 14, 14);
-
-      // Metadata Info
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(...textMuted);
-      const generatedAt = new Date().toLocaleString('pt-BR');
-      doc.text(`Gerado em: ${generatedAt}`, 14, 29);
-      doc.text(
-        `Período: ${startDate.split('-').reverse().join('/')} até ${endDate.split('-').reverse().join('/')}`,
-        14,
-        34
-      );
-
-      const alunoNome =
-        selectedClientId === 'todos'
-          ? 'Todos os Alunos'
-          : clients.find((c) => c.id === selectedClientId)?.name || 'Aluno Selecionado';
-      doc.text(`Filtro Aluno: ${alunoNome}`, 14, 39);
-
-      // Card Resumo Financeiro & Métricas
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(14, 43, 182, 32, 2, 2, 'FD');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(...darkSlate);
-      doc.text('RESUMO GERAL DO PERÍODO', 18, 50);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(`• Total de Aulas no Período: ${financialSummary.totalAulas}`, 18, 56);
-      doc.text(
-        `• Realizadas: ${financialSummary.realizadas}   |   • Agendadas (a realizar): ${financialSummary.agendadas}`,
-        18,
-        61
-      );
-      doc.text(`• Reagendadas: ${financialSummary.reagendadas}   |   • Faltas: ${financialSummary.faltas}`, 18, 66);
-
-      doc.text(
-        `• Avulsas (${financialSummary.avulsasCount} somadas: ${financialSummary.avulsasRealizadasCount} real. + ${financialSummary.avulsasAgendadasCount} a realizar): R$ ${financialSummary.avulsasTotalValue.toFixed(2)}`,
-        105,
-        56
-      );
-      doc.text(
-        `• Planos Mensais/Semanais/Online: R$ ${(financialSummary.totalMensalValue + financialSummary.totalSemanalValue + financialSummary.totalOnlineValue).toFixed(2)}`,
-        105,
-        61
-      );
-
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(5, 150, 105);
-      doc.setFontSize(9);
-      doc.text(`TOTAL FATURADO ESTIMADO: R$ ${financialSummary.totalGeral.toFixed(2)}`, 105, 68);
-
-      // Tabela de Aulas
-      const tableData = filteredEvents.map((evt) => {
-        const client = clients.find((c) => c.id === evt.clientId);
-        const workoutDetails = getWorkoutDetailsForEvent(evt);
-        const statusLabel =
-          evt.status === 'realizado'
-            ? 'Realizado'
-            : evt.status === 'reagendado'
-            ? 'Reagendado'
-            : evt.status === 'falta'
-            ? 'Falta'
-            : 'Agendada (A realizar)';
-
-        const clientPlan = client ? `${client.contractType || 'Avulsa'}` : 'Avulsa';
-        const clientVal = client ? `R$ ${getClientValue(client).toFixed(2)}` : 'R$ 80,00';
-
-        const workoutDesc = workoutDetails.isFromExecution
-          ? `${workoutDetails.title}\n(${workoutDetails.summary}${workoutDetails.duration ? ` • ${workoutDetails.duration}` : ''})`
-          : `${workoutDetails.title}${evt.notes ? `\nObs: ${evt.notes}` : ''}`;
-
-        return [
-          `${evt.date.split('-').reverse().join('/')}\n${evt.startTime} - ${evt.endTime}`,
-          evt.clientName || client?.name || 'Aluno',
-          statusLabel,
-          workoutDesc,
-          `${clientPlan}\n${clientVal}`,
-        ];
-      });
-
-      autoTable(doc, {
-        startY: 79,
-        head: [['Data / Hora', 'Aluno', 'Status', 'Descrição do Treino', 'Plano & Valor']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: primaryPurple,
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 8,
-        },
-        styles: {
-          fontSize: 7.5,
-          cellPadding: 2,
-          valign: 'middle',
-        },
-        columnStyles: {
-          0: { cellWidth: 26 },
-          1: { cellWidth: 32, fontStyle: 'bold' },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 69 },
-          4: { cellWidth: 30 },
-        },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index === 2) {
-            const val = data.cell.raw;
-            if (val === 'Realizado') {
-              data.cell.styles.textColor = [5, 150, 105];
-              data.cell.styles.fontStyle = 'bold';
-            } else if (val === 'Agendada (A realizar)') {
-              data.cell.styles.textColor = [124, 58, 237];
-              data.cell.styles.fontStyle = 'bold';
-            } else if (val === 'Reagendado') {
-              data.cell.styles.textColor = [217, 119, 6];
-              data.cell.styles.fontStyle = 'bold';
-            } else if (val === 'Falta') {
-              data.cell.styles.textColor = [225, 29, 72];
-              data.cell.styles.fontStyle = 'bold';
-            }
-          }
-        },
-      });
-
-      const fileName = `Relatorio_Aulas_Financeiro_${startDate}_a_${endDate}.pdf`;
+      const { doc, fileName } = buildReportPdfDoc();
       doc.save(fileName);
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
       window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Gera o modelo de mensagem padrão para o WhatsApp com saudação, resumo de aulas e valor total
+  const buildDefaultWhatsappMessage = useCallback(
+    (targetClientId?: string) => {
+      const effectiveClientId = targetClientId !== undefined ? targetClientId : selectedClientId;
+      const targetClient =
+        effectiveClientId !== 'todos'
+          ? clients.find((c) => c.id === effectiveClientId)
+          : undefined;
+
+      const periodStr = `${startDate.split('-').reverse().join('/')} a ${endDate
+        .split('-')
+        .reverse()
+        .join('/')}`;
+
+      const greeting = targetClient
+        ? `Olá, *${targetClient.name}*! Tudo bem?`
+        : 'Olá! Tudo bem?';
+
+      const planLine = targetClient
+        ? `\n• Aluno(a): *${targetClient.name}* (${targetClient.contractType})`
+        : '';
+
+      const avulsasLine =
+        financialSummary.avulsasCount > 0
+          ? `• Aulas Avulsas (${financialSummary.avulsasCount} somadas: ${financialSummary.avulsasRealizadasCount} realizadas + ${financialSummary.avulsasAgendadasCount} a realizar): R$ ${financialSummary.avulsasTotalValue.toLocaleString(
+              'pt-BR',
+              { minimumFractionDigits: 2 }
+            )}\n`
+          : '';
+
+      return (
+        `${greeting}\n\n` +
+        `Segue o *Relatório de Aulas & Financeiro* referente ao período de *${periodStr}*:${planLine}\n\n` +
+        `*Resumo de Frequência no Período:*\n` +
+        `• Total de aulas no período: ${financialSummary.totalAulas}\n` +
+        `• Realizadas: ${financialSummary.realizadas}\n` +
+        `• Agendadas (a realizar): ${financialSummary.agendadas}\n` +
+        `• Reagendadas: ${financialSummary.reagendadas}\n` +
+        `• Faltas: ${financialSummary.faltas}\n\n` +
+        `*Resumo Financeiro:*\n` +
+        avulsasLine +
+        `• *Valor Total: R$ ${financialSummary.totalGeral.toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+        })}*\n\n` +
+        `O relatório completo em PDF segue em anexo. Qualquer dúvida estou à disposição!`
+      );
+    },
+    [selectedClientId, clients, startDate, endDate, financialSummary]
+  );
+
+  // Normaliza o número de telefone para o formato internacional do WhatsApp (DDI 55 padrão Brasil)
+  const normalizeWhatsappPhone = (rawPhone: string): string => {
+    const digits = rawPhone.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length === 10 || digits.length === 11) {
+      return `55${digits}`;
+    }
+    return digits;
+  };
+
+  // Abre o painel de envio via WhatsApp preenchendo automaticamente o aluno e a mensagem
+  const handleOpenWhatsappPanel = () => {
+    setWhatsappFeedback(null);
+    let initialRecipient = selectedClientId;
+    if (initialRecipient === 'todos') {
+      const uniqueClientIds = Array.from(new Set(filteredEvents.map((e) => e.clientId).filter(Boolean)));
+      if (uniqueClientIds.length === 1) {
+        initialRecipient = uniqueClientIds[0];
+      } else if (clients.length > 0) {
+        initialRecipient = clients[0].id;
+      }
+    }
+    setWhatsappRecipientId(initialRecipient);
+    const clientObj = clients.find((c) => c.id === initialRecipient);
+    setWhatsappPhone(clientObj?.phone || '');
+    setWhatsappMessage(buildDefaultWhatsappMessage(initialRecipient));
+    setIsWhatsappModalOpen(true);
+  };
+
+  // Quando o treinador troca o aluno destinatário no painel do WhatsApp
+  const handleChangeWhatsappRecipient = (newClientId: string) => {
+    setWhatsappRecipientId(newClientId);
+    const clientObj = clients.find((c) => c.id === newClientId);
+    setWhatsappPhone(clientObj?.phone || '');
+    setWhatsappMessage(buildDefaultWhatsappMessage(newClientId));
+  };
+
+  // Copia a mensagem para a área de transferência
+  const handleCopyWhatsappMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(whatsappMessage);
+      setCopiedWhatsappMsg(true);
+      setTimeout(() => setCopiedWhatsappMsg(false), 2500);
+    } catch {
+      // ignore clipboard errors
+    }
+  };
+
+  // Envia abrindo a conversa do WhatsApp com a mensagem preenchida + baixando o PDF automaticamente
+  const handleSendWhatsappDirect = () => {
+    setIsGeneratingPdf(true);
+    setWhatsappFeedback(null);
+    try {
+      const { doc, fileName } = buildReportPdfDoc();
+      doc.save(fileName);
+
+      const cleanPhone = normalizeWhatsappPhone(whatsappPhone);
+      const encodedMsg = encodeURIComponent(whatsappMessage);
+      const waUrl = cleanPhone
+        ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`
+        : `https://api.whatsapp.com/send?text=${encodedMsg}`;
+
+      const link = document.createElement('a');
+      link.href = waUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setWhatsappFeedback(
+        `O arquivo PDF (${fileName}) foi baixado automaticamente e a conversa no WhatsApp foi aberta com a sua mensagem! Agora basta anexar o PDF baixado na conversa.`
+      );
+    } catch (err) {
+      console.error('Erro ao preparar envio para WhatsApp:', err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Compartilha o arquivo PDF diretamente via menu nativo do celular (Web Share API Level 2) junto com a mensagem
+  const handleShareWhatsappNativeFile = async () => {
+    setIsGeneratingPdf(true);
+    setWhatsappFeedback(null);
+    try {
+      const { doc, fileName } = buildReportPdfDoc();
+      const pdfBlob = doc.output('blob');
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      try {
+        await navigator.clipboard.writeText(whatsappMessage);
+      } catch {
+        // ignore clipboard permission errors
+      }
+
+      const nav = navigator as Navigator & {
+        canShare?: (data?: ShareData) => boolean;
+      };
+
+      if (nav.canShare && nav.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          files: [pdfFile],
+          title: 'Relatório de Aulas & Financeiro',
+          text: whatsappMessage,
+        });
+        setWhatsappFeedback(
+          'Relatório PDF compartilhado com sucesso! (A mensagem também foi copiada para a área de transferência caso precise colar).'
+        );
+      } else {
+        // Fallback automático caso o navegador atual (ex: Desktop) não suporte compartilhamento direto de arquivo
+        handleSendWhatsappDirect();
+      }
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') {
+        handleSendWhatsappDirect();
+      }
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -481,23 +677,6 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 print:hidden">
-            <button
-              onClick={handleExportPdf}
-              disabled={isGeneratingPdf}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50"
-              title="Baixar arquivo PDF nativo no computador ou celular"
-            >
-              <Download className="w-4 h-4" />
-              <span>{isGeneratingPdf ? 'Gerando PDF...' : 'Baixar PDF'}</span>
-            </button>
-            <button
-              onClick={handlePrintDocument}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 active:scale-95 transition"
-              title="Imprimir relatório"
-            >
-              <Printer className="w-4 h-4 text-purple-400" />
-              <span className="hidden sm:inline">Imprimir</span>
-            </button>
             <button
               onClick={onClose}
               className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95"
@@ -1001,33 +1180,188 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
           </div>
         </div>
 
+        {/* PAINEL EXPANSÍVEL DE ENVIO VIA WHATSAPP (PDF + MENSAGEM EDITÁVEL) */}
+        {isWhatsappModalOpen && (
+          <div className="p-4 sm:p-5 border-t border-emerald-500/30 bg-slate-900/95 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <MessageCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-black text-white">
+                    Enviar Relatório em PDF pelo WhatsApp
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Revise ou edite a mensagem abaixo e confirme o envio para o WhatsApp do aluno.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWhatsappModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                title="Fechar painel do WhatsApp"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Seleção do Aluno Destinatário */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  Selecionar Aluno Destinatário
+                </label>
+                <select
+                  value={whatsappRecipientId}
+                  onChange={(e) => handleChangeWhatsappRecipient(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="todos">Geral / Informar número manualmente</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.phone ? `(${c.phone})` : '(Sem telefone cadastrado)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Telefone do WhatsApp */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  WhatsApp de Destino (com DDD)
+                </label>
+                <div className="relative flex items-center">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400 absolute left-3 pointer-events-none" />
+                  <input
+                    type="tel"
+                    value={whatsappPhone}
+                    onChange={(e) => setWhatsappPhone(e.target.value)}
+                    placeholder="Ex: (11) 99999-9999"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Mensagem Editável */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-slate-300">
+                  Mensagem que acompanha o Relatório PDF (Editável)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappMessage(buildDefaultWhatsappMessage(whatsappRecipientId))}
+                    className="text-[11px] font-semibold text-purple-400 hover:text-purple-300 transition"
+                  >
+                    Restaurar modelo padrão
+                  </button>
+                  <span className="text-slate-700">•</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyWhatsappMessage}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition"
+                  >
+                    {copiedWhatsappMsg ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        <span>Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copiar texto</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <textarea
+                rows={6}
+                value={whatsappMessage}
+                onChange={(e) => setWhatsappMessage(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 leading-relaxed focus:outline-none focus:border-emerald-500 resize-y"
+              />
+            </div>
+
+            {whatsappFeedback && (
+              <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>{whatsappFeedback}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 flex-wrap pt-1">
+              <button
+                type="button"
+                onClick={handleShareWhatsappNativeFile}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 text-xs font-bold border border-emerald-500/30 transition active:scale-95 disabled:opacity-50"
+                title="Compartilhar arquivo PDF diretamente pelo aplicativo no celular"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Compartilhar Arquivo PDF (App / Celular)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendWhatsappDirect}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 transition active:scale-95 disabled:opacity-50"
+                title="Baixar o PDF automaticamente e abrir a conversa do aluno no WhatsApp com a mensagem preenchida"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Baixar PDF + Abrir WhatsApp do Aluno</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* RODAPÉ DO MODAL (Botões de Ação) */}
-        <div className="p-4 sm:p-5 border-t border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80 rounded-b-3xl print:hidden">
+        <div className="p-4 sm:p-5 border-t border-slate-800 flex items-center justify-between gap-3 flex-wrap bg-slate-950/80 rounded-b-3xl print:hidden">
           <div className="text-xs text-slate-400">
-            Exportação compatível com PDF (formato A4) e impressoras térmicas/padrão.
+            Exportação compatível com PDF (formato A4), envio via WhatsApp e impressoras padrão.
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition active:scale-95"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition active:scale-95 whitespace-nowrap"
             >
               Fechar
             </button>
             <button
               type="button"
               onClick={handlePrintDocument}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 active:scale-95 transition"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 active:scale-95 transition whitespace-nowrap"
             >
               <Printer className="w-4 h-4 text-purple-400" />
               <span>Imprimir</span>
             </button>
             <button
               type="button"
+              onClick={() => {
+                if (isWhatsappModalOpen) {
+                  setIsWhatsappModalOpen(false);
+                } else {
+                  handleOpenWhatsappPanel();
+                }
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 active:scale-95 transition whitespace-nowrap"
+              title="Enviar relatório em PDF pelo WhatsApp com mensagem personalizada"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Enviar WhatsApp (PDF)</span>
+            </button>
+            <button
+              type="button"
               onClick={handleExportPdf}
               disabled={isGeneratingPdf}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50 whitespace-nowrap"
             >
               <Download className="w-4 h-4" />
               <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar Relatório (PDF)'}</span>

@@ -1,6 +1,0 @@
-{
-  "summary":  "Plano de implementação para adicionar o filtro seletor de aluno na barra de filtros da Agenda, filtrando todas as visualizações (Dia, Semana, Mês, Ano e Programação) e atualizando os contadores de status.",
-  "updatedAt":  "2026-11-10T19:56:31.480507466Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}
