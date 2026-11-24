@@ -53,15 +53,12 @@ export const Header: React.FC<HeaderProps> = ({
   const handleLogoClick = isTrainer ? onOpenTrainerProfile : onOpenStudentSettings;
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 w-full transition-all">
-      {/* Faixa separadora dedicada para a barra de status do iOS (Notch: 47px / Dynamic Island: 59px-62px) */}
-      <div
-        aria-hidden="true"
-        className="w-full h-[var(--sat)] bg-slate-950/98 border-b border-slate-900/80 transition-all duration-200"
-      />
-
-      {/* Barra principal do cabeçalho posicionada abaixo da barra de status do iOS */}
-      <div className="w-full flex items-center justify-between gap-1.5 sm:gap-3 pl-[max(0.625rem,var(--sal))] pr-[max(0.625rem,var(--sar))] sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3">
+    <header className="Header sticky top-0 z-30 w-full bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 pt-[max(var(--sat),env(safe-area-inset-top,0px))] transition-all">
+      {/* Barra principal do cabeçalho posicionada abaixo da área segura do iOS (Notch / Dynamic Island) */}
+      <nav
+        aria-label="Cabeçalho principal"
+        className="w-full flex items-center justify-between gap-2 sm:gap-3 pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:pl-[max(1.25rem,var(--sal))] sm:pr-[max(1.25rem,var(--sar))] lg:pl-[max(1.5rem,var(--sal))] lg:pr-[max(1.5rem,var(--sar))] py-2.5 sm:py-3"
+      >
         {/* Brand & Profile / Settings trigger */}
         <button
           type="button"
@@ -110,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-[10px] sm:text-xs text-slate-400 truncate max-w-[125px] min-[390px]:max-w-[145px] min-[414px]:max-w-[170px] sm:max-w-xs">
+            <p className="text-[10px] sm:text-xs text-slate-400 truncate max-w-[130px] min-[390px]:max-w-[155px] min-[414px]:max-w-[180px] sm:max-w-xs">
               {!isTrainer ? (
                 <span>
                   {currentStudent ? (
@@ -143,14 +140,14 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Center/Right: Trainer Preview Switcher (hidden for locked Student login) + Cloud Sync/Offline/PWA */}
-        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {!isStudentAccountLocked && onChangeRole && (
             <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/95 border border-slate-800 p-1 rounded-xl shadow-inner">
               <button
                 type="button"
                 onClick={() => onChangeRole('trainer')}
                 title="Painel Exclusivo do Treinador (Gestão Completa)"
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg text-[10px] sm:text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg text-[10px] sm:text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
                   isTrainer
                     ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/60'
                     : 'text-slate-400 hover:text-slate-200'
@@ -164,15 +161,15 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => onChangeRole('student')}
                 title="Pré-visualizar Visão do Aluno (Treino, Dieta e Progresso)"
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg text-[10px] sm:text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg text-[10px] sm:text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
                   !isTrainer
                     ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-950/60'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden min-[385px]:inline">Ver como Aluno</span>
-                <span className="inline min-[385px]:hidden">Aluno</span>
+                <span className="hidden min-[420px]:inline">Ver como Aluno</span>
+                <span className="inline min-[420px]:hidden">Aluno</span>
               </button>
             </div>
           )}
@@ -184,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <PWAInstallButton />
         </div>
-      </div>
+      </nav>
     </header>
   );
 };

@@ -96,11 +96,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const items = isStudent ? studentNavItems : trainerNavItems;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:px-6 lg:px-10 pt-1.5 pb-[calc(var(--sab)+0.35rem)] sm:pb-2 w-full transition-all">
+    <nav
+      aria-label="Navegação principal"
+      className="BottomNav fixed bottom-0 left-0 right-0 z-40 w-full bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:pl-[max(1.5rem,var(--sal))] sm:pr-[max(1.5rem,var(--sar))] lg:pl-[max(2.5rem,var(--sal))] lg:pr-[max(2.5rem,var(--sar))] pt-2 pb-[calc(max(var(--sab),env(safe-area-inset-bottom,0px))+0.5rem)] transition-all"
+    >
       <div
-        className={`max-w-6xl mx-auto grid ${
+        className={`max-w-6xl mx-auto grid items-stretch ${
           isStudent ? 'grid-cols-3' : 'grid-cols-4'
-        } gap-1 sm:gap-2 lg:gap-3`}
+        } gap-1.5 sm:gap-2 lg:gap-3`}
       >
         {items.map((item) => {
           const Icon = item.icon;
@@ -111,6 +114,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           return (
             <motion.button
               key={item.id}
+              type="button"
               onClick={() => {
                 if (isStudent) {
                   onSelectStudentSection?.(item.id as StudentNavSection);
@@ -119,7 +123,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 }
               }}
               whileTap={{ scale: 0.94 }}
-              className={`relative flex flex-col sm:flex-row lg:gap-2.5 items-center justify-center py-1.5 sm:py-2.5 px-1 sm:px-3 min-h-[50px] sm:min-h-[60px] lg:min-h-[62px] rounded-xl sm:rounded-2xl transition-colors touch-manipulation cursor-pointer ${
+              className={`relative flex flex-col sm:flex-row sm:gap-2 lg:gap-2.5 items-center justify-center w-full h-full pt-2.5 pb-1.5 sm:py-2.5 px-1 sm:px-3 min-h-[54px] sm:min-h-[58px] lg:min-h-[62px] rounded-xl sm:rounded-2xl transition-colors touch-manipulation select-none cursor-pointer ${
                 isActive
                   ? 'text-white'
                   : 'text-slate-400 hover:text-slate-200'
@@ -139,7 +143,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <motion.span
                   layoutId="activeBottomNavIndicator"
                   transition={{ type: 'spring', stiffness: 480, damping: 32 }}
-                  className={`absolute top-1 sm:top-1.5 w-7 sm:w-10 h-1 rounded-full z-10 ${
+                  className={`absolute top-1 sm:top-1.5 left-1/2 -translate-x-1/2 w-7 sm:w-10 h-1 rounded-full z-10 ${
                     isStudent
                       ? 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]'
                       : 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]'
@@ -154,9 +158,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 </span>
               )}
 
-              <div className="relative z-10 shrink-0">
+              <div className="relative z-10 flex items-center justify-center shrink-0">
                 <motion.div
-                  animate={{ scale: isActive ? 1.12 : 1 }}
+                  animate={{ scale: isActive ? 1.1 : 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 >
                   <Icon
@@ -168,14 +172,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               </div>
 
               <span
-                className={`relative z-10 mt-1 sm:mt-0 sm:ml-2 lg:ml-0 text-[10px] sm:text-xs lg:text-sm font-semibold tracking-tight text-center leading-tight whitespace-nowrap truncate max-w-full transition-colors ${
+                className={`relative z-10 mt-1 sm:mt-0 text-[10px] sm:text-xs lg:text-sm font-semibold tracking-tight text-center leading-tight whitespace-nowrap truncate max-w-full transition-colors ${
                   isActive ? 'text-white font-bold' : 'text-slate-400'
                 }`}
               >
                 {item.id === 'execucao' ? (
                   <>
-                    <span className="hidden min-[414px]:inline">Execução do Treino</span>
-                    <span className="inline min-[414px]:hidden">Execução</span>
+                    <span className="hidden sm:inline">Execução do Treino</span>
+                    <span className="inline sm:hidden">Execução</span>
                   </>
                 ) : (
                   item.label
