@@ -699,7 +699,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               </span>
 
               {/* Botões rápidos de período */}
-              <div className="flex items-center gap-1">
+              <div className="grid grid-cols-4 sm:flex sm:items-center gap-1 w-full sm:w-auto">
                 {(
                   [
                     { id: 'hoje', label: 'Hoje' },
@@ -712,7 +712,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                     key={p.id}
                     type="button"
                     onClick={() => applyPreset(p.id)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[11px] font-semibold border border-slate-800 transition active:scale-95"
+                    className="h-7 px-1.5 sm:px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-[10px] sm:text-[11px] font-semibold border border-slate-800 transition active:scale-95 whitespace-nowrap text-center truncate"
                   >
                     {p.label}
                   </button>
@@ -1294,52 +1294,54 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 flex-wrap pt-1">
+            <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-1.5 sm:gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleShareWhatsappNativeFile}
                 disabled={isGeneratingPdf}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 text-xs font-bold border border-emerald-500/30 transition active:scale-95 disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 text-[11px] sm:text-xs font-bold border border-emerald-500/30 transition active:scale-95 disabled:opacity-50 whitespace-nowrap"
                 title="Compartilhar arquivo PDF diretamente pelo aplicativo no celular"
               >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Compartilhar Arquivo PDF (App / Celular)</span>
+                <Share2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="sm:hidden">Compartilhar PDF</span>
+                <span className="hidden sm:inline">Compartilhar Arquivo PDF (App / Celular)</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleSendWhatsappDirect}
                 disabled={isGeneratingPdf}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 transition active:scale-95 disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-emerald-950/50 transition active:scale-95 disabled:opacity-50 whitespace-nowrap"
                 title="Baixar o PDF automaticamente e abrir a conversa do aluno no WhatsApp com a mensagem preenchida"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>Baixar PDF + Abrir WhatsApp do Aluno</span>
+                <Send className="w-3.5 h-3.5 shrink-0" />
+                <span className="sm:hidden">WhatsApp + PDF</span>
+                <span className="hidden sm:inline">Baixar PDF + Abrir WhatsApp do Aluno</span>
               </button>
             </div>
           </div>
         )}
 
         {/* RODAPÉ DO MODAL (Botões de Ação) */}
-        <div className="p-4 sm:p-5 border-t border-slate-800 flex items-center justify-between gap-3 flex-wrap bg-slate-950/80 rounded-b-3xl print:hidden">
-          <div className="text-xs text-slate-400">
+        <div className="p-3 sm:p-5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-slate-950/80 rounded-b-2xl sm:rounded-b-3xl print:hidden">
+          <div className="hidden sm:block text-xs text-slate-400">
             Exportação compatível com PDF (formato A4), envio via WhatsApp e impressoras padrão.
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap ml-auto">
+          <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto sm:ml-auto">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition active:scale-95 whitespace-nowrap"
+              className="h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] sm:text-xs font-semibold transition active:scale-95 whitespace-nowrap flex items-center justify-center"
             >
               Fechar
             </button>
             <button
               type="button"
               onClick={handlePrintDocument}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 active:scale-95 transition whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs font-semibold border border-slate-700 active:scale-95 transition whitespace-nowrap"
             >
-              <Printer className="w-4 h-4 text-purple-400" />
+              <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
               <span>Imprimir</span>
             </button>
             <button
@@ -1351,20 +1353,22 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   handleOpenWhatsappPanel();
                 }
               }}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 active:scale-95 transition whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-emerald-950/50 active:scale-95 transition whitespace-nowrap"
               title="Enviar relatório em PDF pelo WhatsApp com mensagem personalizada"
             >
-              <MessageCircle className="w-4 h-4" />
-              <span>Enviar WhatsApp (PDF)</span>
+              <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="sm:hidden">WhatsApp (PDF)</span>
+              <span className="hidden sm:inline">Enviar WhatsApp (PDF)</span>
             </button>
             <button
               type="button"
               onClick={handleExportPdf}
               disabled={isGeneratingPdf}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50 whitespace-nowrap"
             >
-              <Download className="w-4 h-4" />
-              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar Relatório (PDF)'}</span>
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="sm:hidden">{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+              <span className="hidden sm:inline">{isGeneratingPdf ? 'Gerando...' : 'Baixar Relatório (PDF)'}</span>
             </button>
           </div>
         </div>
