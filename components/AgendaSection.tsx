@@ -2290,7 +2290,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-slate-800">
                 {editingEvent ? (
                   <button
                     type="button"
@@ -2298,35 +2298,36 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       setEventToDelete(editingEvent);
                       setIsModalOpen(false);
                     }}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold transition active:scale-95"
+                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold transition active:scale-95 whitespace-nowrap touch-manipulation cursor-pointer"
                     title="Excluir este agendamento"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
                     <span>Excluir Agendamento</span>
                   </button>
                 ) : (
-                  <div />
+                  <div className="hidden sm:block" />
                 )}
 
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                    className="w-full sm:w-auto h-10 sm:h-9 px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition active:scale-95 whitespace-nowrap flex items-center justify-center touch-manipulation cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={Boolean(duplicateConflict)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg transition ${
+                    className={`w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3 sm:px-5 rounded-xl text-xs font-bold shadow-lg transition whitespace-nowrap touch-manipulation ${
                       duplicateConflict
                         ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50 active:scale-95'
+                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50 active:scale-95 cursor-pointer'
                     }`}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="sm:hidden">{editingEvent ? 'Atualizar' : 'Confirmar'}</span>
+                    <span className="hidden sm:inline">{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
                   </button>
                 </div>
               </div>
