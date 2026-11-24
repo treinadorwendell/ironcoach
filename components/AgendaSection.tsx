@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarEvent, Client, AgendaViewMode, CalendarEventStatus } from '@/types';
 import {
   Calendar as CalendarIcon,
@@ -1930,30 +1931,37 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
       )}
 
       {/* Event Add/Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-2xl my-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-                  <CalendarIcon className="w-5 h-5" />
+      {isModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-sm pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)]">
+            <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-modal-safe sm:max-h-[90dvh] overflow-hidden animate-in fade-in zoom-in-95">
+              <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-900 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 shrink-0">
+                    <CalendarIcon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-white truncate">
+                      {editingEvent ? 'Editar Compromisso' : 'Agendar Novo Horário'}
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+                      Google Agenda Style para Personal Trainers
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">
-                    {editingEvent ? 'Editar Compromisso' : 'Agendar Novo Horário'}
-                  </h3>
-                  <p className="text-xs text-slate-400">Google Agenda Style para Personal Trainers</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  aria-label="Fechar modal"
+                  className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition touch-manipulation cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1 min-h-0">
               {/* Selecionar Cliente */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -2289,56 +2297,61 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 />
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-slate-800">
-                {editingEvent ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEventToDelete(editingEvent);
-                      setIsModalOpen(false);
-                    }}
-                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold transition active:scale-95 whitespace-nowrap touch-manipulation cursor-pointer"
-                    title="Excluir este agendamento"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>Excluir Agendamento</span>
-                  </button>
-                ) : (
-                  <div className="hidden sm:block" />
-                )}
-
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="w-full sm:w-auto h-10 sm:h-9 px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition active:scale-95 whitespace-nowrap flex items-center justify-center touch-manipulation cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={Boolean(duplicateConflict)}
-                    className={`w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3 sm:px-5 rounded-xl text-xs font-bold shadow-lg transition whitespace-nowrap touch-manipulation ${
-                      duplicateConflict
-                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50 active:scale-95 cursor-pointer'
-                    }`}
-                  >
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span className="sm:hidden">{editingEvent ? 'Atualizar' : 'Confirmar'}</span>
-                    <span className="hidden sm:inline">{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
-                  </button>
                 </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+                {/* Submit Buttons */}
+                <div className="px-4 sm:px-5 py-3 sm:py-4 border-t border-slate-800 bg-slate-950/90 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
+                  {editingEvent ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEventToDelete(editingEvent);
+                        setIsModalOpen(false);
+                      }}
+                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold transition active:scale-95 whitespace-nowrap touch-manipulation cursor-pointer"
+                      title="Excluir este agendamento"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Excluir Agendamento</span>
+                    </button>
+                  ) : (
+                    <div className="hidden sm:block" />
+                  )}
+
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="w-full sm:w-auto h-10 sm:h-9 px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition active:scale-95 whitespace-nowrap flex items-center justify-center touch-manipulation cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={Boolean(duplicateConflict)}
+                      className={`w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3 sm:px-5 rounded-xl text-xs font-bold shadow-lg transition whitespace-nowrap touch-manipulation ${
+                        duplicateConflict
+                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+                          : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50 active:scale-95 cursor-pointer'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span className="sm:hidden">{editingEvent ? 'Atualizar' : 'Confirmar'}</span>
+                      <span className="hidden sm:inline">{editingEvent ? 'Atualizar Agendamento' : 'Confirmar Horário'}</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
       {/* Delete Event Confirmation Modal */}
-      {eventToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-rose-500/50 p-6 shadow-2xl space-y-4 text-center">
+      {eventToDelete &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 backdrop-blur-sm pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] animate-in fade-in duration-200">
+            <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-rose-500/50 p-6 shadow-2xl space-y-4 text-center max-h-modal-safe overflow-y-auto">
             <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
               <Trash2 className="w-7 h-7" />
             </div>
@@ -2374,42 +2387,46 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 Sim, Excluir
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* MODAL DE CONFIRMAÇÃO DE ESCOPO DE RECORRÊNCIA */}
-      {recurringScopePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col space-y-0 animate-in zoom-in-95 duration-150">
-            {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
-                  <Repeat className="w-4 h-4" />
+      {recurringScopePrompt &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[95] flex items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[90dvh] animate-in zoom-in-95 duration-150">
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80 shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
+                    <Repeat className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider truncate">
+                      Agendamento Recorrente
+                    </h3>
+                    <p className="text-[11px] text-slate-400 truncate">
+                      {recurringScopePrompt.event.clientName} • {recurringScopePrompt.event.startTime} - {recurringScopePrompt.event.endTime}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                    Agendamento Recorrente
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    {recurringScopePrompt.event.clientName} • {recurringScopePrompt.event.startTime} - {recurringScopePrompt.event.endTime}
-                  </p>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setRecurringScopePrompt(null)}
+                  aria-label="Fechar modal"
+                  className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition touch-manipulation cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setRecurringScopePrompt(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-                title="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-5 space-y-3.5">
+              {/* Body */}
+              <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1 min-h-0">
               <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
                 Este treino é recorrente nos dias da semana. Como deseja aplicar a alteração
                 {recurringScopePrompt.newStatus ? (
@@ -2465,19 +2482,20 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-3.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setRecurringScopePrompt(null)}
-                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-semibold transition cursor-pointer"
-              >
-                Cancelar
-              </button>
+              {/* Footer */}
+              <div className="p-3.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setRecurringScopePrompt(null)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-semibold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Relatório de Aulas e Financeiro Modal */}
       <AgendaReportModal

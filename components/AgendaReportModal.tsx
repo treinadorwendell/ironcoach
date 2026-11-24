@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarEvent, Client, CompletedWorkoutRecord } from '@/types';
 import {
   FileText,
@@ -644,42 +645,44 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static print:inset-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-md pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] print:p-0 print:bg-white print:static print:inset-auto">
       {/* Container Principal do Modal de Relatório */}
-      <div className="w-full max-w-5xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:border-none print:bg-white print:text-black print:rounded-none">
+      <div className="w-full max-w-5xl rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-modal-safe sm:max-h-[92dvh] overflow-hidden print:max-h-none print:overflow-visible print:shadow-none print:border-none print:bg-white print:text-black print:rounded-none">
         
         {/* CABEÇALHO DO MODAL */}
-        <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between gap-4 print:border-b-2 print:border-black print:pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg print:hidden">
-              <FileText className="w-5 h-5" />
+        <div className="p-3.5 sm:p-6 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-900 print:border-b-2 print:border-black print:pb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shrink-0 print:hidden">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black text-white print:text-black">
+                <h2 className="text-sm sm:text-xl font-black text-white truncate print:text-black">
                   Relatório de Aulas & Financeiro
                 </h2>
-                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 print:hidden">
+                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 shrink-0 print:hidden">
                   Agenda Pro
                 </span>
               </div>
-              <p className="text-xs text-slate-400 print:text-slate-600 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-400 print:text-slate-600 mt-0.5 truncate">
                 Período:{' '}
                 <strong className="text-slate-200 print:text-black">
                   {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}
                 </strong>{' '}
-                • {filteredEvents.length} registros encontrados
+                • {filteredEvents.length} registros
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 print:hidden">
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
             <button
+              type="button"
               onClick={onClose}
-              className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition active:scale-95"
+              aria-label="Fechar Relatório"
+              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
               title="Fechar Relatório"
             >
               <X className="w-5 h-5" />
@@ -688,7 +691,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
         </div>
 
         {/* CORPO DO RELATÓRIO COM ROLAGEM */}
-        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1 print:overflow-visible print:p-0">
+        <div className="p-3.5 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto flex-1 min-h-0 print:overflow-visible print:p-0">
           
           {/* SEÇÃO 1: FILTROS DINÂMICOS (Oculto na Impressão/PDF) */}
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4 print:hidden">
@@ -1182,7 +1185,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
         {/* PAINEL EXPANSÍVEL DE ENVIO VIA WHATSAPP (PDF + MENSAGEM EDITÁVEL) */}
         {isWhatsappModalOpen && (
-          <div className="p-4 sm:p-5 border-t border-emerald-500/30 bg-slate-900/95 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden">
+          <div className="p-3.5 sm:p-5 border-t border-emerald-500/30 bg-slate-900/95 space-y-3.5 sm:space-y-4 max-h-[45dvh] overflow-y-auto shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -1323,7 +1326,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
         )}
 
         {/* RODAPÉ DO MODAL (Botões de Ação) */}
-        <div className="p-3 sm:p-5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-slate-950/80 rounded-b-2xl sm:rounded-b-3xl print:hidden">
+        <div className="p-3 sm:p-5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-slate-950/80 rounded-b-2xl sm:rounded-b-3xl shrink-0 print:hidden">
           <div className="hidden sm:block text-xs text-slate-400">
             Exportação compatível com PDF (formato A4), envio via WhatsApp e impressoras padrão.
           </div>
@@ -1332,14 +1335,14 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] sm:text-xs font-semibold transition active:scale-95 whitespace-nowrap flex items-center justify-center"
+              className="h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] sm:text-xs font-semibold transition active:scale-95 whitespace-nowrap flex items-center justify-center touch-manipulation cursor-pointer"
             >
               Fechar
             </button>
             <button
               type="button"
               onClick={handlePrintDocument}
-              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs font-semibold border border-slate-700 active:scale-95 transition whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] sm:text-xs font-semibold border border-slate-700 active:scale-95 transition whitespace-nowrap touch-manipulation cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
               <span>Imprimir</span>
@@ -1353,7 +1356,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   handleOpenWhatsappPanel();
                 }
               }}
-              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-emerald-950/50 active:scale-95 transition whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-emerald-950/50 active:scale-95 transition whitespace-nowrap touch-manipulation cursor-pointer"
               title="Enviar relatório em PDF pelo WhatsApp com mensagem personalizada"
             >
               <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
@@ -1364,7 +1367,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               type="button"
               onClick={handleExportPdf}
               disabled={isGeneratingPdf}
-              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50 whitespace-nowrap touch-manipulation cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="sm:hidden">{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
@@ -1374,6 +1377,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
