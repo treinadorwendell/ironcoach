@@ -58,6 +58,8 @@ interface ExerciseDedicatedPageViewProps {
     name: string,
     setNumber: number
   ) => void;
+  onOpenRepsModal: (exIndex: number, setIndex: number, subIndex?: number) => void;
+  onOpenWeightModal: (exIndex: number, setIndex: number, subIndex?: number) => void;
   onOpenSeriesHistory: (name: string, setNumber: number, totalSets: number) => void;
   onToggleSubSetCheck: (exIndex: number, setIndex: number, subIndex: number) => void;
   onAdjustSubSetReps: (exIndex: number, setIndex: number, subIndex: number, delta: number) => void;
@@ -83,15 +85,10 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
   onSelectExercise,
   onBackToList,
   onToggleSetCheck,
-  onAdjustReps,
-  onSetWeightDirect,
-  onAdjustWeight,
   onOpenPseModal,
-  onOpenSeriesHistory,
+  onOpenRepsModal,
+  onOpenWeightModal,
   onToggleSubSetCheck,
-  onAdjustSubSetReps,
-  onSetSubSetWeightDirect,
-  onTriggerRestTimer,
   onFinishAndAdvance,
   onFinishWorkout,
   onCopyFirstSetWeightToAll,
@@ -511,81 +508,63 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                       ) : null}
                     </div>
 
-                    {/* Col 2: Reps Target & Stepper (Botões - e + alinhados) */}
-                    <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
+                    {/* Col 2: Reps & Zona Alvo (Abre Modal de Repetições) */}
+                    <div className="col-span-3 flex items-center justify-center">
                       <button
                         type="button"
-                        onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, -1)}
-                        className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm sm:text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
-                          !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
+                        onClick={() => onOpenRepsModal(focusedExerciseIndex, setIndex)}
+                        className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                          !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
                         }`}
-                        title={isSessionStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
+                        title={
+                          isSessionStarted
+                            ? `Toque para ajustar repetições (Zona alvo: ${set.repZone})`
+                            : 'Inicie o treino para alterar repetições'
+                        }
                       >
-                        -
-                      </button>
-                      <div className="text-center min-w-[24px] sm:min-w-[32px]">
-                        <span className="text-xs sm:text-sm lg:text-base font-black text-white font-mono tabular-nums block">
+                        <span className="text-xs sm:text-sm lg:text-base font-black text-white font-mono tabular-nums leading-none">
                           {set.completedReps}
                         </span>
-                        <span className="text-[8px] sm:text-[9px] text-slate-400 font-semibold block leading-tight">
-                          {set.repZone}
+                        <span className="text-[8px] sm:text-[9px] text-cyan-400/90 font-semibold leading-none mt-1 truncate max-w-full">
+                          Alvo: {set.repZone}
                         </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onAdjustReps(focusedExerciseIndex, setIndex, +1)}
-                        className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm sm:text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
-                          !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
-                        }`}
-                        title={isSessionStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
-                      >
-                        +
                       </button>
                     </div>
 
-                    {/* Col 3: Carga (KG) (Centralizada) */}
+                    {/* Col 3: Carga (KG) (Abre Modal de Carga) */}
                     <div className="col-span-3 flex items-center justify-center">
-                      <input
-                        type="text"
-                        readOnly={!isSessionStarted}
-                        inputMode="decimal"
-                        pattern="[0-9]*[.,]?[0-9]*"
-                        placeholder="—"
-                        value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
-                        onClick={() => {
-                          if (!isSessionStarted) {
-                            onSetWeightDirect(focusedExerciseIndex, setIndex, set.weightKg ?? null);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (!isSessionStarted) {
-                            e.preventDefault();
-                            return;
-                          }
-                          if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
-                          if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
-                          if (/^[0-9]$/.test(e.key)) return;
-                          if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
-                          e.preventDefault();
-                        }}
-                        onChange={(e) => {
-                          if (!isSessionStarted) return;
-                          const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                          if (raw === '') {
-                            onSetWeightDirect(focusedExerciseIndex, setIndex, null);
-                          } else {
-                            const parsed = parseFloat(raw);
-                            onSetWeightDirect(
-                              focusedExerciseIndex,
-                              setIndex,
-                              isNaN(parsed) ? null : Math.max(0, parsed)
-                            );
-                          }
-                        }}
-                        className={`h-8 sm:h-9 lg:h-10 w-12 sm:w-16 lg:w-20 text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm lg:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                      <button
+                        type="button"
+                        onClick={() => onOpenWeightModal(focusedExerciseIndex, setIndex)}
+                        className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
                           !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
                         }`}
-                      />
+                        title={
+                          isSessionStarted
+                            ? 'Toque para informar a carga (kg)'
+                            : 'Inicie o treino para alterar a carga'
+                        }
+                      >
+                        {set.weightKg != null && !isNaN(Number(set.weightKg)) ? (
+                          <>
+                            <span className="text-xs sm:text-sm lg:text-base font-black text-emerald-400 font-mono tabular-nums leading-none">
+                              {set.weightKg}
+                            </span>
+                            <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase leading-none mt-1">
+                              kg
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs sm:text-sm font-black text-slate-500 font-mono leading-none">
+                              —
+                            </span>
+                            <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase leading-none mt-1">
+                              Carga
+                            </span>
+                          </>
+                        )}
+                      </button>
                     </div>
 
                     {/* Col 4: PSE (0 a 10) (Centralizado) */}
@@ -691,72 +670,55 @@ export const ExerciseDedicatedPageView: React.FC<ExerciseDedicatedPageViewProps>
                             )}
                           </div>
 
-                          <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
+                          <div className="col-span-3 flex items-center justify-center">
                             <button
                               type="button"
                               onClick={() =>
-                                onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, -1)
+                                onOpenRepsModal(focusedExerciseIndex, setIndex, subIdx)
                               }
-                              className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
-                                !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
+                              className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
                               }`}
                             >
-                              -
-                            </button>
-                            <div className="text-center min-w-[26px] sm:min-w-[34px]">
-                              <span className="text-xs sm:text-sm font-black text-white font-mono tabular-nums block">
+                              <span className="text-xs sm:text-sm font-black text-white font-mono tabular-nums leading-none">
                                 {sub.completedReps}
                               </span>
-                              <span className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[40px] sm:max-w-[54px]">
-                                {sub.repZone}
+                              <span className="text-[8px] sm:text-[9px] text-purple-300/90 font-semibold leading-none mt-1 truncate max-w-full">
+                                Alvo: {sub.repZone}
                               </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onAdjustSubSetReps(focusedExerciseIndex, setIndex, subIdx, +1)
-                              }
-                              className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
-                                !isSessionStarted ? 'opacity-60 cursor-not-allowed' : ''
-                              }`}
-                            >
-                              +
                             </button>
                           </div>
 
                           <div className="col-span-3 flex items-center justify-center">
-                            <input
-                              type="text"
-                              readOnly={!isSessionStarted}
-                              inputMode="decimal"
-                              pattern="[0-9]*[.,]?[0-9]*"
-                              placeholder="—"
-                              value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
-                              onClick={() => {
-                                if (!isSessionStarted) {
-                                  onSetSubSetWeightDirect(
-                                    focusedExerciseIndex,
-                                    setIndex,
-                                    subIdx,
-                                    sub.weightKg ?? null
-                                  );
-                                }
-                              }}
-                              onChange={(e) => {
-                                if (!isSessionStarted) return;
-                                const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                                const parsed = raw === '' ? null : parseFloat(raw);
-                                onSetSubSetWeightDirect(
-                                  focusedExerciseIndex,
-                                  setIndex,
-                                  subIdx,
-                                  parsed == null || isNaN(parsed) ? null : Math.max(0, parsed)
-                                );
-                              }}
-                              className={`h-[34px] w-[50px] sm:h-9 sm:w-16 lg:h-10 lg:w-[72px] text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onOpenWeightModal(focusedExerciseIndex, setIndex, subIdx)
+                              }
+                              className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
                                 !isSessionStarted ? 'opacity-65 cursor-not-allowed' : ''
                               }`}
-                            />
+                            >
+                              {sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? (
+                                <>
+                                  <span className="text-xs sm:text-sm font-black text-purple-300 font-mono tabular-nums leading-none">
+                                    {sub.weightKg}
+                                  </span>
+                                  <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase leading-none mt-1">
+                                    kg
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-xs sm:text-sm font-black text-slate-500 font-mono leading-none">
+                                    —
+                                  </span>
+                                  <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase leading-none mt-1">
+                                    Carga
+                                  </span>
+                                </>
+                              )}
+                            </button>
                           </div>
 
                           <div className="col-span-2 flex items-center justify-center">

@@ -586,6 +586,155 @@ export const storage = {
   },
 
   /**
+   * Retorna o número de repetições preenchidas no último treino concluído daquele treino/exercício para o aluno.
+   * Prioriza o último treino concluído do mesmo treino/divisão (programId / splitName), com fallback para qualquer
+   * treino concluído do aluno, snapshots de exercícios concluídos e histórico geral do exercício.
+   */
+  getLastPerformedReps(
+    exerciseName: string,
+    clientId?: string,
+    setIndex?: number,
+    subSetIndex?: number,
+    programId?: string,
+    splitName?: string
+  ): number | null {
+    if (!exerciseName) return null;
+    const cleanName = exerciseName.trim().toLowerCase();
+    const cleanSplit = splitName?.trim().toLowerCase();
+
+    const extractRepsFromRecord = (record: CompletedWorkoutRecord): number | null => {
+      const matchingEx = record.exercises?.find(
+        (e) => e.name?.trim().toLowerCase() === cleanName
+      );
+      if (!matchingEx || !matchingEx.sets || matchingEx.sets.length === 0) return null;
+
+      // Caso seja subsérie específica
+      if (setIndex !== undefined && subSetIndex !== undefined) {
+        const targetSet = matchingEx.sets[setIndex];
+        const targetSub = targetSet?.subSets?.[subSetIndex];
+        if (targetSub && typeof targetSub.completedReps === 'number' && targetSub.completedReps > 0) {
+          return targetSub.completedReps;
+        }
+        const subsWithReps = (targetSet?.subSets || []).filter(
+          (sub) => typeof sub.completedReps === 'number' && sub.completedReps > 0
+        );
+        if (subsWithReps.length > 0) {
+          return subsWithReps[Math.min(subSetIndex, subsWithReps.length - 1)].completedReps;
+        }
+      }
+
+      // Caso seja série principal específica (priorizando séries marcadas como concluídas ou com reps preenchidas)
+      if (
+        setIndex !== undefined &&
+        matchingEx.sets[setIndex] &&
+        typeof matchingEx.sets[setIndex].completedReps === 'number' &&
+        matchingEx.sets[setIndex].completedReps > 0
+      ) {
+        return matchingEx.sets[setIndex].completedReps;
+      }
+
+      const completedSetsWithReps = matchingEx.sets.filter(
+        (s) => s.completed && typeof s.completedReps === 'number' && s.completedReps > 0
+      );
+      const validSets =
+        completedSetsWithReps.length > 0
+          ? completedSetsWithReps
+          : matchingEx.sets.filter(
+              (s) => typeof s.completedReps === 'number' && s.completedReps > 0
+            );
+
+      if (validSets.length > 0) {
+        if (setIndex !== undefined && setIndex < validSets.length) {
+          return validSets[setIndex].completedReps;
+        }
+        return validSets[validSets.length - 1].completedReps;
+      }
+
+      return null;
+    };
+
+    // 1. Prioridade máxima: Último treino concluído do aluno (priorizando o mesmo treino/split)
+    const completedList = this.getCompletedWorkouts(clientId);
+    if (completedList && completedList.length > 0) {
+      const sorted = [...completedList].sort((a, b) => {
+        const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      if (programId || cleanSplit) {
+        for (const record of sorted) {
+          const matchesSplit =
+            cleanSplit &&
+            (record.splitName?.trim().toLowerCase() === cleanSplit ||
+              record.programName?.trim().toLowerCase() === cleanSplit ||
+              cleanSplit.includes(record.splitName?.trim().toLowerCase() || '__none__'));
+          const matchesProgram = programId && record.programId === programId;
+
+          if (matchesSplit || matchesProgram) {
+            const found = extractRepsFromRecord(record);
+            if (found != null) return found;
+          }
+        }
+      }
+
+      for (const record of sorted) {
+        const found = extractRepsFromRecord(record);
+        if (found != null) return found;
+      }
+    }
+
+    // 2. Fallback: Snapshots de exercícios concluídos ("Concluir e Recolher")
+    if (typeof window !== 'undefined' && subSetIndex === undefined) {
+      try {
+        const snapData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
+        if (snapData) {
+          const snaps: ExerciseFinishedSnapshot[] = JSON.parse(snapData);
+          const matchingSnaps = snaps
+            .filter(
+              (s) =>
+                (!clientId || s.clientId === clientId) &&
+                s.exerciseName?.trim().toLowerCase() === cleanName
+            )
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+          for (const snap of matchingSnaps) {
+            if (snap.sets && snap.sets.length > 0) {
+              if (
+                setIndex !== undefined &&
+                snap.sets[setIndex] &&
+                typeof snap.sets[setIndex].completedReps === 'number' &&
+                snap.sets[setIndex].completedReps > 0
+              ) {
+                return snap.sets[setIndex].completedReps;
+              }
+              const validSnapSets = snap.sets.filter(
+                (s) => typeof s.completedReps === 'number' && s.completedReps > 0
+              );
+              if (validSnapSets.length > 0) {
+                return validSnapSets[validSnapSets.length - 1].completedReps;
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore snapshot parse errors
+      }
+    }
+
+    // 3. Fallback: Histórico individual do exercício (ExerciseHistoricalEntry)
+    const history = this.getExerciseHistory(exerciseName, clientId);
+    if (history && history.length > 0) {
+      const lastEntry = history[history.length - 1];
+      if (typeof lastEntry.reps === 'number' && lastEntry.reps > 0) {
+        return lastEntry.reps;
+      }
+    }
+
+    return null;
+  },
+
+  /**
    * Grava o exercício e suas séries no histórico imediatamente quando o usuário clica em "Concluir e Recolher".
    * Retorna o snapshot gravado para sincronização com Firestore.
    */

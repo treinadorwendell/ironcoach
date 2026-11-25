@@ -72,6 +72,7 @@ import {
   Film,
 } from 'lucide-react';
 import { PsePickerModal, getPseInfo } from './PsePickerModal';
+import { RepsPickerModal, WeightPickerModal } from './SetExecutionModals';
 import { ExerciseDedicatedPageView } from './ExerciseDedicatedPageView';
 import { CalendarEvent, DatabaseExercise } from '@/types';
 import { findExerciseMetadata } from '@/lib/exerciseDatabase';
@@ -316,6 +317,14 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
       const exercisesState: ExecutionExerciseState[] = exercisesToUse.map((ex) => {
         const lastRecordedWeight = storage.getLastPerformedWeight(ex.name, prog.clientId);
+        const lastRecordedReps = storage.getLastPerformedReps(
+          ex.name,
+          prog.clientId,
+          undefined,
+          undefined,
+          prog.id,
+          displayName
+        );
 
         const setsCount =
           ex.setDetails && ex.setDetails.length > 0 ? ex.setDetails.length : ex.sets;
@@ -326,6 +335,15 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           const parsedReps = parseInt(activeRepZone.split('-')[0], 10) || 10;
           const setHistoryWeight = storage.getLastPerformedWeight(ex.name, prog.clientId, idx);
           const setWeight = setHistoryWeight ?? lastRecordedWeight ?? null;
+          const setHistoryReps = storage.getLastPerformedReps(
+            ex.name,
+            prog.clientId,
+            idx,
+            undefined,
+            prog.id,
+            displayName
+          );
+          const initialCompletedReps = setHistoryReps ?? lastRecordedReps ?? parsedReps;
           const setMethod =
             setDetail?.method && setDetail.method !== 'Normal'
               ? setDetail.method
@@ -333,12 +351,20 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
           const subSets: ExecutionSubSet[] = (setDetail?.subSets || []).map((sub, subIdx) => {
             const subParsedReps = parseInt(sub.repZone.split('-')[0], 10) || 8;
+            const subHistoryReps = storage.getLastPerformedReps(
+              ex.name,
+              prog.clientId,
+              idx,
+              subIdx,
+              prog.id,
+              displayName
+            );
             return {
               id: sub.id || `subset-${idx}-${subIdx}`,
               subSetNumber: sub.subSetNumber || subIdx + 1,
               repZone: sub.repZone,
               targetReps: subParsedReps,
-              completedReps: subParsedReps,
+              completedReps: subHistoryReps ?? subParsedReps,
               weightKg: setWeight,
               completed: false,
               note: sub.note,
@@ -349,7 +375,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             setNumber: idx + 1,
             repZone: activeRepZone,
             targetReps: parsedReps,
-            completedReps: parsedReps,
+            completedReps: initialCompletedReps,
             weightKg: setWeight,
             completed: false,
             extraVariation: setMethod,
@@ -609,6 +635,91 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     setNumber: number;
   } | null>(null);
 
+  // Estado para o Modal de Repetições (+ e - com Zona Alvo e Último Treino Concluído)
+  const [repsModalConfig, setRepsModalConfig] = useState<{
+    isOpen: boolean;
+    exerciseIndex: number;
+    setIndex: number;
+    subSetIndex?: number;
+  } | null>(null);
+
+  // Estado para o Modal de Carga (kg)
+  const [weightModalConfig, setWeightModalConfig] = useState<{
+    isOpen: boolean;
+    exerciseIndex: number;
+    setIndex: number;
+    subSetIndex?: number;
+  } | null>(null);
+
+  // Sincroniza automaticamente a última repetição do último treino concluído caso a sessão atual ainda não tenha iniciado
+  const sessionProgramId = session?.programId;
+  const sessionProgramName = session?.programName;
+  const sessionClientId = session?.clientId;
+  const sessionIsStarted = session?.isStarted;
+
+  useEffect(() => {
+    if (!session || sessionIsStarted) return;
+    let hasChanges = false;
+    const syncedExercises = session.exercises.map((ex) => {
+      let exChanged = false;
+      const syncedSets = ex.sets.map((s, sIdx) => {
+        if (s.completed) return s;
+        const lastReps = storage.getLastPerformedReps(
+          ex.exerciseName,
+          sessionClientId,
+          sIdx,
+          undefined,
+          sessionProgramId,
+          sessionProgramName
+        );
+        let updatedSet = s;
+        if (lastReps != null && s.completedReps === s.targetReps && s.completedReps !== lastReps) {
+          updatedSet = { ...updatedSet, completedReps: lastReps };
+          exChanged = true;
+        }
+        if (s.subSets && s.subSets.length > 0) {
+          let subChanged = false;
+          const syncedSubs = s.subSets.map((sub, subIdx) => {
+            if (sub.completed) return sub;
+            const lastSubReps = storage.getLastPerformedReps(
+              ex.exerciseName,
+              sessionClientId,
+              sIdx,
+              subIdx,
+              sessionProgramId,
+              sessionProgramName
+            );
+            if (
+              lastSubReps != null &&
+              sub.completedReps === sub.targetReps &&
+              sub.completedReps !== lastSubReps
+            ) {
+              subChanged = true;
+              return { ...sub, completedReps: lastSubReps };
+            }
+            return sub;
+          });
+          if (subChanged) {
+            updatedSet = { ...updatedSet, subSets: syncedSubs };
+            exChanged = true;
+          }
+        }
+        return updatedSet;
+      });
+      if (exChanged) {
+        hasChanges = true;
+        return { ...ex, sets: syncedSets };
+      }
+      return ex;
+    });
+
+    if (hasChanges) {
+      const nextSession = { ...session, exercises: syncedExercises };
+      setSession(nextSession);
+      storage.saveActiveSession(nextSession);
+    }
+  }, [session, sessionIsStarted, sessionClientId, sessionProgramId, sessionProgramName, setSession]);
+
   const requireWorkoutStarted = useCallback((): boolean => {
     if (!session || !session.isStarted) {
       sounds.playTickSound();
@@ -623,6 +734,126 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
     }
     return true;
   }, [session]);
+
+  const handleOpenRepsModal = (
+    exerciseIndex: number,
+    setIndex: number,
+    subSetIndex?: number
+  ) => {
+    if (!requireWorkoutStarted()) return;
+    sounds.playTickSound();
+    setRepsModalConfig({
+      isOpen: true,
+      exerciseIndex,
+      setIndex,
+      subSetIndex,
+    });
+  };
+
+  const handleOpenWeightModal = (
+    exerciseIndex: number,
+    setIndex: number,
+    subSetIndex?: number
+  ) => {
+    if (!requireWorkoutStarted()) return;
+    sounds.playTickSound();
+    setWeightModalConfig({
+      isOpen: true,
+      exerciseIndex,
+      setIndex,
+      subSetIndex,
+    });
+  };
+
+  const handleUpdateRepsFromModal = (newReps: number, applyToSubsequent = false) => {
+    if (!repsModalConfig || !session) return;
+    if (!requireWorkoutStarted()) return;
+    const { exerciseIndex, setIndex, subSetIndex } = repsModalConfig;
+    const safeReps = Math.max(1, Math.round(newReps));
+
+    const updatedExercises = [...session.exercises];
+    const currentEx = { ...updatedExercises[exerciseIndex] };
+    const updatedSets = [...currentEx.sets];
+
+    if (subSetIndex !== undefined) {
+      const targetSet = { ...updatedSets[setIndex] };
+      const updatedSubs = (targetSet.subSets || []).map((sub, idx) =>
+        idx === subSetIndex ? { ...sub, completedReps: safeReps } : sub
+      );
+      targetSet.subSets = updatedSubs;
+      updatedSets[setIndex] = targetSet;
+    } else {
+      updatedSets[setIndex] = {
+        ...updatedSets[setIndex],
+        completedReps: safeReps,
+      };
+      if (applyToSubsequent) {
+        for (let i = setIndex + 1; i < updatedSets.length; i++) {
+          if (!updatedSets[i].completed) {
+            updatedSets[i] = {
+              ...updatedSets[i],
+              completedReps: safeReps,
+            };
+          }
+        }
+      }
+    }
+
+    currentEx.sets = updatedSets;
+    updatedExercises[exerciseIndex] = currentEx;
+
+    const updatedSession = {
+      ...session,
+      exercises: updatedExercises,
+    };
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+  };
+
+  const handleUpdateWeightFromModal = (newWeight: number | null, applyToSubsequent = false) => {
+    if (!weightModalConfig || !session) return;
+    if (!requireWorkoutStarted()) return;
+    const { exerciseIndex, setIndex, subSetIndex } = weightModalConfig;
+    const safeWeight = newWeight != null && !isNaN(newWeight) ? Math.max(0, newWeight) : null;
+
+    const updatedExercises = [...session.exercises];
+    const currentEx = { ...updatedExercises[exerciseIndex] };
+    const updatedSets = [...currentEx.sets];
+
+    if (subSetIndex !== undefined) {
+      const targetSet = { ...updatedSets[setIndex] };
+      const updatedSubs = (targetSet.subSets || []).map((sub, idx) =>
+        idx === subSetIndex ? { ...sub, weightKg: safeWeight } : sub
+      );
+      targetSet.subSets = updatedSubs;
+      updatedSets[setIndex] = targetSet;
+    } else {
+      updatedSets[setIndex] = {
+        ...updatedSets[setIndex],
+        weightKg: safeWeight,
+      };
+      if (applyToSubsequent) {
+        for (let i = setIndex + 1; i < updatedSets.length; i++) {
+          if (!updatedSets[i].completed) {
+            updatedSets[i] = {
+              ...updatedSets[i],
+              weightKg: safeWeight,
+            };
+          }
+        }
+      }
+    }
+
+    currentEx.sets = updatedSets;
+    updatedExercises[exerciseIndex] = currentEx;
+
+    const updatedSession = {
+      ...session,
+      exercises: updatedExercises,
+    };
+    setSession(updatedSession);
+    storage.saveActiveSession(updatedSession);
+  };
 
   const handleOpenPseModal = (
     exerciseIndex: number,
@@ -715,21 +946,48 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
     // Apaga os registros contidos da execução atual e carrega o histórico exclusivo do novo exercício
     const lastRecordedWeight = storage.getLastPerformedWeight(newExerciseName, session.clientId);
+    const lastRecordedReps = storage.getLastPerformedReps(
+      newExerciseName,
+      session.clientId,
+      undefined,
+      undefined,
+      session.programId,
+      session.programName
+    );
 
     const resetSets: ExecutionSet[] = currentEx.sets.map((s, idx) => {
       const setHistoryWeight = storage.getLastPerformedWeight(newExerciseName, session.clientId, idx);
       const setWeight = setHistoryWeight ?? lastRecordedWeight ?? null;
+      const setHistoryReps = storage.getLastPerformedReps(
+        newExerciseName,
+        session.clientId,
+        idx,
+        undefined,
+        session.programId,
+        session.programName
+      );
+      const setReps = setHistoryReps ?? lastRecordedReps ?? s.targetReps;
 
-      const resetSubSets: ExecutionSubSet[] = (s.subSets || []).map((sub) => ({
-        ...sub,
-        completedReps: sub.targetReps,
-        weightKg: setWeight,
-        completed: false,
-      }));
+      const resetSubSets: ExecutionSubSet[] = (s.subSets || []).map((sub, subIdx) => {
+        const subHistoryReps = storage.getLastPerformedReps(
+          newExerciseName,
+          session.clientId,
+          idx,
+          subIdx,
+          session.programId,
+          session.programName
+        );
+        return {
+          ...sub,
+          completedReps: subHistoryReps ?? sub.targetReps,
+          weightKg: setWeight,
+          completed: false,
+        };
+      });
 
       return {
         ...s,
-        completedReps: s.targetReps,
+        completedReps: setReps,
         weightKg: setWeight,
         pse: null,
         completed: false,
@@ -2464,6 +2722,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 onSetWeightDirect={setWeightDirect}
                 onAdjustWeight={adjustWeight}
                 onOpenPseModal={handleOpenPseModal}
+                onOpenRepsModal={handleOpenRepsModal}
+                onOpenWeightModal={handleOpenWeightModal}
                 onOpenSeriesHistory={handleOpenSeriesHistory}
                 onToggleSubSetCheck={handleToggleSubSetCheck}
                 onAdjustSubSetReps={handleAdjustSubSetReps}
@@ -3163,81 +3423,63 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   ) : null}
                                 </div>
 
-                                {/* Col 2: Reps Target & Stepper (Botões - e + alinhados) */}
-                                <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
+                                {/* Col 2: Reps & Zona Alvo (Abre Modal de Repetições) */}
+                                <div className="col-span-3 flex items-center justify-center">
                                   <button
                                     type="button"
-                                    onClick={() => adjustReps(exIndex, setIndex, -1)}
-                                    className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm sm:text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
-                                      !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
+                                    onClick={() => handleOpenRepsModal(exIndex, setIndex)}
+                                    className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                      !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                     }`}
-                                    title={session.isStarted ? '-1 repetição' : 'Inicie o treino para alterar repetições'}
+                                    title={
+                                      session.isStarted
+                                        ? `Toque para ajustar repetições (Zona alvo: ${set.repZone})`
+                                        : 'Inicie o treino para alterar repetições'
+                                    }
                                   >
-                                    -
-                                  </button>
-                                  <div className="text-center min-w-[24px] sm:min-w-[32px]">
-                                    <span className="text-xs sm:text-sm lg:text-base font-black text-white font-mono tabular-nums block">
+                                    <span className="text-xs sm:text-sm lg:text-base font-black text-white font-mono tabular-nums leading-none">
                                       {set.completedReps}
                                     </span>
-                                    <span className="text-[8px] sm:text-[9px] text-slate-400 font-semibold block leading-tight">
-                                      {set.repZone}
+                                    <span className="text-[8px] sm:text-[9px] text-cyan-400/90 font-semibold leading-none mt-1 truncate max-w-full">
+                                      Alvo: {set.repZone}
                                     </span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => adjustReps(exIndex, setIndex, +1)}
-                                    className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm sm:text-base flex items-center justify-center active:scale-90 transition touch-manipulation cursor-pointer shrink-0 ${
-                                      !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
-                                    }`}
-                                    title={session.isStarted ? '+1 repetição' : 'Inicie o treino para alterar repetições'}
-                                  >
-                                    +
                                   </button>
                                 </div>
 
-                                {/* Col 3: Carga (KG) (Centralizada) */}
+                                {/* Col 3: Carga (KG) (Abre Modal de Carga) */}
                                 <div className="col-span-3 flex items-center justify-center">
-                                  <input
-                                    type="text"
-                                    readOnly={!session.isStarted}
-                                    inputMode="decimal"
-                                    pattern="[0-9]*[.,]?[0-9]*"
-                                    placeholder="—"
-                                    value={set.weightKg != null && !isNaN(Number(set.weightKg)) ? set.weightKg : ''}
-                                    onClick={() => {
-                                      if (!session.isStarted) {
-                                        requireWorkoutStarted();
-                                      }
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (!session.isStarted) {
-                                        e.preventDefault();
-                                        return;
-                                      }
-                                      if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
-                                      if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
-                                      if (/^[0-9]$/.test(e.key)) return;
-                                      if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
-                                      e.preventDefault();
-                                    }}
-                                    onChange={(e) => {
-                                      if (!session.isStarted) return;
-                                      const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                                      if (raw === '') {
-                                        setWeightDirect(exIndex, setIndex, null);
-                                      } else {
-                                        const parsed = parseFloat(raw);
-                                        setWeightDirect(
-                                          exIndex,
-                                          setIndex,
-                                          isNaN(parsed) ? null : Math.max(0, parsed)
-                                        );
-                                      }
-                                    }}
-                                    className={`h-8 sm:h-9 lg:h-10 w-12 sm:w-16 lg:w-20 text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm lg:text-base text-emerald-400 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-emerald-500 shadow-inner placeholder:text-slate-600 ${
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenWeightModal(exIndex, setIndex)}
+                                    className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
                                       !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                     }`}
-                                  />
+                                    title={
+                                      session.isStarted
+                                        ? 'Toque para informar a carga (kg)'
+                                        : 'Inicie o treino para alterar a carga'
+                                    }
+                                  >
+                                    {set.weightKg != null && !isNaN(Number(set.weightKg)) ? (
+                                      <>
+                                        <span className="text-xs sm:text-sm lg:text-base font-black text-emerald-400 font-mono tabular-nums leading-none">
+                                          {set.weightKg}
+                                        </span>
+                                        <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase leading-none mt-1">
+                                          kg
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="text-xs sm:text-sm font-black text-slate-500 font-mono leading-none">
+                                          —
+                                        </span>
+                                        <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase leading-none mt-1">
+                                          Carga
+                                        </span>
+                                      </>
+                                    )}
+                                  </button>
                                 </div>
 
                                 {/* Col 4: PSE (0 a 10) (Centralizado) */}
@@ -3344,86 +3586,57 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         )}
                                       </div>
 
-                                      {/* Col 2: Reps Stepper */}
-                                      <div className="col-span-3 flex items-center justify-center gap-1 sm:gap-1.5">
+                                      {/* Col 2: Reps & Zona Alvo (Abre Modal de Repetições) */}
+                                      <div className="col-span-3 flex items-center justify-center">
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            handleAdjustSubSetReps(exIndex, setIndex, subIdx, -1)
+                                            handleOpenRepsModal(exIndex, setIndex, subIdx)
                                           }
-                                          className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
-                                            !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
+                                          className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                            !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                           }`}
                                         >
-                                          -
-                                        </button>
-                                        <div className="text-center min-w-[26px] sm:min-w-[34px]">
-                                          <span className="text-xs sm:text-sm font-black text-white font-mono tabular-nums block">
+                                          <span className="text-xs sm:text-sm font-black text-white font-mono tabular-nums leading-none">
                                             {sub.completedReps}
                                           </span>
-                                          <span className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[40px] sm:max-w-[54px]">
-                                            {sub.repZone}
+                                          <span className="text-[8px] sm:text-[9px] text-purple-300/90 font-semibold leading-none mt-1 truncate max-w-full">
+                                            Alvo: {sub.repZone}
                                           </span>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleAdjustSubSetReps(exIndex, setIndex, subIdx, +1)
-                                          }
-                                          className={`w-7 h-8 sm:w-7 sm:h-8 lg:w-8 lg:h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-sm flex items-center justify-center active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
-                                            !session.isStarted ? 'opacity-60 cursor-not-allowed' : ''
-                                          }`}
-                                        >
-                                          +
                                         </button>
                                       </div>
 
-                                      {/* Col 3: Carga (kg) */}
+                                      {/* Col 3: Carga (kg) (Abre Modal de Carga) */}
                                       <div className="col-span-3 flex items-center justify-center">
-                                        <div className="relative flex justify-center text-center">
-                                          <input
-                                            type="text"
-                                            readOnly={!session.isStarted}
-                                            inputMode="decimal"
-                                            pattern="[0-9]*[.,]?[0-9]*"
-                                            placeholder="—"
-                                            value={sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? sub.weightKg : ''}
-                                            onClick={() => {
-                                              if (!session.isStarted) {
-                                                requireWorkoutStarted();
-                                              }
-                                            }}
-                                            onKeyDown={(e) => {
-                                              if (!session.isStarted) {
-                                                e.preventDefault();
-                                                return;
-                                              }
-                                              if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) return;
-                                              if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) return;
-                                              if (/^[0-9]$/.test(e.key)) return;
-                                              if ((e.key === '.' || e.key === ',') && !e.currentTarget.value.includes('.') && !e.currentTarget.value.includes(',')) return;
-                                              e.preventDefault();
-                                            }}
-                                            onChange={(e) => {
-                                              if (!session.isStarted) return;
-                                              const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
-                                              if (raw === '') {
-                                                handleSetSubSetWeightDirect(exIndex, setIndex, subIdx, null);
-                                              } else {
-                                                const parsed = parseFloat(raw);
-                                                handleSetSubSetWeightDirect(
-                                                  exIndex,
-                                                  setIndex,
-                                                  subIdx,
-                                                  isNaN(parsed) ? null : Math.max(0, parsed)
-                                                );
-                                              }
-                                            }}
-                                            className={`h-[34px] w-[50px] sm:h-9 sm:w-16 lg:h-10 lg:w-[72px] mx-0 text-center p-0 font-mono tabular-nums font-black text-xs sm:text-sm text-purple-300 bg-slate-900 border border-slate-700/80 rounded-xl focus:outline-none focus:border-purple-500 shadow-inner placeholder:text-slate-600 ${
-                                              !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
-                                            }`}
-                                          />
-                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleOpenWeightModal(exIndex, setIndex, subIdx)
+                                          }
+                                          className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                            !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
+                                          }`}
+                                        >
+                                          {sub.weightKg != null && !isNaN(Number(sub.weightKg)) ? (
+                                            <>
+                                              <span className="text-xs sm:text-sm font-black text-purple-300 font-mono tabular-nums leading-none">
+                                                {sub.weightKg}
+                                              </span>
+                                              <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase leading-none mt-1">
+                                                kg
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span className="text-xs sm:text-sm font-black text-slate-500 font-mono leading-none">
+                                                —
+                                              </span>
+                                              <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 uppercase leading-none mt-1">
+                                                Carga
+                                              </span>
+                                            </>
+                                          )}
+                                        </button>
                                       </div>
 
                                       {/* Col 4: PSE Placeholder na subsérie */}
@@ -4375,6 +4588,79 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           onSelect={handleSelectPse}
         />
       )}
+
+      {/* 2.1 - MODAL DE SELEÇÃO DE REPETIÇÕES (+ e -, Zona Alvo e Último Treino Concluído) */}
+      {repsModalConfig &&
+        repsModalConfig.isOpen &&
+        session &&
+        (() => {
+          const targetEx = session.exercises[repsModalConfig.exerciseIndex];
+          const targetSet = targetEx?.sets[repsModalConfig.setIndex];
+          if (!targetEx || !targetSet) return null;
+          const isSub = repsModalConfig.subSetIndex !== undefined;
+          const targetSub = isSub
+            ? targetSet.subSets?.[repsModalConfig.subSetIndex!]
+            : undefined;
+          const activeRepZone = isSub && targetSub ? targetSub.repZone : targetSet.repZone;
+          const activeCurrentReps =
+            isSub && targetSub ? targetSub.completedReps : targetSet.completedReps;
+          const lastWorkoutReps = storage.getLastPerformedReps(
+            targetEx.exerciseName,
+            session.clientId,
+            repsModalConfig.setIndex,
+            repsModalConfig.subSetIndex,
+            session.programId,
+            session.programName
+          );
+
+          return (
+            <RepsPickerModal
+              isOpen={repsModalConfig.isOpen}
+              onClose={() => setRepsModalConfig(null)}
+              exerciseName={targetEx.exerciseName}
+              setNumber={targetSet.setNumber}
+              subSetNumber={targetSub?.subSetNumber}
+              repZone={activeRepZone}
+              currentReps={activeCurrentReps}
+              lastWorkoutReps={lastWorkoutReps}
+              onChangeReps={handleUpdateRepsFromModal}
+            />
+          );
+        })()}
+
+      {/* 2.2 - MODAL DE SELEÇÃO DE CARGA (KG) */}
+      {weightModalConfig &&
+        weightModalConfig.isOpen &&
+        session &&
+        (() => {
+          const targetEx = session.exercises[weightModalConfig.exerciseIndex];
+          const targetSet = targetEx?.sets[weightModalConfig.setIndex];
+          if (!targetEx || !targetSet) return null;
+          const isSub = weightModalConfig.subSetIndex !== undefined;
+          const targetSub = isSub
+            ? targetSet.subSets?.[weightModalConfig.subSetIndex!]
+            : undefined;
+          const activeCurrentWeight =
+            isSub && targetSub ? targetSub.weightKg : targetSet.weightKg;
+          const lastWorkoutWeight = storage.getLastPerformedWeight(
+            targetEx.exerciseName,
+            session.clientId,
+            weightModalConfig.setIndex
+          );
+
+          return (
+            <WeightPickerModal
+              isOpen={weightModalConfig.isOpen}
+              onClose={() => setWeightModalConfig(null)}
+              exerciseName={targetEx.exerciseName}
+              setNumber={targetSet.setNumber}
+              subSetNumber={targetSub?.subSetNumber}
+              currentWeight={activeCurrentWeight}
+              lastWorkoutWeight={lastWorkoutWeight}
+              onChangeWeight={handleUpdateWeightFromModal}
+            />
+          );
+        })()}
 
       {/* 3 - MODAL DE CONFIRMAÇÃO DE TROCA PELO EXERCÍCIO SUBSTITUTO */}
       <AnimatePresence>
