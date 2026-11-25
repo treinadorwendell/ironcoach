@@ -228,10 +228,10 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
   return (
     <div className="fixed bottom-[calc(4.75rem+var(--sab))] sm:bottom-20 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in slide-in-from-bottom-6 duration-200">
       <div
-        className={`p-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl transition-colors ${
+        className={`p-3.5 rounded-2xl  border backdrop-blur-xl transition-colors ${
           isFinished
-            ? 'bg-emerald-950/95 border-emerald-400 ring-2 ring-emerald-400 timer-pulsing shadow-[0_-8px_30px_rgba(16,185,129,0.3)]'
-            : 'bg-slate-900/95 border-slate-700 shadow-[0_-8px_30px_rgba(0,0,0,0.8)]'
+            ? 'bg-emerald-950/95 border-slate-800   timer-pulsing )]'
+            : 'bg-slate-900/95 border-slate-700 )]'
         }`}
       >
         {/* Header: Exercício, Série e Ações de Notificação / Som / Fechar */}
@@ -419,7 +419,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             className={`h-full rounded-full transition-all duration-300 ${
               isFinished
                 ? 'bg-emerald-400'
-                : 'bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400'
+                : 'bg-cyan-500'
             }`}
             style={{ width: `${progressPercent}%` }}
           />
@@ -427,7 +427,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
 
         {/* Toast de feedback */}
         {toastMessage && (
-          <div className="mt-2 p-1.5 px-2.5 rounded-xl bg-cyan-950 border border-cyan-500/40 text-[11px] text-cyan-200 font-semibold animate-in fade-in duration-150 flex items-center gap-1.5">
+          <div className="mt-2 p-1.5 px-2.5 rounded-xl bg-cyan-950 border border-slate-800 text-[11px] text-cyan-200 font-semibold animate-in fade-in duration-150 flex items-center gap-1.5">
             <Smartphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span className="truncate">{toastMessage}</span>
           </div>
@@ -435,7 +435,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
 
         {/* Banner de permissão quando pendente */}
         {permission === 'default' && (
-          <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+          <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-[11px] text-amber-300 font-medium">
               <Bell className="w-3.5 h-3.5 shrink-0 animate-bounce text-amber-400" />
               <span>Avisar quando app estiver minimizado:</span>
@@ -443,7 +443,7 @@ export const RestCountdownTimer: React.FC<RestCountdownTimerProps> = ({
             <button
               type="button"
               onClick={handleRequestPermission}
-              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-slate-800 text-[10px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shrink-0"
             >
               Ativar Notificações
             </button>

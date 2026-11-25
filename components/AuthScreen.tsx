@@ -313,14 +313,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       }
     >
       <div
-        className={`w-full max-w-md bg-slate-900 border rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all ${
+        className={`w-full max-w-md bg-slate-900 border rounded-3xl  overflow-hidden flex flex-col my-auto transition-all ${
           selectedRole === 'student'
-            ? 'border-cyan-500/40 shadow-cyan-950/40'
-            : 'border-emerald-500/30 shadow-emerald-950/40'
+            ? 'border-slate-800 '
+            : 'border-slate-800 '
         }`}
       >
         {/* Top Header Card */}
-        <div className="relative p-5 sm:p-6 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 border-b border-slate-800">
+        <div className="relative p-5 sm:p-6 bg-slate-900 border-b border-slate-800">
           {/* Close button if modal */}
           {onClose && (
             <button
@@ -336,10 +336,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           {/* Logo & Branding */}
           <div className="flex items-center gap-3">
             <div
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0 transition ${
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center  flex-shrink-0 transition ${
                 selectedRole === 'student'
-                  ? 'bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-500 shadow-cyan-950/60 ring-1 ring-cyan-400/30'
-                  : 'bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 shadow-emerald-950/60 ring-1 ring-emerald-400/30'
+                  ? 'bg-cyan-600   '
+                  : 'bg-emerald-600   '
               }`}
             >
               <Dumbbell className="w-6 h-6 text-white" />
@@ -350,8 +350,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
                     selectedRole === 'student'
-                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      ? 'bg-cyan-500/20 text-cyan-300 border-slate-800'
+                      : 'bg-emerald-500/20 text-emerald-400 border-slate-800'
                   }`}
                 >
                   {selectedRole === 'student' ? 'PORTAL DO ALUNO' : 'TREINADOR PRO'}
@@ -374,13 +374,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <span className="text-[11px] font-bold text-slate-300 block px-0.5">
                 Selecione seu Tipo de Acesso Exclusivo:
               </span>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800">
                 <button
                   type="button"
                   onClick={() => handleSelectAccessRole('trainer')}
                   className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                     selectedRole === 'trainer'
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
+                      ? 'bg-emerald-600 text-white  '
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
@@ -392,7 +392,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   onClick={() => handleSelectAccessRole('student')}
                   className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                     selectedRole === 'student'
-                      ? 'bg-cyan-600 text-white shadow-md shadow-cyan-950/60'
+                      ? 'bg-cyan-600 text-white  '
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   }`}
                 >
@@ -410,13 +410,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
           {/* Tabs: Entrar / Cadastrar (Apenas para Treinador; Aluno entra exclusivamente com credencial gerada pelo Treinador) */}
           {activeTab !== 'forgot_password' && selectedRole === 'trainer' && (
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/90 rounded-2xl border border-slate-800/90 mt-3">
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 mt-3">
               <button
                 type="button"
                 onClick={() => handleSwitchTab('login')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'login'
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
+                    ? 'bg-emerald-600 text-white  '
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
@@ -428,7 +428,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 onClick={() => handleSwitchTab('register')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === 'register'
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60'
+                    ? 'bg-emerald-600 text-white  '
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
@@ -440,7 +440,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
           {/* Banner de Aviso no Acesso do Aluno */}
           {selectedRole === 'student' && (
-            <div className="mt-3 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 flex items-start gap-2.5">
+            <div className="mt-3 p-3 rounded-2xl bg-cyan-950/40 border border-slate-800 flex items-start gap-2.5">
               <KeyRound className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <div className="text-[11px] text-cyan-100 leading-relaxed">
                 <strong className="font-bold text-cyan-300 block">
@@ -474,7 +474,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         <div className="p-5 sm:p-6 space-y-4">
           {/* Error Alert */}
           {errorMessage && (
-            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex flex-col gap-2 animate-in shake duration-200">
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-slate-800 text-rose-200 text-xs flex flex-col gap-2 animate-in shake duration-200">
               <div className="flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
@@ -487,12 +487,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
               {/* Botão de resolução rápida para E-mail já existente */}
               {selectedRole === 'trainer' && errorCode === 'auth/email-already-in-use' && (
-                <div className="pt-2 border-t border-rose-500/25 flex items-center justify-between gap-2">
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
                   <span className="text-[11px] text-rose-300">Deseja entrar com este e-mail?</span>
                   <button
                     type="button"
                     onClick={() => handleSwitchTab('login')}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm active:scale-95"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition  active:scale-95"
                   >
                     <LogIn className="w-3.5 h-3.5" />
                     <span>Ir para Login</span>
@@ -502,13 +502,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
               {/* Botão de resolução rápida para Provedor de e-mail não ativado */}
               {selectedRole === 'trainer' && errorCode === 'auth/operation-not-allowed' && (
-                <div className="pt-2 border-t border-rose-500/25 flex items-center justify-between gap-2">
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
                   <span className="text-[11px] text-rose-300">Use o login instantâneo com Google:</span>
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={isGoogleLoading}
-                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center gap-1.5 transition shadow-sm active:scale-95 disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center gap-1.5 transition  active:scale-95 disabled:opacity-50"
                   >
                     {isGoogleLoading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-700" />
@@ -541,7 +541,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
           {/* Success Alert */}
           {successMessage && (
-            <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+            <div className="p-3 rounded-2xl bg-emerald-950/60 border border-slate-800 text-emerald-200 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <span className="font-bold block text-emerald-300">Sucesso!</span>
@@ -580,7 +580,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700   transition"
                   />
                 </div>
               </div>
@@ -622,7 +622,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     }
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-11 pl-3.5 pr-10 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full h-11 pl-3.5 pr-10 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700   transition"
                   />
                   <button
                     type="button"
@@ -639,10 +639,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <button
                 type="submit"
                 disabled={isLoading || isGoogleLoading}
-                className={`w-full h-12 rounded-xl text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation cursor-pointer ${
+                className={`w-full h-12 rounded-xl text-white font-extrabold text-sm flex items-center justify-center gap-2  transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation cursor-pointer ${
                   selectedRole === 'student'
-                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-cyan-950/60 border border-cyan-400/30'
-                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-950/60 border border-emerald-400/30'
+                    ? 'bg-cyan-600 hover:bg-cyan-500  border border-slate-800'
+                    : 'bg-emerald-600 hover:bg-emerald-500  border border-slate-800'
                 }`}
               >
                 {isLoading ? (
@@ -689,7 +689,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   placeholder="Ex: Carlos Personal ou Iron Studio"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                  className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
 
@@ -711,7 +711,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   placeholder="treinador@exemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                  className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
 
@@ -733,7 +733,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     placeholder="Mínimo 6 caracteres"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-11 pl-3.5 pr-10 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                    className="w-full h-11 pl-3.5 pr-10 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700   transition"
                   />
                   <button
                     type="button"
@@ -785,8 +785,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`w-full h-11 pl-3.5 pr-10 bg-slate-950 border rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none transition ${
                       confirmPassword && confirmPassword !== password
-                        ? 'border-rose-500 focus:border-rose-500'
-                        : 'border-slate-700/80 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+                        ? 'border-slate-800 focus:border-slate-700'
+                        : 'border-slate-700 focus:border-slate-700  '
                     }`}
                   />
                   <button
@@ -809,7 +809,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <button
                 type="submit"
                 disabled={isLoading || isGoogleLoading}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60 border border-emerald-400/30 transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation"
+                className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm flex items-center justify-center gap-2   border border-slate-800 transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed touch-manipulation"
               >
                 {isLoading ? (
                   <>
@@ -856,14 +856,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   placeholder="treinador@exemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                  className="w-full h-11 pl-3.5 pr-3 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-950/60 border border-cyan-400/30 transition active:scale-[0.98] disabled:opacity-60"
+                className="w-full h-12 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-sm flex items-center justify-center gap-2   border border-slate-800 transition active:scale-[0.98] disabled:opacity-60"
               >
                 {isLoading ? (
                   <>
@@ -904,7 +904,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={isGoogleLoading || isLoading}
-                className="w-full h-11 rounded-xl bg-slate-950 hover:bg-slate-800/90 border border-slate-700/80 hover:border-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center gap-2.5 transition active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+                className="w-full h-11 rounded-xl bg-slate-950 hover:bg-slate-800/90 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-bold flex items-center justify-center gap-2.5 transition active:scale-[0.98] disabled:opacity-60 cursor-pointer"
               >
                 {isGoogleLoading ? (
                   <RefreshCw className="w-4 h-4 animate-spin text-slate-400" />
@@ -934,7 +934,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           )}
 
           {/* PWA Offline Info & Skip / Guest Mode */}
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
             <span className="flex items-center gap-1 truncate">
               <Smartphone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>Otimizado para iPhone / iPad / PWA</span>

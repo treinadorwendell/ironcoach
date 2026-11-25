@@ -579,9 +579,9 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           </div>
 
           {/* Cabeçalho da Seção Informações */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg flex items-center justify-between gap-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800  flex items-center justify-between gap-3">
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center shrink-0">
                 <SlidersHorizontal className="w-6 h-6" />
               </div>
               <div className="min-w-0">
@@ -596,14 +596,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           </div>
 
           {infoError && (
-            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-slate-800 text-rose-200 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{infoError}</span>
             </div>
           )}
 
           {infoSavedToast && (
-            <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-200 text-xs font-bold flex items-center gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-slate-800 text-emerald-200 text-xs font-bold flex items-center gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Informações e plano do aluno atualizados com sucesso!</span>
             </div>
@@ -611,7 +611,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
 
           <form onSubmit={handleSaveStudentInfo} className="space-y-5">
             {/* BLOCO 1: DADOS OBRIGATÓRIOS E CREDENCIAL DE ACESSO DO ALUNO */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md space-y-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800  space-y-4">
               <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
@@ -642,7 +642,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     value={infoName}
                     onChange={(e) => setInfoName(e.target.value)}
                     placeholder="Nome completo do aluno"
-                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -657,7 +657,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     value={infoEmail}
                     onChange={(e) => setInfoEmail(e.target.value)}
                     placeholder="aluno@email.com"
-                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -672,13 +672,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     value={infoPhone}
                     onChange={(e) => setInfoPhone(formatPhoneMask(e.target.value))}
                     placeholder="(11) 98765-4321"
-                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-slate-700"
                   />
                 </div>
               </div>
 
               {/* Linha 2: Senha Gerada pelo Treinador */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-2.5">
+              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="text-xs font-extrabold text-cyan-300 flex items-center gap-1.5">
                     <KeyRound className="w-4 h-4 text-cyan-400" />
@@ -696,7 +696,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => handleCopyCredentials(infoName, infoEmail, infoAccessPassword)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-200 text-xs font-bold border border-cyan-500/40 transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-200 text-xs font-bold border border-slate-800 transition cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5" />
                       <span>Copiar Acesso</span>
@@ -711,7 +711,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     value={infoAccessPassword}
                     onChange={(e) => setInfoAccessPassword(e.target.value)}
                     placeholder="Mínimo de 6 caracteres"
-                    className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono font-bold text-cyan-300 focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono font-bold text-cyan-300 focus:outline-none focus:border-slate-700"
                   />
                   <button
                     type="button"
@@ -741,7 +741,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       value={infoWeight}
                       onChange={(e) => setInfoWeight(e.target.value)}
                       placeholder="75.0"
-                      className="w-full px-3.5 py-3 pr-12 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-3 pr-12 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-slate-700"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                       kg
@@ -763,7 +763,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       value={infoHeight}
                       onChange={(e) => setInfoHeight(e.target.value)}
                       placeholder="175"
-                      className="w-full px-3.5 py-3 pr-12 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-3 pr-12 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-slate-700"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                       cm
@@ -785,7 +785,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     value={infoBirthDate}
                     onChange={(e) => setInfoBirthDate(formatBirthDateMask(e.target.value))}
                     placeholder="DD/MM/AAAA"
-                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white tabular-nums focus:outline-none focus:border-slate-700"
                   />
                   {calculateAge(infoBirthDate) !== null && (
                     <span className="text-[11px] text-emerald-400 block tabular-nums">
@@ -805,13 +805,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   value={infoNotes}
                   onChange={(e) => setInfoNotes(e.target.value)}
                   placeholder="Ex: Objetivo hipertrofia, atenção ao joelho direito..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
                 />
               </div>
             </div>
 
             {/* BLOCO 2: TIPO DE PLANO (Presencial: Mensal, Semanal, Avulsa | Online: Mensal, Trimestral, Semestral, Anual) */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md space-y-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800  space-y-4">
               <div className="border-b border-slate-800 pb-3">
                 <h3 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-amber-400" />
@@ -834,7 +834,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   }}
                   className={`flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl border text-xs sm:text-sm font-extrabold transition active:scale-[0.99] cursor-pointer touch-manipulation ${
                     infoCategory === 'Presencial'
-                      ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/40'
+                      ? 'bg-emerald-600/20 text-emerald-300 border-slate-800   '
                       : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
                   }`}
                 >
@@ -852,7 +852,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   }}
                   className={`flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl border text-xs sm:text-sm font-extrabold transition active:scale-[0.99] cursor-pointer touch-manipulation ${
                     infoCategory === 'Online'
-                      ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/60 shadow-md ring-1 ring-cyan-500/40'
+                      ? 'bg-cyan-600/20 text-cyan-300 border-slate-800   '
                       : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
                   }`}
                 >
@@ -877,7 +877,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                           onClick={() => handleSelectInfoPlan(plan.fullType, plan.defaultPrice, 'Presencial')}
                           className={`p-3.5 rounded-xl border text-left transition active:scale-[0.99] cursor-pointer flex items-center justify-between ${
                             isSelected
-                              ? 'bg-emerald-600 text-white border-emerald-400 shadow-md'
+                              ? 'bg-emerald-600 text-white border-slate-800 '
                               : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                           }`}
                         >
@@ -910,7 +910,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                           onClick={() => handleSelectInfoPlan(plan.fullType, plan.defaultPrice, 'Online')}
                           className={`p-3.5 rounded-xl border text-left transition active:scale-[0.99] cursor-pointer flex items-center justify-between ${
                             isSelected
-                              ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
+                              ? 'bg-cyan-600 text-white border-slate-800 '
                               : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                           }`}
                         >
@@ -931,7 +931,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               )}
 
               {/* Valor do Plano em R$ */}
-              <div className="pt-2 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="pt-2 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
                     Valor do Plano ({normalizeContractType(infoContractType)}) em R$
@@ -946,7 +946,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       required
                       value={infoContractValue}
                       onChange={(e) => setInfoContractValue(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-700/80 text-sm font-extrabold text-amber-300 tabular-nums focus:outline-none focus:border-emerald-500"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-extrabold text-amber-300 tabular-nums focus:outline-none focus:border-slate-700"
                     />
                   </div>
                 </div>
@@ -954,7 +954,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 <div className="flex sm:justify-end pt-2 sm:pt-5">
                   <button
                     type="submit"
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 h-11 sm:h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-950/60 active:scale-95 transition cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 h-11 sm:h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm   active:scale-95 transition cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
                   >
                     <CheckCircle2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 shrink-0" />
                     <span>Salvar Informações do Aluno</span>
@@ -994,14 +994,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         </div>
 
         {/* Cabeçalho do Perfil do Aluno */}
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+        <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 ">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">
               <div
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-lg shrink-0 ${
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl text-white  shrink-0 ${
                   selectedProfileClient.gender === 'Feminino'
-                    ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
-                    : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
+                    ? 'bg-pink-600'
+                    : 'bg-blue-600'
                 }`}
               >
                 {selectedProfileClient.name.charAt(0)}
@@ -1044,20 +1044,20 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             </div>
 
             {/* Resumo Rápido de Medidas, Plano e Hidratação */}
-            <div className="flex items-center gap-2.5 sm:gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 text-xs text-slate-300 tabular-nums shrink-0 flex-wrap sm:flex-nowrap">
-              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+            <div className="flex items-center gap-2.5 sm:gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800 text-xs text-slate-300 tabular-nums shrink-0 flex-wrap sm:flex-nowrap">
+              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-slate-400 block uppercase font-bold">Medidas</span>
                 <span className="font-extrabold text-white">
                   {selectedProfileClient.weight} kg · {selectedProfileClient.height} cm
                 </span>
               </div>
-              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-slate-400 block uppercase font-bold">Plano Ativo</span>
                 <span className="font-extrabold text-emerald-400">
                   {parsedPlan.normalized} (R$ {selectedProfileClient.contractValue})
                 </span>
               </div>
-              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-blue-500/30">
+              <div className="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800">
                 <span className="text-[10px] text-blue-400 block uppercase font-bold flex items-center gap-1">
                   <Droplet className="w-3 h-3 text-blue-400" /> Hidratação
                 </span>
@@ -1075,10 +1075,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           <button
             type="button"
             onClick={() => setProfileSubView('informacoes')}
-            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 shadow-lg text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
+            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-slate-700  text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
           >
             <div className="flex items-start justify-between gap-3 w-full">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
                 <SlidersHorizontal className="w-6 h-6" />
               </div>
               <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition" />
@@ -1101,10 +1101,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               setCompletedWorkouts(storage.getCompletedWorkouts());
               setProfileSubView('historico');
             }}
-            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/50 shadow-lg text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
+            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-slate-700  text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
           >
             <div className="flex items-start justify-between gap-3 w-full">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center group-hover:scale-105 transition">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-slate-800 text-amber-400 flex items-center justify-center group-hover:scale-105 transition">
                 <History className="w-6 h-6" />
               </div>
               <div className="flex items-center gap-2">
@@ -1129,10 +1129,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           <button
             type="button"
             onClick={() => onCreateWorkoutForClient(selectedProfileClient)}
-            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 shadow-lg text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
+            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-slate-700  text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
           >
             <div className="flex items-start justify-between gap-3 w-full">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
                 <FilePlus className="w-6 h-6" />
               </div>
               <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition" />
@@ -1152,10 +1152,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           <button
             type="button"
             onClick={() => onStartWorkoutForClient(selectedProfileClient)}
-            className="w-full p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-900 hover:from-emerald-950/60 border border-emerald-500/40 hover:border-emerald-400 shadow-lg text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
+            className="w-full p-5 sm:p-6 rounded-3xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700  text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col justify-between min-h-[160px]"
           >
             <div className="flex items-start justify-between gap-3 w-full">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center shadow-md group-hover:scale-105 transition">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center  group-hover:scale-105 transition">
                 <Play className="w-6 h-6 fill-slate-950" />
               </div>
               <ChevronRight className="w-5 h-5 text-emerald-400 group-hover:translate-x-0.5 transition" />
@@ -1175,10 +1175,10 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
           <button
             type="button"
             onClick={() => setProfileSubView('nutricao')}
-            className="sm:col-span-2 w-full p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 hover:to-emerald-950/60 border border-emerald-500/40 hover:border-emerald-400 shadow-lg text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            className="sm:col-span-2 w-full p-5 sm:p-6 rounded-3xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700  text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation flex flex-col sm:flex-row sm:items-center justify-between gap-4"
           >
             <div className="flex items-start sm:items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
                 <Utensils className="w-7 h-7" />
               </div>
               <div className="space-y-2">
@@ -1196,7 +1196,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
 
                 {/* Badge de Destaque da Meta de Hidratação Diária */}
                 <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                  <div className="px-3 py-1.5 rounded-xl bg-blue-950/70 border border-blue-500/40 text-xs font-bold text-blue-300 flex items-center gap-2">
+                  <div className="px-3 py-1.5 rounded-xl bg-blue-950/70 border border-slate-800 text-xs font-bold text-blue-300 flex items-center gap-2">
                     <Droplet className="w-4 h-4 text-blue-400" />
                     <span>
                       Meta de Hidratação: <strong className="text-white">{clientHydration.recommendedMl} ml</strong> ({clientHydration.recommendedLiters} L/dia)
@@ -1209,7 +1209,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               </div>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shrink-0 self-start sm:self-center shadow-md">
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shrink-0 self-start sm:self-center ">
               <span>Abrir Nutrição & Hidratação</span>
               <ChevronRight className="w-4 h-4" />
             </div>
@@ -1230,11 +1230,11 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         <button
           type="button"
           onClick={onOpenTrainerProfile}
-          className="w-full p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border border-slate-800 hover:border-emerald-500/50 shadow-md flex items-center justify-between gap-3 min-h-[100px] text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation"
+          className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700  flex items-center justify-between gap-3 min-h-[100px] text-left transition active:scale-[0.99] group cursor-pointer touch-manipulation"
           title="Abrir Perfil do Treinador IronCoach"
         >
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/30 flex-shrink-0 group-hover:scale-105 transition">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-emerald-600 flex items-center justify-center     flex-shrink-0 group-hover:scale-105 transition">
               {trainerProfile?.logoDataUrl ? (
                 <img
                   src={trainerProfile.logoDataUrl}
@@ -1262,13 +1262,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             </div>
           </div>
 
-          <div className="w-9 h-9 rounded-xl bg-slate-800/90 group-hover:bg-emerald-600/20 text-slate-400 group-hover:text-emerald-300 border border-slate-700/80 group-hover:border-emerald-500/40 flex items-center justify-center shrink-0 transition">
+          <div className="w-9 h-9 rounded-xl bg-slate-800/90 group-hover:bg-emerald-600/20 text-slate-400 group-hover:text-emerald-300 border border-slate-700 group-hover:border-slate-700 flex items-center justify-center shrink-0 transition">
             <Edit2 className="w-4 h-4" />
           </div>
         </button>
 
         {/* KPI Card: Total de Alunos */}
-        <div className="w-full p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800/80 border border-slate-800 shadow-md flex flex-col justify-between min-h-[100px]">
+        <div className="w-full p-3.5 rounded-2xl bg-slate-900 border border-slate-800  flex flex-col justify-between min-h-[100px]">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center">
             Total de Alunos
           </span>
@@ -1288,13 +1288,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             placeholder="Buscar por nome, e-mail ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 sm:h-12 pl-10 pr-4 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            className="w-full h-11 sm:h-12 pl-10 pr-4 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-700  "
           />
         </div>
 
         <button
           onClick={openNewClientModal}
-          className="flex items-center justify-center gap-2 h-11 sm:h-12 px-5 sm:px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition touch-manipulation cursor-pointer whitespace-nowrap shrink-0"
+          className="flex items-center justify-center gap-2 h-11 sm:h-12 px-5 sm:px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs sm:text-sm   transition touch-manipulation cursor-pointer whitespace-nowrap shrink-0"
         >
           <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-100 shrink-0" />
           <span>Cadastrar Novo Aluno</span>
@@ -1306,12 +1306,12 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
         <button
           type="button"
           onClick={() => setIsPlanDropdownOpen((prev) => !prev)}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 active:scale-[0.99] text-xs sm:text-sm font-bold text-white shadow-md transition touch-manipulation cursor-pointer"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 active:scale-[0.99] text-xs sm:text-sm font-bold text-white  transition touch-manipulation cursor-pointer"
           aria-expanded={isPlanDropdownOpen}
           aria-haspopup="listbox"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+            <span className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-slate-800 shrink-0">
               <Layers className="w-4 h-4" />
             </span>
             <div className="text-left min-w-0">
@@ -1350,7 +1350,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
               transition={{ duration: 0.15 }}
               role="listbox"
               aria-multiselectable="true"
-              className="absolute left-0 right-0 top-full mt-2 z-40 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/90 space-y-2.5 backdrop-blur-xl max-h-96 overflow-y-auto"
+              className="absolute left-0 right-0 top-full mt-2 z-40 p-3 rounded-2xl bg-slate-900 border border-slate-700   space-y-2.5 backdrop-blur-xl max-h-96 overflow-y-auto"
             >
               {/* Cabeçalho do Multi-Select */}
               <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-800">
@@ -1376,7 +1376,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 onClick={() => setSelectedPlanFilters([])}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-left cursor-pointer ${
                   selectedPlanFilters.length === 0
-                    ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
+                    ? 'bg-emerald-600/20 text-emerald-300 border border-slate-800'
                     : 'hover:bg-slate-800/80 text-slate-200 border border-transparent'
                 }`}
               >
@@ -1384,7 +1384,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   <span
                     className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
                       selectedPlanFilters.length === 0
-                        ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+                        ? 'bg-emerald-500 border-slate-800 text-slate-950'
                         : 'bg-slate-950 border-slate-700'
                     }`}
                   >
@@ -1417,7 +1417,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         onClick={() => togglePlanFilter(p.fullType)}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40'
+                            ? 'bg-emerald-600/20 text-emerald-300 border border-slate-800'
                             : 'hover:bg-slate-800/80 text-slate-300 border border-transparent'
                         }`}
                       >
@@ -1425,7 +1425,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                           <span
                             className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
                               isSelected
-                                ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+                                ? 'bg-emerald-500 border-slate-800 text-slate-950'
                                 : 'bg-slate-950 border-slate-700'
                             }`}
                           >
@@ -1460,7 +1460,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         onClick={() => togglePlanFilter(p.fullType)}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
                           isSelected
-                            ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40'
+                            ? 'bg-cyan-600/20 text-cyan-300 border border-slate-800'
                             : 'hover:bg-slate-800/80 text-slate-300 border border-transparent'
                         }`}
                       >
@@ -1468,7 +1468,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                           <span
                             className={`w-4 h-4 rounded-md border flex items-center justify-center transition ${
                               isSelected
-                                ? 'bg-cyan-500 border-cyan-400 text-slate-950'
+                                ? 'bg-cyan-500 border-slate-800 text-slate-950'
                                 : 'bg-slate-950 border-slate-700'
                             }`}
                           >
@@ -1503,8 +1503,8 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       {/* LISTA DE CARDS DOS ALUNOS (Exibe apenas: Nome, Data de nascimento, E-mail, Telefone, Botão Editar e Botão Excluir) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
         {filteredClients.length === 0 ? (
-          <div className="col-span-full text-center py-12 px-4 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4 shadow-xl">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
+          <div className="col-span-full text-center py-12 px-4 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4 ">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-slate-800">
               <UserPlus className="w-8 h-8" />
             </div>
             <div className="space-y-1">
@@ -1547,15 +1547,15 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     openStudentProfile(client, 'menu');
                   }
                 }}
-                className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 shadow-md transition-all group cursor-pointer touch-manipulation flex items-start justify-between gap-3"
+                className="p-4 rounded-2xl bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-slate-700  transition-all group cursor-pointer touch-manipulation flex items-start justify-between gap-3"
               >
                 {/* Informações solicitadas: Nome, Data de nascimento, E-mail e Número de telefone */}
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-md shrink-0 group-hover:scale-105 transition ${
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white  shrink-0 group-hover:scale-105 transition ${
                       client.gender === 'Feminino'
-                        ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
-                        : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
+                        ? 'bg-pink-600'
+                        : 'bg-blue-600'
                     }`}
                   >
                     {client.name.charAt(0)}
@@ -1567,11 +1567,11 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         {client.name}
                       </h3>
                       {accessReady ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-slate-800 text-[10px] font-bold text-emerald-300">
                           <KeyRound className="w-3 h-3" /> Acesso Liberado
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[10px] font-bold text-amber-300">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-slate-800 text-[10px] font-bold text-amber-300">
                           <AlertCircle className="w-3 h-3" /> Completar Cadastro p/ Acesso
                         </span>
                       )}
@@ -1607,7 +1607,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       e.stopPropagation();
                       openStudentProfile(client, 'nutricao');
                     }}
-                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 hover:text-emerald-300 border border-slate-800 flex items-center justify-center active:scale-95 transition cursor-pointer  touch-manipulation shrink-0"
                     title="Abrir Nutrição e Prescrição de Dieta"
                     aria-label={`Abrir nutrição de ${client.name}`}
                   >
@@ -1620,7 +1620,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       e.stopPropagation();
                       openEditModal(client);
                     }}
-                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center active:scale-95 transition cursor-pointer  touch-manipulation shrink-0"
                     title="Editar Cadastro e Senha do Aluno"
                     aria-label={`Editar cadastro de ${client.name}`}
                   >
@@ -1633,7 +1633,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       e.stopPropagation();
                       setClientToDelete(client);
                     }}
-                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700/80 hover:border-rose-500/40 flex items-center justify-center active:scale-95 transition cursor-pointer shadow-xs touch-manipulation shrink-0"
+                    className="w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl bg-slate-800/90 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 border border-slate-700 hover:border-slate-700 flex items-center justify-center active:scale-95 transition cursor-pointer  touch-manipulation shrink-0"
                     title="Excluir Cliente"
                     aria-label={`Excluir ${client.name}`}
                   >
@@ -1649,7 +1649,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       {/* Modal Rápido: Cadastrar Novo Aluno / Editar Cadastro Básico do Cliente */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-2xl my-auto animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-5  my-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
@@ -1674,14 +1674,14 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
             </div>
 
             {formError && (
-              <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-2 text-xs text-rose-300">
+              <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-slate-800 flex items-center gap-2 text-xs text-rose-300">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             {copiedCredentialsToast && (
-              <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center gap-2 text-xs font-bold text-emerald-300">
+              <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-slate-800 flex items-center gap-2 text-xs font-bold text-emerald-300">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>E-mail e senha copiados para a área de transferência!</span>
               </div>
@@ -1699,7 +1699,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   placeholder="Ex: Carlos Eduardo Silva"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-slate-700"
                 />
               </div>
 
@@ -1717,7 +1717,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     placeholder="DD/MM/AAAA"
                     value={birthDate}
                     onChange={(e) => setBirthDate(formatBirthDateMask(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -1731,7 +1731,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       onClick={() => setGender('Masculino')}
                       className={`py-2.5 px-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                         gender === 'Masculino'
-                          ? 'bg-blue-600 text-white shadow-md'
+                          ? 'bg-blue-600 text-white '
                           : 'bg-slate-950 text-slate-400 border border-slate-800'
                       }`}
                     >
@@ -1742,7 +1742,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                       onClick={() => setGender('Feminino')}
                       className={`py-2.5 px-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                         gender === 'Feminino'
-                          ? 'bg-pink-600 text-white shadow-md'
+                          ? 'bg-pink-600 text-white '
                           : 'bg-slate-950 text-slate-400 border border-slate-800'
                       }`}
                     >
@@ -1764,7 +1764,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     placeholder="aluno@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-slate-700"
                   />
                 </div>
                 <div>
@@ -1777,13 +1777,13 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     placeholder="(11) 98765-4321"
                     value={phone}
                     onChange={(e) => setPhone(formatPhoneMask(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-slate-700"
                   />
                 </div>
               </div>
 
               {/* Senha de Acesso do Aluno Gerada pelo Treinador */}
-              <div className="p-3 rounded-xl bg-slate-950 border border-cyan-500/30 space-y-2">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
                     <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
@@ -1801,7 +1801,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => handleCopyCredentials(name, email, accessPassword)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-[11px] font-bold text-cyan-200 border border-cyan-500/40 transition cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-[11px] font-bold text-cyan-200 border border-slate-800 transition cursor-pointer"
                     >
                       <Copy className="w-3 h-3" />
                       <span>Copiar Acesso</span>
@@ -1816,7 +1816,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                     value={accessPassword}
                     onChange={(e) => setAccessPassword(e.target.value)}
                     placeholder="Mínimo de 6 caracteres"
-                    className="w-full px-3.5 py-2 pr-10 rounded-xl bg-slate-900 border border-slate-800 text-sm font-mono font-bold text-cyan-300 focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3.5 py-2 pr-10 rounded-xl bg-slate-900 border border-slate-800 text-sm font-mono font-bold text-cyan-300 focus:outline-none focus:border-slate-700"
                   />
                   <button
                     type="button"
@@ -1844,7 +1844,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         step="0.1"
                         value={weight}
                         onChange={(e) => setWeight(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-slate-700"
                       />
                     </div>
                     <div>
@@ -1856,7 +1856,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         step="1"
                         value={height}
                         onChange={(e) => setHeight(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white tabular-nums focus:outline-none focus:border-slate-700"
                       />
                     </div>
                   </div>
@@ -1868,7 +1868,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         onClick={() => handleSelectModalPlan('Presencial - Mensal', '750', 'Presencial')}
                         className={`py-2 px-3 rounded-lg text-xs font-bold border transition cursor-pointer ${
                           contractCategory === 'Presencial'
-                            ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50'
+                            ? 'bg-emerald-600/20 text-emerald-300 border-slate-800'
                             : 'bg-slate-900 text-slate-400 border-slate-800'
                         }`}
                       >
@@ -1879,7 +1879,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                         onClick={() => handleSelectModalPlan('Online - Mensal', '350', 'Online')}
                         className={`py-2 px-3 rounded-lg text-xs font-bold border transition cursor-pointer ${
                           contractCategory === 'Online'
-                            ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/50'
+                            ? 'bg-cyan-600/20 text-cyan-300 border-slate-800'
                             : 'bg-slate-900 text-slate-400 border-slate-800'
                         }`}
                       >
@@ -1905,7 +1905,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                               );
                             }
                           }}
-                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
                         >
                           {contractCategory === 'Presencial'
                             ? PRESENCIAL_PLANS.map((p) => (
@@ -1930,7 +1930,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                           step="1"
                           value={contractValue}
                           onChange={(e) => setContractValue(e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-amber-300 tabular-nums focus:outline-none focus:border-emerald-500"
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-amber-300 tabular-nums focus:outline-none focus:border-slate-700"
                         />
                       </div>
                     </div>
@@ -1948,7 +1948,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 h-10 sm:h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-950/40 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
+                  className="flex items-center gap-2 h-10 sm:h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold   active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>{editingClient ? 'Salvar Alterações' : 'Concluir Cadastro'}</span>
@@ -1962,8 +1962,8 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
       {/* Delete Confirmation Modal */}
       {clientToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-rose-500/50 p-6 shadow-2xl space-y-4 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
+          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-6  space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-slate-800">
               <Trash2 className="w-7 h-7" />
             </div>
 
@@ -1996,7 +1996,7 @@ export const ClientSection: React.FC<ClientSectionProps> = ({
                   onDeleteClient(clientToDelete.id);
                   setClientToDelete(null);
                 }}
-                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 active:scale-95 transition cursor-pointer"
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs   active:scale-95 transition cursor-pointer"
               >
                 Sim, Excluir
               </button>

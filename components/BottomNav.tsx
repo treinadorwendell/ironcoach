@@ -98,7 +98,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   return (
     <nav
       aria-label="Navegação principal"
-      className="BottomNav fixed bottom-0 left-0 right-0 z-40 w-full bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:pl-[max(1.5rem,var(--sal))] sm:pr-[max(1.5rem,var(--sar))] lg:pl-[max(2.5rem,var(--sal))] lg:pr-[max(2.5rem,var(--sar))] pt-2 pb-[calc(max(var(--sab),env(safe-area-inset-bottom,0px))+0.5rem)] transition-all"
+      className="BottomNav fixed bottom-0 left-0 right-0 z-40 w-full bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 )] pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:pl-[max(1.5rem,var(--sal))] sm:pr-[max(1.5rem,var(--sar))] lg:pl-[max(2.5rem,var(--sal))] lg:pr-[max(2.5rem,var(--sar))] pt-2 pb-[calc(max(var(--sab),env(safe-area-inset-bottom,0px))+0.5rem)] transition-all"
     >
       <div
         className={`max-w-6xl mx-auto grid items-stretch ${
@@ -134,7 +134,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <motion.div
                   layoutId="activeBottomNavBg"
                   transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                  className="absolute inset-0 bg-slate-800/90 rounded-xl sm:rounded-2xl shadow-inner shadow-slate-700/40 border border-slate-700/60"
+                  className="absolute inset-0 bg-slate-800/90 rounded-xl sm:rounded-2xl   border border-slate-700"
                 />
               )}
 
@@ -145,15 +145,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   transition={{ type: 'spring', stiffness: 480, damping: 32 }}
                   className={`absolute top-1 sm:top-1.5 left-1/2 -translate-x-1/2 w-7 sm:w-10 h-1 rounded-full z-10 ${
                     isStudent
-                      ? 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]'
-                      : 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]'
+                      ? 'bg-cyan-400 )]'
+                      : 'bg-emerald-400 )]'
                   }`}
                 />
               )}
 
               {/* Badge for active workout */}
               {item.badge && (
-                <span className="absolute -top-1.5 right-1 sm:right-2 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[8px] sm:text-[9px] font-black text-slate-950 tracking-wider animate-pulse shadow-md z-10 whitespace-nowrap">
+                <span className="absolute -top-1.5 right-1 sm:right-2 px-1.5 py-0.5 rounded-full bg-emerald-500 text-[8px] sm:text-[9px] font-black text-slate-950 tracking-wider animate-pulse  z-10 whitespace-nowrap">
                   AO VIVO
                 </span>
               )}

@@ -124,12 +124,12 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
           exit={{ opacity: 0, y: 36, scale: 0.96 }}
           transition={{ duration: 0.18 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[88dvh]"
+          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl  overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[88dvh]"
         >
           {/* Header */}
           <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-slate-800 flex items-center justify-center text-cyan-400 shrink-0">
                 <Repeat className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0">
@@ -146,7 +146,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Fechar modal de repetições"
-              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -156,7 +156,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
           <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
             {/* Faixa de Zona Alvo + Último Treino Concluído */}
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 rounded-2xl bg-slate-950/90 border border-cyan-500/30 flex flex-col justify-between">
+              <div className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800 flex flex-col justify-between">
                 <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
                   <Target className="w-3.5 h-3.5 shrink-0" />
                   <span>Zona Alvo</span>
@@ -166,7 +166,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-950/90 border border-purple-500/30 flex flex-col justify-between">
+              <div className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800 flex flex-col justify-between">
                 <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1">
                   <History className="w-3.5 h-3.5 shrink-0 text-purple-400" />
                   <span>Último Treino</span>
@@ -180,7 +180,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleSelectQuickReps(lastWorkoutReps)}
-                        className="px-2 py-0.5 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-[10px] font-bold text-purple-200 transition active:scale-95 cursor-pointer"
+                        className="px-2 py-0.5 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 border border-slate-800 text-[10px] font-bold text-purple-200 transition active:scale-95 cursor-pointer"
                       >
                         Usar
                       </button>
@@ -195,12 +195,12 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
             </div>
 
             {/* Controle Central Gigante (- e +) */}
-            <div className="p-4 rounded-3xl bg-slate-950 border border-slate-800/90 flex items-center justify-between gap-3 shadow-inner">
+            <div className="p-4 rounded-3xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 ">
               <button
                 type="button"
                 onClick={() => handleStep(-1)}
                 disabled={repsValue <= 1}
-                className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 disabled:opacity-40 border border-slate-700 text-white flex items-center justify-center shadow-lg transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
+                className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 disabled:opacity-40 border border-slate-700 text-white flex items-center justify-center  transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
                 aria-label="Diminuir 1 repetição"
               >
                 <Minus className="w-7 h-7 stroke-[3]" />
@@ -221,7 +221,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleStep(1)}
-                className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-400 border border-cyan-400/40 text-slate-950 flex items-center justify-center shadow-lg shadow-cyan-950/50 transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
+                className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-400 border border-slate-800 text-slate-950 flex items-center justify-center   transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
                 aria-label="Aumentar 1 repetição"
               >
                 <Plus className="w-7 h-7 stroke-[3]" />
@@ -260,9 +260,9 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
                       onClick={() => handleSelectQuickReps(val)}
                       className={`h-10 rounded-xl font-mono tabular-nums font-black text-xs sm:text-sm flex flex-col items-center justify-center border transition active:scale-95 touch-manipulation cursor-pointer ${
                         isSelected
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/60 shadow-md'
+                          ? 'bg-cyan-500 text-slate-950 border-slate-800   '
                           : isLastWorkout
-                          ? 'bg-purple-950/60 text-purple-200 border-purple-500/50 hover:bg-purple-900/60'
+                          ? 'bg-purple-950/60 text-purple-200 border-slate-800 hover:bg-purple-900/60'
                           : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
                       }`}
                     >
@@ -285,7 +285,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleConfirm(true)}
-                className="w-full h-9 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 touch-manipulation cursor-pointer"
+                className="w-full h-9 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-cyan-300 border border-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 touch-manipulation cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5 shrink-0" />
                 <span>Aplicar {repsValue} reps também nas séries seguintes</span>
@@ -294,7 +294,7 @@ export const RepsPickerModal: React.FC<RepsPickerModalProps> = ({
             <button
               type="button"
               onClick={() => handleConfirm(false)}
-              className="w-full h-11 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-950/50 flex items-center justify-center gap-1.5 transition active:scale-95 touch-manipulation cursor-pointer"
+              className="w-full h-11 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs sm:text-sm   flex items-center justify-center gap-1.5 transition active:scale-95 touch-manipulation cursor-pointer"
             >
               <Check className="w-4 h-4 stroke-[3]" />
               <span>Confirmar ({repsValue} repetições)</span>
@@ -414,12 +414,12 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
           exit={{ opacity: 0, y: 36, scale: 0.96 }}
           transition={{ duration: 0.18 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[88dvh]"
+          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl  overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[88dvh]"
         >
           {/* Header */}
           <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-slate-800 flex items-center justify-center text-emerald-400 shrink-0">
                 <Dumbbell className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0">
@@ -436,7 +436,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Fechar modal de carga"
-              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -475,7 +475,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
                         setWeightInput(String(lastWorkoutWeight));
                         onChangeWeight(lastWorkoutWeight, false);
                       }}
-                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition active:scale-95 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-slate-800 text-emerald-300 text-xs font-bold transition active:scale-95 cursor-pointer"
                     >
                       Usar {lastWorkoutWeight}kg
                     </button>
@@ -496,11 +496,11 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
             </div>
 
             {/* Controle Central de Carga (- / Input Direto / +) */}
-            <div className="p-3.5 sm:p-4 rounded-3xl bg-slate-950 border border-slate-800/90 flex items-center justify-between gap-2.5 shadow-inner">
+            <div className="p-3.5 sm:p-4 rounded-3xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2.5 ">
               <button
                 type="button"
                 onClick={() => handleAdjustWeight(-1)}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-white flex flex-col items-center justify-center shadow-lg transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-white flex flex-col items-center justify-center  transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
                 aria-label="Diminuir 1 kg"
               >
                 <Minus className="w-6 h-6 stroke-[3]" />
@@ -516,7 +516,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
                     placeholder="—"
                     value={weightInput}
                     onChange={(e) => handleDirectInputChange(e.target.value)}
-                    className="w-32 sm:w-36 h-14 text-center bg-slate-900/90 border border-emerald-500/40 focus:border-emerald-400 rounded-2xl text-3xl sm:text-4xl font-black text-emerald-400 font-mono tabular-nums focus:outline-none shadow-inner placeholder:text-slate-600"
+                    className="w-32 sm:w-36 h-14 text-center bg-slate-900/90 border border-slate-800 focus:border-slate-700 rounded-2xl text-3xl sm:text-4xl font-black text-emerald-400 font-mono tabular-nums focus:outline-none  placeholder:text-slate-600"
                   />
                   <span className="ml-1.5 text-sm font-black text-slate-400 uppercase">kg</span>
                 </div>
@@ -528,7 +528,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleAdjustWeight(1)}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 border border-emerald-400/40 text-slate-950 flex flex-col items-center justify-center shadow-lg shadow-emerald-950/50 transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 border border-slate-800 text-slate-950 flex flex-col items-center justify-center   transition active:scale-90 touch-manipulation cursor-pointer shrink-0"
                 aria-label="Aumentar 1 kg"
               >
                 <Plus className="w-6 h-6 stroke-[3]" />
@@ -557,7 +557,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
                     key={delta}
                     type="button"
                     onClick={() => handleAdjustWeight(delta)}
-                    className="h-9 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 font-mono tabular-nums font-bold text-xs transition active:scale-95 touch-manipulation cursor-pointer"
+                    className="h-9 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-slate-800 text-emerald-300 font-mono tabular-nums font-bold text-xs transition active:scale-95 touch-manipulation cursor-pointer"
                   >
                     +{delta} kg
                   </button>
@@ -572,7 +572,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleConfirm(true)}
-                className="w-full h-9 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 touch-manipulation cursor-pointer"
+                className="w-full h-9 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-emerald-300 border border-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 touch-manipulation cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5 shrink-0" />
                 <span>Aplicar {numericWeight} kg também nas séries seguintes</span>
@@ -581,7 +581,7 @@ export const WeightPickerModal: React.FC<WeightPickerModalProps> = ({
             <button
               type="button"
               onClick={() => handleConfirm(false)}
-              className="w-full h-11 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-1.5 transition active:scale-95 touch-manipulation cursor-pointer"
+              className="w-full h-11 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm   flex items-center justify-center gap-1.5 transition active:scale-95 touch-manipulation cursor-pointer"
             >
               <Check className="w-4 h-4 stroke-[3]" />
               <span>

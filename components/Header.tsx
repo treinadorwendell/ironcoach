@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   const handleLogoClick = isTrainer ? onOpenTrainerProfile : onOpenStudentSettings;
 
   return (
-    <header className="Header sticky top-0 z-30 w-full bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 pt-[max(var(--sat),env(safe-area-inset-top,0px))] transition-all">
+    <header className="Header sticky top-0 z-30 w-full bg-slate-950/95 backdrop-blur-md border-b border-slate-800 pt-[max(var(--sat),env(safe-area-inset-top,0px))] transition-all">
       {/* Barra principal do cabeçalho posicionada abaixo da área segura do iOS (Notch / Dynamic Island) */}
       <nav
         aria-label="Cabeçalho principal"
@@ -74,10 +74,10 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <div className="relative flex-shrink-0">
             <div
-              className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-2xl overflow-hidden flex items-center justify-center shadow-lg transition ${
+              className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-2xl overflow-hidden flex items-center justify-center  transition ${
                 isTrainer
-                  ? 'bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 shadow-emerald-950/50 group-hover:scale-105'
-                  : 'bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-500 shadow-cyan-950/50 group-hover:scale-105'
+                  ? 'bg-emerald-600  group-hover:scale-105'
+                  : 'bg-cyan-600  group-hover:scale-105'
               }`}
             >
               {trainerProfile?.logoDataUrl ? (
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
             {!isTrainer && (
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-full bg-slate-900 border border-cyan-500/60 text-cyan-400 flex items-center justify-center shadow-md group-hover:bg-cyan-500 group-hover:text-slate-950 transition">
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-full bg-slate-900 border border-slate-800 text-cyan-400 flex items-center justify-center  group-hover:bg-cyan-500 group-hover:text-slate-950 transition">
                 <Settings className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               </span>
             )}
@@ -142,14 +142,14 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Center/Right: Trainer Preview Switcher (hidden for locked Student login) + Cloud Sync/Offline/PWA */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {!isStudentAccountLocked && onChangeRole && (
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/95 border border-slate-800 p-1 rounded-xl shadow-inner">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/95 border border-slate-800 p-1 rounded-xl ">
               <button
                 type="button"
                 onClick={() => onChangeRole('trainer')}
                 title="Painel Exclusivo do Treinador (Gestão Completa)"
                 className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg text-[10px] sm:text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
                   isTrainer
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/60'
+                    ? 'bg-emerald-600 text-white  '
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -163,7 +163,7 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Pré-visualizar Visão do Aluno (Treino, Dieta e Progresso)"
                 className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 min-h-[34px] rounded-lg text-[10px] sm:text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
                   !isTrainer
-                    ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-950/60'
+                    ? 'bg-cyan-600 text-white  '
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >

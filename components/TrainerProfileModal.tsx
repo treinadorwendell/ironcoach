@@ -940,30 +940,30 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
   const renderProfileSection = () => (
     <form onSubmit={handleSubmitProfile} className="space-y-4">
       {errorMessage && (
-        <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5">
+        <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-slate-800 text-rose-200 text-xs flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {passwordNotice && (
-        <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+        <div className="p-3 rounded-2xl bg-emerald-950/60 border border-slate-800 text-emerald-200 text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{passwordNotice}</span>
         </div>
       )}
 
       {profileSuccessMsg && (
-        <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+        <div className="p-3 rounded-2xl bg-emerald-950/60 border border-slate-800 text-emerald-200 text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{profileSuccessMsg}</span>
         </div>
       )}
 
       {/* Live Preview of the IronCoach Button */}
-      <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800/90 flex items-center justify-between gap-3">
+      <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/50 ring-1 ring-white/10 shrink-0">
+          <div className="w-12 h-12 rounded-2xl overflow-hidden bg-emerald-600 flex items-center justify-center     shrink-0">
             {logoDataUrl ? (
               <img
                 src={logoDataUrl}
@@ -1006,7 +1006,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             placeholder="Ex: Treinador Carlos Silva"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-700/80 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+            className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
           />
         </div>
 
@@ -1026,7 +1026,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               placeholder="Em branco mantém a atual (mín. 6 dígitos)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-slate-950 border border-slate-700/80 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+              className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
             />
             <button
               type="button"
@@ -1041,7 +1041,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
       </div>
 
       {/* 3. Mudar logo */}
-      <div className="space-y-2.5 pt-2 border-t border-slate-800/80">
+      <div className="space-y-2.5 pt-2 border-t border-slate-800">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
             <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
@@ -1076,7 +1076,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             <button
               type="button"
               onClick={handleResetToDefaultLogo}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-950 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 text-xs font-semibold border border-slate-800 hover:border-rose-500/30 transition active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-950 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 text-xs font-semibold border border-slate-800 hover:border-slate-700 transition active:scale-95 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Usar Ícone Padrão</span>
@@ -1106,7 +1106,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   width: `${CROP_VIEWPORT_SIZE}px`,
                   height: `${CROP_VIEWPORT_SIZE}px`,
                 }}
-                className={`relative rounded-2xl overflow-hidden bg-slate-900 ring-2 ring-emerald-500/60 shadow-xl select-none touch-none shrink-0 ${
+                className={`relative rounded-2xl overflow-hidden bg-slate-900    select-none touch-none shrink-0 ${
                   isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
               >
@@ -1122,15 +1122,15 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   }}
                   className="absolute max-w-none pointer-events-none select-none"
                 />
-                <div className="absolute inset-0 pointer-events-none border border-white/15 rounded-2xl grid grid-cols-3 grid-rows-3">
-                  <div className="border-r border-b border-white/10" />
-                  <div className="border-r border-b border-white/10" />
-                  <div className="border-b border-white/10" />
-                  <div className="border-r border-b border-white/10" />
-                  <div className="border-r border-b border-white/10" />
-                  <div className="border-b border-white/10" />
-                  <div className="border-r border-white/10" />
-                  <div className="border-r border-white/10" />
+                <div className="absolute inset-0 pointer-events-none border border-slate-800 rounded-2xl grid grid-cols-3 grid-rows-3">
+                  <div className="border-r border-b border-slate-800" />
+                  <div className="border-r border-b border-slate-800" />
+                  <div className="border-b border-slate-800" />
+                  <div className="border-r border-b border-slate-800" />
+                  <div className="border-r border-b border-slate-800" />
+                  <div className="border-b border-slate-800" />
+                  <div className="border-r border-slate-800" />
+                  <div className="border-r border-slate-800" />
                   <div />
                 </div>
               </div>
@@ -1168,7 +1168,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl overflow-hidden bg-slate-800 shadow-md ring-1 ring-emerald-400/30 shrink-0">
+                  <div className="w-10 h-10 rounded-2xl overflow-hidden bg-slate-800    shrink-0">
                     {logoDataUrl && (
                       <img
                         src={logoDataUrl}
@@ -1192,7 +1192,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
 
       {/* 4. Sair da Conta & Sessão do Treinador */}
       {currentUser && (
-        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-between gap-3">
+        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
               Treinador Conectado
@@ -1205,7 +1205,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             <button
               type="button"
               onClick={onLogout}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-200 border border-rose-500/30 text-xs font-bold transition active:scale-95 shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-200 border border-slate-800 text-xs font-bold transition active:scale-95 shrink-0 cursor-pointer"
               title="Sair da conta e trocar de treinador"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-400" />
@@ -1230,7 +1230,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
         <button
           type="submit"
           disabled={isSaving}
-          className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-950/60 border border-emerald-400/30 active:scale-95 transition disabled:opacity-60 cursor-pointer"
+          className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold   border border-slate-800 active:scale-95 transition disabled:opacity-60 cursor-pointer"
         >
           {isSaving ? (
             <>
@@ -1264,7 +1264,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             Defina músculos, equipamento e adicione vídeo de até 30s, link ou GIF.
           </p>
         </div>
-        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold shrink-0">
+        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-slate-800 text-emerald-300 text-[11px] font-bold shrink-0">
           {exerciseDb.length} no banco
         </span>
       </div>
@@ -1273,8 +1273,8 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
         <div
           className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-2 ${
             newExFeedback.type === 'success'
-              ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
-              : 'bg-rose-950/60 border-rose-500/40 text-rose-200'
+              ? 'bg-emerald-950/60 border-slate-800 text-emerald-200'
+              : 'bg-rose-950/60 border-slate-800 text-rose-200'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -1299,7 +1299,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             value={newExName}
             onChange={(e) => setNewExName(e.target.value)}
             placeholder="Ex: Supino Inclinado Articulado Unilateral"
-            className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-emerald-500 placeholder:text-slate-500"
+            className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-slate-700 placeholder:text-slate-500"
           />
         </div>
 
@@ -1310,7 +1310,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           <select
             value={newExMuscleGroup}
             onChange={(e) => setNewExMuscleGroup(e.target.value as MuscleGroup)}
-            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
           >
             {MUSCLE_GROUPS.map((mg) => (
               <option key={mg} value={mg}>
@@ -1327,7 +1327,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           <select
             value={newExEquipment}
             onChange={(e) => setNewExEquipment(e.target.value)}
-            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
           >
             {Object.entries(EQUIPMENT_LABELS).map(([slug, label]) => (
               <option key={slug} value={slug}>
@@ -1344,7 +1344,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           <select
             value={newExPrimaryMuscle}
             onChange={(e) => setNewExPrimaryMuscle(e.target.value)}
-            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-emerald-500/40 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
           >
             {Object.entries(ANATOMY_MUSCLE_LABELS).map(([slug, label]) => (
               <option key={slug} value={slug}>
@@ -1361,7 +1361,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           <select
             value={newExSecondaryMuscle}
             onChange={(e) => setNewExSecondaryMuscle(e.target.value)}
-            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-cyan-500/40 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+            className="w-full h-11 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
           >
             <option value="">Nenhum músculo secundário</option>
             {Object.entries(ANATOMY_MUSCLE_LABELS).map(([slug, label]) => (
@@ -1392,7 +1392,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               onClick={() => setNewExMediaMode('video_upload')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
                 newExMediaMode === 'video_upload'
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                  ? 'bg-cyan-500 text-slate-950 border-slate-800 font-black'
                   : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
               }`}
             >
@@ -1404,7 +1404,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               onClick={() => setNewExMediaMode('video_link')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
                 newExMediaMode === 'video_link'
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                  ? 'bg-cyan-500 text-slate-950 border-slate-800 font-black'
                   : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
               }`}
             >
@@ -1416,7 +1416,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               onClick={() => setNewExMediaMode('gif')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
                 newExMediaMode === 'gif'
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                  ? 'bg-cyan-500 text-slate-950 border-slate-800 font-black'
                   : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
               }`}
             >
@@ -1440,7 +1440,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 type="button"
                 disabled={isCheckingNewVideo}
                 onClick={() => newVideoInputRef.current?.click()}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-800 text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
               >
                 {isCheckingNewVideo ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1465,7 +1465,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                         videoUrl: newExVideoDataUrl,
                       })
                     }
-                    className="px-3.5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-3.5 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-slate-800 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Ver Vídeo em Janela Separada</span>
@@ -1477,7 +1477,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                       setNewExVideoDuration(null);
                       setNewExVideoFileName('');
                     }}
-                    className="px-3 py-2.5 rounded-xl bg-rose-500/15 text-rose-300 text-xs font-bold border border-rose-500/30 hover:bg-rose-500/25 cursor-pointer"
+                    className="px-3 py-2.5 rounded-xl bg-rose-500/15 text-rose-300 text-xs font-bold border border-slate-800 hover:bg-rose-500/25 cursor-pointer"
                   >
                     Remover
                   </button>
@@ -1504,7 +1504,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 value={newExVideoLink}
                 onChange={(e) => setNewExVideoLink(e.target.value)}
                 placeholder="https://www.youtube.com/watch?v=... ou https://.../video.mp4"
-                className="flex-1 h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="flex-1 h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
               />
               {newExVideoLink.trim() && (
                 <button
@@ -1516,7 +1516,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                       videoUrl: newExVideoLink.trim(),
                     })
                   }
-                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Testar em Janela Separada</span>
@@ -1537,7 +1537,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 value={newExGifUrl.startsWith('data:') ? '' : newExGifUrl}
                 onChange={(e) => setNewExGifUrl(e.target.value)}
                 placeholder="Cole o link https://.../exercicio.gif ou carregue do dispositivo"
-                className="flex-1 h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="flex-1 h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
               />
               <input
                 ref={newGifInputRef}
@@ -1564,7 +1564,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                       gifUrl: newExGifUrl.trim(),
                     })
                   }
-                  className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Ver GIF em Janela</span>
@@ -1578,7 +1578,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
       <div className="flex items-center justify-end gap-2.5 pt-2">
         <button
           type="submit"
-          className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-950/60 border border-emerald-400/30 flex items-center gap-2 active:scale-95 transition cursor-pointer"
+          className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold   border border-slate-800 flex items-center gap-2 active:scale-95 transition cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
           <span>Criar Exercício no Banco</span>
@@ -1611,7 +1611,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               value={editSearchQuery}
               onChange={(e) => setEditSearchQuery(e.target.value)}
               placeholder="Buscar exercício pelo nome ou equipamento..."
-              className="w-full h-10 pl-9 pr-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
+              className="w-full h-10 pl-9 pr-3 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
             />
           </div>
           <select
@@ -1619,7 +1619,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             onChange={(e) =>
               setEditMuscleFilter(e.target.value as 'Todos' | MuscleGroup)
             }
-            className="h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+            className="h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
           >
             <option value="Todos">Todos os Grupos Musculares</option>
             {MUSCLE_GROUPS.map((mg) => (
@@ -1641,7 +1641,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 onClick={() => handleSelectExerciseForEdit(ex)}
                 className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition ${
                   isSelected
-                    ? 'bg-cyan-950/60 border-cyan-500/60 text-white'
+                    ? 'bg-cyan-950/60 border-slate-800 text-white'
                     : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 text-slate-200'
                 }`}
               >
@@ -1652,7 +1652,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                       {ex.muscleGroup}
                     </span>
                     {hasCustomVideoOrGif && (
-                      <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[10px] font-bold border border-cyan-500/30">
+                      <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[10px] font-bold border border-slate-800">
                         Vídeo/GIF Ativo
                       </span>
                     )}
@@ -1677,7 +1677,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
       {selectedExToEdit ? (
         <form
           onSubmit={handleSaveEditedExercise}
-          className="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-4 animate-in fade-in duration-150"
+          className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4 animate-in fade-in duration-150"
         >
           <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
             <div>
@@ -1710,7 +1710,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                     images: selectedExToEdit.images,
                   })
                 }
-                className="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-slate-800 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Ver Vídeo / Mídia</span>
@@ -1722,8 +1722,8 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             <div
               className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
                 editExFeedback.type === 'success'
-                  ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
-                  : 'bg-rose-950/60 border-rose-500/40 text-rose-200'
+                  ? 'bg-emerald-950/60 border-slate-800 text-emerald-200'
+                  : 'bg-rose-950/60 border-slate-800 text-rose-200'
               }`}
             >
               {editExFeedback.type === 'success' ? (
@@ -1745,7 +1745,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 required
                 value={editExName}
                 onChange={(e) => setEditExName(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
               />
             </div>
 
@@ -1756,7 +1756,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               <select
                 value={editExPrimaryMuscle}
                 onChange={(e) => setEditExPrimaryMuscle(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
               >
                 <option value="">Selecionar músculo primário</option>
                 {Object.entries(ANATOMY_MUSCLE_LABELS).map(([slug, label]) => (
@@ -1774,7 +1774,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               <select
                 value={editExSecondaryMuscle}
                 onChange={(e) => setEditExSecondaryMuscle(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
               >
                 <option value="">Nenhum músculo secundário</option>
                 {Object.entries(ANATOMY_MUSCLE_LABELS).map(([slug, label]) => (
@@ -1792,7 +1792,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               <select
                 value={editExMuscleGroup}
                 onChange={(e) => setEditExMuscleGroup(e.target.value as MuscleGroup)}
-                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
               >
                 {MUSCLE_GROUPS.map((mg) => (
                   <option key={mg} value={mg}>
@@ -1809,7 +1809,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               <select
                 value={editExEquipment}
                 onChange={(e) => setEditExEquipment(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500"
+                className="w-full h-10 px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
               >
                 {Object.entries(EQUIPMENT_LABELS).map(([slug, label]) => (
                   <option key={slug} value={slug}>
@@ -1833,7 +1833,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   onClick={() => setEditExMediaMode('video_upload')}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
                     editExMediaMode === 'video_upload'
-                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                      ? 'bg-cyan-500 text-slate-950 border-slate-800 font-black'
                       : 'bg-slate-950 text-slate-300 border-slate-800'
                   }`}
                 >
@@ -1844,7 +1844,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   onClick={() => setEditExMediaMode('video_link')}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
                     editExMediaMode === 'video_link'
-                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                      ? 'bg-cyan-500 text-slate-950 border-slate-800 font-black'
                       : 'bg-slate-950 text-slate-300 border-slate-800'
                   }`}
                 >
@@ -1855,7 +1855,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   onClick={() => setEditExMediaMode('gif')}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
                     editExMediaMode === 'gif'
-                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black'
+                      ? 'bg-cyan-500 text-slate-950 border-slate-800 font-black'
                       : 'bg-slate-950 text-slate-300 border-slate-800'
                   }`}
                 >
@@ -1878,7 +1878,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                     type="button"
                     disabled={isCheckingEditVideo}
                     onClick={() => editVideoInputRef.current?.click()}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-800 text-xs font-bold flex items-center gap-2 cursor-pointer"
                   >
                     {isCheckingEditVideo ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1903,7 +1903,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 value={editExVideoLink}
                 onChange={(e) => setEditExVideoLink(e.target.value)}
                 placeholder="https://www.youtube.com/watch?v=... ou link direto MP4"
-                className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
               />
             )}
 
@@ -1914,7 +1914,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   value={editExGifUrl.startsWith('data:') ? '' : editExGifUrl}
                   onChange={(e) => setEditExGifUrl(e.target.value)}
                   placeholder="Link https://.../animacao.gif ou carregue um GIF"
-                  className="flex-1 h-10 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="flex-1 h-10 px-3 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
                 />
                 <input
                   ref={editGifInputRef}
@@ -1938,7 +1938,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           <div className="flex items-center justify-end gap-2">
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs  flex items-center gap-1.5 active:scale-95 transition cursor-pointer"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
               <span>Salvar Alterações no Exercício</span>
@@ -1946,7 +1946,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           </div>
         </form>
       ) : (
-        <div className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-center text-xs text-slate-400">
+        <div className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-400">
           Clique em um exercício da lista acima para editar seus músculos, equipamento ou anexar vídeo de até 30s / link / GIF.
         </div>
       )}
@@ -1957,7 +1957,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
     <div className="space-y-4">
       <form
         onSubmit={handleSaveCustomMethod}
-        className="p-4 rounded-2xl bg-slate-950 border border-purple-500/30 space-y-4"
+        className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4"
       >
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -1992,8 +1992,8 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
           <div
             className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
               methodFeedback.type === 'success'
-                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
-                : 'bg-rose-950/60 border-rose-500/40 text-rose-200'
+                ? 'bg-emerald-950/60 border-slate-800 text-emerald-200'
+                : 'bg-rose-950/60 border-slate-800 text-rose-200'
             }`}
           >
             {methodFeedback.type === 'success' ? (
@@ -2015,7 +2015,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
             value={methodName}
             onChange={(e) => setMethodName(e.target.value)}
             placeholder="Ex: SST Contração, Drop Duplo Guiado, Back-off Set..."
-            className="w-full h-11 px-3.5 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-purple-500 placeholder:text-slate-500"
+            className="w-full h-11 px-3.5 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-slate-700 placeholder:text-slate-500"
           />
         </div>
 
@@ -2047,7 +2047,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddTemplateSubSet}
-                  className="px-2.5 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-slate-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   <span>Adicionar Subsérie Padrão</span>
@@ -2058,10 +2058,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                 {methodSubSetsTemplate.map((sub, idx) => (
                   <div
                     key={idx}
-                    className="p-2.5 rounded-xl bg-slate-950 border border-purple-500/30 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center"
+                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center"
                   >
                     <div className="sm:col-span-2 flex items-center justify-between sm:justify-start gap-1.5">
-                      <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 font-extrabold text-[10px] border border-purple-500/40">
+                      <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 font-extrabold text-[10px] border border-slate-800">
                         Sub {idx + 1}
                       </span>
                       {methodSubSetsTemplate.length > 1 && (
@@ -2086,7 +2086,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                           handleUpdateTemplateSubSet(idx, 'repZone', e.target.value)
                         }
                         placeholder="Ex: Até a falha, 6-8 reps"
-                        className="w-full h-9 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-purple-400"
+                        className="w-full h-9 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-slate-700"
                       />
                     </div>
 
@@ -2101,7 +2101,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                           handleUpdateTemplateSubSet(idx, 'note', e.target.value)
                         }
                         placeholder="Ex: -20% carga sem descanso, pausa 15s..."
-                        className="w-full h-9 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-purple-400"
+                        className="w-full h-9 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-slate-700"
                       />
                     </div>
 
@@ -2126,7 +2126,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
         <div className="flex items-center justify-end">
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg flex items-center gap-2 active:scale-95 transition cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs  flex items-center gap-2 active:scale-95 transition cursor-pointer"
           >
             <Check className="w-4 h-4 stroke-[2.5]" />
             <span>
@@ -2156,7 +2156,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-black text-white">{m.name}</span>
                     {m.hasSubSets ? (
-                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-slate-800 text-[10px] font-bold">
                         {m.subSetsTemplate?.length || 1} subsérie(s) automática(s)
                       </span>
                     ) : (
@@ -2212,12 +2212,12 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               : activeMainTab === 'dieta'
               ? 'max-w-6xl'
               : 'max-w-4xl'
-          } rounded-3xl bg-slate-900 border border-emerald-500/30 shadow-2xl shadow-emerald-950/50 overflow-hidden my-auto max-h-modal-safe sm:max-h-[90dvh] flex flex-col`}
+          } rounded-3xl bg-slate-900 border border-slate-800   overflow-hidden my-auto max-h-modal-safe sm:max-h-[90dvh] flex flex-col`}
         >
           {/* Modal Header */}
-          <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 border-b border-slate-800 flex items-start justify-between gap-3 shrink-0">
+          <div className="p-4 sm:p-6 bg-slate-900 border-b border-slate-800 flex items-start justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/30 flex-shrink-0">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-emerald-600 flex items-center justify-center     flex-shrink-0">
                 {logoDataUrl ? (
                   <img
                     src={logoDataUrl}
@@ -2236,7 +2236,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                       : 'Central de Configuração do Sistema'}
                   </h2>
                   {isFirstLoginMandatory && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-slate-800 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       1º Acesso
                     </span>
@@ -2316,7 +2316,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
               </div>
 
               {activeMainTab === 'treino' && (
-                <div className="flex items-center gap-2 py-2.5 border-t border-slate-800/80">
+                <div className="flex items-center gap-2 py-2.5 border-t border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -2325,7 +2325,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                     }}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer ${
                       activeWorkoutSubTab === 'criar-exercicio'
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-slate-800'
                         : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                     }`}
                   >
@@ -2341,7 +2341,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                     }}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer ${
                       activeWorkoutSubTab === 'editar-exercicio'
-                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                        ? 'bg-cyan-500/20 text-cyan-300 border-slate-800'
                         : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                     }`}
                   >
@@ -2357,7 +2357,7 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                     }}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer ${
                       activeWorkoutSubTab === 'metodo-avancado'
-                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                        ? 'bg-purple-500/20 text-purple-300 border-slate-800'
                         : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                     }`}
                   >
@@ -2407,10 +2407,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                           setActiveMainTab('perfil');
                           setMobileNavView('perfil');
                         }}
-                        className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-emerald-500/40 hover:border-emerald-400 text-left space-y-3 shadow-lg transition active:scale-[0.99] cursor-pointer"
+                        className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-left space-y-3  transition active:scale-[0.99] cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center">
                             <UserIcon className="w-6 h-6" />
                           </div>
                           <ChevronRight className="w-5 h-5 text-emerald-400" />
@@ -2432,10 +2432,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                           setActiveMainTab('treino');
                           setMobileNavView('treino-cards');
                         }}
-                        className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-cyan-500/40 hover:border-cyan-400 text-left space-y-3 shadow-lg transition active:scale-[0.99] cursor-pointer"
+                        className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-left space-y-3  transition active:scale-[0.99] cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center">
                             <Settings className="w-6 h-6" />
                           </div>
                           <ChevronRight className="w-5 h-5 text-cyan-400" />
@@ -2457,10 +2457,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                           setActiveMainTab('dieta');
                           setMobileNavView('dieta');
                         }}
-                        className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-amber-500/40 hover:border-amber-400 text-left space-y-3 shadow-lg transition active:scale-[0.99] cursor-pointer"
+                        className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-left space-y-3  transition active:scale-[0.99] cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-slate-800 text-amber-400 flex items-center justify-center">
                             <Utensils className="w-6 h-6" />
                           </div>
                           <ChevronRight className="w-5 h-5 text-amber-400" />
@@ -2495,10 +2495,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                             setActiveWorkoutSubTab('criar-exercicio');
                             setMobileNavView('criar-exercicio');
                           }}
-                          className="p-4 rounded-2xl bg-slate-950 border border-emerald-500/40 text-left flex items-center justify-between gap-3 cursor-pointer"
+                          className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left flex items-center justify-between gap-3 cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center shrink-0">
                               <Plus className="w-5 h-5" />
                             </div>
                             <div>
@@ -2519,10 +2519,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                             setActiveWorkoutSubTab('editar-exercicio');
                             setMobileNavView('editar-exercicio');
                           }}
-                          className="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left flex items-center justify-between gap-3 cursor-pointer"
+                          className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left flex items-center justify-between gap-3 cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
                               <Edit3 className="w-5 h-5" />
                             </div>
                             <div>
@@ -2543,10 +2543,10 @@ export const TrainerProfileModal: React.FC<TrainerProfileModalProps> = ({
                             setActiveWorkoutSubTab('metodo-avancado');
                             setMobileNavView('metodo-avancado');
                           }}
-                          className="p-4 rounded-2xl bg-slate-950 border border-purple-500/40 text-left flex items-center justify-between gap-3 cursor-pointer"
+                          className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left flex items-center justify-between gap-3 cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
+                            <div className="w-11 h-11 rounded-xl bg-purple-500/15 border border-slate-800 text-purple-400 flex items-center justify-center shrink-0">
                               <Layers className="w-5 h-5" />
                             </div>
                             <div>

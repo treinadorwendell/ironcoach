@@ -209,20 +209,20 @@ const ExecutionIconButtonWithTooltip: React.FC<ExecutionIconButtonWithTooltipPro
   if (active) {
     if (variant === 'cyan') {
       colorClasses =
-        'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/25 font-bold';
+        'bg-cyan-500 text-slate-950 border-slate-800   font-bold';
     } else if (variant === 'emerald') {
       colorClasses =
-        'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/25 font-bold';
+        'bg-emerald-500 text-slate-950 border-slate-800   font-bold';
     } else {
       colorClasses = 'bg-slate-700 text-white border-slate-600';
     }
   } else {
     if (variant === 'cyan') {
       colorClasses =
-        'bg-slate-800/90 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border-slate-700 hover:border-cyan-500/50';
+        'bg-slate-800/90 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border-slate-700 hover:border-slate-700';
     } else if (variant === 'emerald') {
       colorClasses =
-        'bg-slate-800/90 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border-slate-700 hover:border-emerald-500/50';
+        'bg-slate-800/90 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border-slate-700 hover:border-slate-700';
     }
   }
 
@@ -264,9 +264,9 @@ const ExecutionIconButtonWithTooltip: React.FC<ExecutionIconButtonWithTooltipPro
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className={`absolute top-full mt-2 ${alignClass} z-50 pointer-events-none whitespace-nowrap`}
           >
-            <div className="relative bg-slate-950/95 text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl shadow-2xl border border-cyan-500/40 ring-1 ring-cyan-500/20 backdrop-blur-md flex items-center gap-1.5">
+            <div className="relative bg-slate-950/95 text-slate-100 text-xs font-semibold px-3 py-1.5 rounded-xl  border border-slate-800   backdrop-blur-md flex items-center gap-1.5">
               <div
-                className={`absolute -top-1 w-2 h-2 bg-slate-950 border-t border-l border-cyan-500/40 rotate-45 ${
+                className={`absolute -top-1 w-2 h-2 bg-slate-950 border-t border-l border-slate-800 rotate-45 ${
                   tooltipAlign === 'right'
                     ? 'right-3'
                     : tooltipAlign === 'left'
@@ -2033,9 +2033,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           >
             {/* Banner se houver treino ativo */}
             {session && session.isStarted && (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 ">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-slate-800">
                     <Flame className="w-5 h-5 animate-pulse" />
                   </div>
                   <div>
@@ -2050,7 +2050,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 <button
                   type="button"
                   onClick={() => setCurrentStep('execucao')}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs  active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-slate-950" />
                   <span>Retomar Treino Ativo</span>
@@ -2059,11 +2059,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             )}
 
             {/* Cabeçalho da Seleção de Aluno */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
+            <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800  space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-slate-800">
                       <User className="w-5 h-5" />
                     </div>
                     <h3 className="text-base sm:text-lg font-black text-white">
@@ -2083,8 +2083,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
             {/* Lista de Alunos */}
             {clients.length === 0 ? (
-              <div className="p-8 sm:p-12 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4 my-2 shadow-xl">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
+              <div className="p-8 sm:p-12 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4 my-2 ">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-slate-800">
                   <User className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
@@ -2100,7 +2100,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <button
                       type="button"
                       onClick={onNavigateToClients}
-                      className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 active:scale-95 transition cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs   active:scale-95 transition cursor-pointer"
                     >
                       <UserPlus className="w-4 h-4" />
                       <span>Cadastrar Primeiro Aluno</span>
@@ -2118,11 +2118,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <div
                       key={client.id}
                       onClick={() => handleSelectClient(client.id)}
-                      className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/70 shadow-lg cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3"
+                      className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700  cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shadow-md shrink-0">
+                          <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white font-black text-base flex items-center justify-center  shrink-0">
                             {client.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
@@ -2140,7 +2140,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80 text-[11px] text-slate-400 flex-wrap">
+                      <div className="flex items-center gap-2 pt-1 border-t border-slate-800 text-[11px] text-slate-400 flex-wrap">
                         {client.weight > 0 && (
                           <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800">
                             Peso: <strong className="text-white">{client.weight} kg</strong>
@@ -2182,7 +2182,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             className="space-y-4"
           >
             {/* Top Bar com Botão Trocar Aluno (ou Banner do Aluno quando no Perfil Aluno) */}
-            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 ">
               {!isStudentView && !lockedClientId ? (
                 <button
                   type="button"
@@ -2195,7 +2195,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </button>
               ) : (
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center shrink-0">
                     <Dumbbell className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
@@ -2221,9 +2221,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
             {/* Banner de Treino em Andamento se houver sessão ativa iniciada */}
             {session && session.isStarted && (
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 ">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-slate-800">
                     <Flame className="w-5 h-5 animate-pulse" />
                   </div>
                   <div>
@@ -2238,7 +2238,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 <button
                   type="button"
                   onClick={() => setCurrentStep('execucao')}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md active:scale-95 transition flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs  active:scale-95 transition flex items-center justify-center gap-2"
                 >
                   <Play className="w-3.5 h-3.5 fill-slate-950" />
                   <span>Continuar Treino Ativo</span>
@@ -2272,7 +2272,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             {/* Se o aluno não tiver programas prescritos */}
             {studentWorkouts.length === 0 ? (
               <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-4 my-2">
-                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-slate-800">
                   <Dumbbell className="w-7 h-7" />
                 </div>
 
@@ -2293,7 +2293,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                     <button
                       onClick={handleCreateQuickStarterWorkout}
-                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs  active:scale-95 transition flex items-center justify-center gap-2"
                     >
                       <Sparkles className="w-4 h-4" />
                       <span>Gerar Treino de Adaptação Imediato</span>
@@ -2336,10 +2336,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <div
                       key={prog.id}
                       onClick={() => handleOpenProgramSplits(prog)}
-                      className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/60 shadow-lg hover:shadow-emerald-950/20 cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3.5"
+                      className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700   cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3.5"
                     >
                       {/* Top Row: Nome do programa e contagem de divisões */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
@@ -2359,7 +2359,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-auto">
-                          <span className="px-3 py-1 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs font-bold text-slate-200">
+                          <span className="px-3 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-bold text-slate-200">
                             {splitsCount} {splitsCount === 1 ? 'Treino' : 'Divisões (Splits)'}
                           </span>
                         </div>
@@ -2367,8 +2367,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                       {/* Informações Obrigatórias: Dias dos Treinos e Vigência */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/20">
+                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 border border-slate-800">
                             <CalendarIcon className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
@@ -2381,8 +2381,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           </div>
                         </div>
 
-                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 border border-slate-800">
                             <Clock className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
@@ -2412,7 +2412,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 group-hover:from-emerald-500 group-hover:to-teal-500 text-white font-bold text-xs shadow-md shrink-0 transition">
+                        <div className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 group-hover:bg-emerald-500 text-white font-bold text-xs  shrink-0 transition">
                           <span>Ver Treinos deste Programa</span>
                           <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                         </div>
@@ -2436,7 +2436,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             className="space-y-4"
           >
             {/* Top Bar com Botão Voltar aos Programas */}
-            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+            <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 ">
               <button
                 type="button"
                 onClick={() => setCurrentStep('programas')}
@@ -2529,7 +2529,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         onClick={() =>
                           handleStartSplitExecution(selectedProgram, split as WorkoutSplit)
                         }
-                        className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 hover:border-cyan-500/70 shadow-lg cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3 overflow-hidden min-w-0"
+                        className="p-3.5 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700  cursor-pointer transition-all duration-200 group active:scale-[0.99] space-y-3 overflow-hidden min-w-0"
                       >
                         <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="space-y-1 min-w-0 flex-1">
@@ -2553,7 +2553,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         </div>
 
                         {/* Preview de exercícios do split */}
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5">
                           <span className="text-[10px] uppercase font-bold text-slate-400 block">
                             Exercícios previstos neste treino:
                           </span>
@@ -2585,7 +2585,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               e.stopPropagation();
                               handleStartSplitExecution(selectedProgram, split as WorkoutSplit);
                             }}
-                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md flex items-center justify-center gap-2 group-hover:scale-105 transition cursor-pointer"
+                            className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs  flex items-center justify-center gap-2 group-hover:scale-105 transition cursor-pointer"
                           >
                             <Play className="w-3.5 h-3.5 fill-slate-950" />
                             <span>Selecionar este Treino</span>
@@ -2624,7 +2624,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   selectedRecordId: latest.id,
                                 });
                               }}
-                              className="mt-2 p-3 rounded-xl bg-gradient-to-r from-cyan-950/50 via-slate-950 to-slate-950 border border-cyan-500/40 hover:border-cyan-400 transition space-y-1.5"
+                              className="mt-2 p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition space-y-1.5"
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1">
@@ -2768,11 +2768,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             const progressPercent = totalSets > 0 ? Math.round((totalCompletedSets / totalSets) * 100) : 0;
 
             return (
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800  space-y-3">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   {/* Título Limpo do Treino (sem contador de séries) */}
                   <div className="flex items-center gap-2">
-                    <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-slate-800 shrink-0">
                       <Flame className="w-4 h-4 text-emerald-400" />
                     </span>
                     <span className="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">
@@ -2785,7 +2785,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     {/* Cronômetro de Treino */}
                     {!session.isStarted ? (
                       <div
-                        className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-slate-700/80 font-mono text-xs sm:text-sm font-bold text-slate-400 shadow-inner shrink-0"
+                        className="flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-slate-700 font-mono text-xs sm:text-sm font-bold text-slate-400  shrink-0"
                         title="Cronômetro do treino (aguardando início)"
                       >
                         <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
@@ -2793,7 +2793,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       </div>
                     ) : (
                       <div
-                        className="flex items-center gap-1.5 sm:gap-2 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs sm:text-sm font-bold text-emerald-400 shadow-inner shrink-0"
+                        className="flex items-center gap-1.5 sm:gap-2 h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs sm:text-sm font-bold text-emerald-400  shrink-0"
                         title="Cronômetro em contagem contínua"
                       >
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -2806,7 +2806,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <button
                       type="button"
                       onClick={() => setIsViewModeModalOpen(true)}
-                      className="h-10 sm:h-11 w-10 sm:w-11 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 border border-amber-500/40 text-amber-400 flex items-center justify-center transition cursor-pointer shrink-0 shadow-sm"
+                      className="h-10 sm:h-11 w-10 sm:w-11 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 border border-slate-800 text-amber-400 flex items-center justify-center transition cursor-pointer shrink-0 "
                       title="Modo Visualização: Clique para abrir as regras e informações do treino"
                       aria-label="Informações sobre o Modo Visualização"
                     >
@@ -2818,7 +2818,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       <button
                         type="button"
                         onClick={handleStartWorkout}
-                        className="h-10 sm:h-11 px-4 sm:px-5 lg:px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-md shadow-emerald-950/50 transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
+                        className="h-10 sm:h-11 px-4 sm:px-5 lg:px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm   transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
                         title="Clique para iniciar o treino e começar a contagem do tempo"
                       >
                         <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-4.5 lg:h-4.5 fill-slate-950" />
@@ -2831,7 +2831,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 {/* Barra de Progressão Mantida */}
                 <div className="h-2 sm:h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                   <div
-                    className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-300"
+                    className="h-full bg-emerald-500 transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -2864,10 +2864,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             const savedReport = latestRecord.feedbackReport;
 
             return (
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-950 border border-cyan-500/40 shadow-lg space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800  space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
                       <BarChart3 className="w-4 h-4" />
                     </div>
                     <div>
@@ -2875,7 +2875,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         <h4 className="text-xs sm:text-sm font-black text-white">
                           Análise Pré-Treino &amp; Próxima Meta
                         </h4>
-                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-[10px] font-bold text-cyan-300">
+                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-slate-800 text-[10px] font-bold text-cyan-300">
                           Último registro: {latestRecord.date}
                         </span>
                       </div>
@@ -2898,7 +2898,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         selectedRecordId: latestRecord.id,
                       })
                     }
-                    className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
+                    className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>
@@ -2908,7 +2908,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </div>
 
                 {savedGoal && (
-                  <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 flex items-start gap-2.5">
+                  <div className="p-3 rounded-xl bg-amber-950/30 border border-slate-800 flex items-start gap-2.5">
                     <Target className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div className="space-y-0.5 min-w-0">
                       <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
@@ -3045,11 +3045,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               return (
                 <div
                   key={ex.exerciseId}
-                  className={`rounded-2xl border transition-all duration-200 shadow-md overflow-hidden ${
+                  className={`rounded-2xl border transition-all duration-200  overflow-hidden ${
                     isExpanded
-                      ? 'bg-slate-900 border-cyan-500/60 ring-1 ring-cyan-500/30 shadow-cyan-950/20'
+                      ? 'bg-slate-900 border-slate-800   '
                       : isAllSetsCompleted
-                      ? 'bg-slate-900/80 border-emerald-500/50 hover:border-emerald-400/70'
+                      ? 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
                       : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
                   }`}
                 >
@@ -3086,7 +3086,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   !session.isStarted ? 'opacity-60 ' : ''
                                 }${
                                   ex.isUsingSubstitute
-                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
+                                    ? 'bg-cyan-500/20 border-slate-800 text-cyan-300 hover:bg-cyan-500/30'
                                     : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
                                 }`}
                                 title={
@@ -3102,7 +3102,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {ex.isUsingSubstitute && (
-                              <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] border border-cyan-500/30">
+                              <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] border border-slate-800">
                                 Substituto
                               </span>
                             )}
@@ -3110,7 +3110,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               {ex.muscleGroup}
                             </span>
                             {ex.combinationGroupId && (
-                              <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold text-[10px] border border-purple-500/40 flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold text-[10px] border border-slate-800 flex items-center gap-1">
                                 <Link2 className="w-3 h-3 text-purple-400" />
                                 <span>
                                   {ex.combinationLabel || 'Combinado'} ({ex.combinationOrder || 1}º)
@@ -3118,7 +3118,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               </span>
                             )}
                             {ex.method && ex.method !== 'Normal' && (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-extrabold text-[10px] border border-amber-500/30">
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-extrabold text-[10px] border border-slate-800">
                                 {ex.method}
                               </span>
                             )}
@@ -3130,7 +3130,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         <span
                           className={`text-xs font-mono font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 ${
                             isAllSetsCompleted
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-slate-800'
                               : 'bg-slate-800 text-slate-300'
                           }`}
                         >
@@ -3161,7 +3161,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               e.stopPropagation();
                               setFocusedExerciseId(ex.exerciseId);
                             }}
-                            className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/40 active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
+                            className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5   active:scale-95 transition cursor-pointer whitespace-nowrap shrink-0"
                             title="Abrir página dedicada com todas as informações deste exercício"
                           >
                             <span>{session.isStarted ? 'Executar' : 'Visualizar'}</span>
@@ -3174,11 +3174,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     /* EXPANDIDO: VISUALIZAÇÃO COMPLETA DO EXERCÍCIO E SUAS SÉRIES */
                     <div className="p-3.5 sm:p-4 space-y-3">
                       {/* Card Header: 3 Linhas Elegantes e Compactas para Mobile */}
-                      <div className="space-y-2.5 border-b border-slate-800/80 pb-3">
+                      <div className="space-y-2.5 border-b border-slate-800 pb-3">
                         {/* Linha 1: Nome do Exercício completo exibido na horizontal ajustado à tela Mobile */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span className="min-w-[24px] h-6 px-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-black text-xs flex items-center justify-center shrink-0">
+                            <span className="min-w-[24px] h-6 px-1.5 rounded-lg bg-emerald-500/15 border border-slate-800 text-emerald-400 font-black text-xs flex items-center justify-center shrink-0">
                               {exIndex + 1}
                             </span>
                             <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight leading-snug break-words flex-1 min-w-0">
@@ -3192,7 +3192,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   !session.isStarted ? 'opacity-60 ' : ''
                                 }${
                                   ex.isUsingSubstitute
-                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/30'
+                                    ? 'bg-cyan-500/20 border-slate-800 text-cyan-300 hover:bg-cyan-500/30'
                                     : 'bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
                                 }`}
                                 title={
@@ -3210,7 +3210,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         {/* Linha 2: Informações complementares (Grupo Muscular, Método, Combinado, Descanso) */}
                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs">
                           {ex.isUsingSubstitute && (
-                            <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] sm:text-[11px] border border-cyan-500/30">
+                            <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-bold text-[10px] sm:text-[11px] border border-slate-800">
                               Substituto ativo
                             </span>
                           )}
@@ -3218,7 +3218,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             {ex.muscleGroup}
                           </span>
                           {ex.combinationGroupId && (
-                            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold text-[10px] sm:text-[11px] border border-purple-500/40 flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold text-[10px] sm:text-[11px] border border-slate-800 flex items-center gap-1">
                               <Link2 className="w-3 h-3 text-purple-400" />
                               <span>
                                 {ex.combinationLabel || 'Combinado'} ({ex.combinationOrder || 1}º)
@@ -3226,7 +3226,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             </span>
                           )}
                           {ex.method && ex.method !== 'Normal' && (
-                            <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-bold text-[10px] sm:text-[11px] border border-amber-500/30">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-bold text-[10px] sm:text-[11px] border border-slate-800">
                               {ex.method}
                             </span>
                           )}
@@ -3243,8 +3243,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             <span
                               className={`text-xs font-mono font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5 transition ${
                                 isAllSetsCompleted
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-slate-800 text-slate-300 border border-slate-700/60'
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-slate-800'
+                                  : 'bg-slate-800 text-slate-300 border border-slate-700'
                               }`}
                             >
                               {isAllSetsCompleted && (
@@ -3389,38 +3389,22 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               <div
                                 className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center w-full min-h-[56px] sm:min-h-[64px] lg:min-h-[68px] p-2 sm:p-2.5 lg:p-3 rounded-xl sm:rounded-2xl transition-all duration-150 ${
                                   set.completed
-                                    ? 'bg-emerald-950/30 border border-emerald-500/40 shadow-sm'
-                                    : 'bg-slate-950/70 border border-slate-800/80 hover:border-slate-700'
+                                    ? 'bg-emerald-950/30 border border-slate-800 '
+                                    : 'bg-slate-950/70 border border-slate-800 hover:border-slate-700'
                                 }`}
                               >
-                                {/* Col 1: Número da Série (Sem botão de evolução, perfeitamente centralizado) */}
+                                {/* Col 1: Número da Série (Perfeitamente centralizado) */}
                                 <div className="col-span-2 flex flex-col items-center justify-center text-center">
                                   <span
                                     className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm lg:text-base tabular-nums flex items-center justify-center shrink-0 ${
                                       set.completed
-                                        ? 'bg-emerald-500 text-slate-950 shadow-md'
+                                        ? 'bg-emerald-500 text-slate-950 '
                                         : 'bg-slate-800 text-slate-200'
                                     }`}
                                     title={`Série ${set.setNumber}`}
                                   >
                                     {set.setNumber}
                                   </span>
-
-                                  {set.extraVariation ? (
-                                    <span
-                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-1 truncate max-w-[65px] sm:max-w-[90px]"
-                                      title={set.extraVariation}
-                                    >
-                                      {set.extraVariation.split(' • ')[0]}
-                                    </span>
-                                  ) : set.method && set.method !== 'Normal' ? (
-                                    <span
-                                      className="text-[9px] sm:text-[10px] font-bold text-amber-400 block mt-1 truncate max-w-[65px] sm:max-w-[90px]"
-                                      title={set.method}
-                                    >
-                                      {set.method}
-                                    </span>
-                                  ) : null}
                                 </div>
 
                                 {/* Col 2: Reps & Zona Alvo (Abre Modal de Repetições) */}
@@ -3428,7 +3412,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => handleOpenRepsModal(exIndex, setIndex)}
-                                    className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                    className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-700 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer  ${
                                       !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                     }`}
                                     title={
@@ -3441,7 +3425,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                       {set.completedReps}
                                     </span>
                                     <span className="text-[8px] sm:text-[9px] text-cyan-400/90 font-semibold leading-none mt-1 truncate max-w-full">
-                                      Alvo: {set.repZone}
+                                      {set.repZone}
                                     </span>
                                   </button>
                                 </div>
@@ -3451,7 +3435,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => handleOpenWeightModal(exIndex, setIndex)}
-                                    className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                    className={`w-full max-w-[78px] sm:max-w-[92px] h-9 sm:h-10 lg:h-11 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-700 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer  ${
                                       !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                     }`}
                                     title={
@@ -3495,12 +3479,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         set.setNumber
                                       )
                                     }
-                                    className={`w-9 sm:w-10 lg:w-11 h-8 sm:h-9 lg:h-10 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border shadow-sm group cursor-pointer shrink-0 ${
+                                    className={`w-9 sm:w-10 lg:w-11 h-8 sm:h-9 lg:h-10 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-90 touch-manipulation border  group cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                     }${
                                       pseInfo
-                                        ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass} ring-1 ${pseInfo.ringClass} shadow-md`
-                                        : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/80 hover:border-amber-500/50 text-slate-400 hover:text-amber-400'
+                                        ? `${pseInfo.bgClass} ${pseInfo.textClass} ${pseInfo.borderClass}  ${pseInfo.ringClass} `
+                                        : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700 hover:border-slate-700 text-slate-400 hover:text-amber-400'
                                     }`}
                                     title={
                                       !session.isStarted
@@ -3535,11 +3519,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                   <button
                                     type="button"
                                     onClick={() => handleToggleSetCheck(exIndex, setIndex)}
-                                    className={`w-9 sm:w-10 lg:w-11 h-8 sm:h-9 lg:h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer shrink-0 ${
+                                    className={`w-9 sm:w-10 lg:w-11 h-8 sm:h-9 lg:h-10 rounded-xl flex items-center justify-center  transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer shrink-0 ${
                                       !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                     }${
                                       set.completed
-                                        ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400 shadow-emerald-500/40'
+                                        ? 'bg-emerald-500 text-slate-950   '
                                         : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                                     }`}
                                     title={
@@ -3557,18 +3541,30 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                     />
                                   </button>
                                 </div>
+
+                                {/* Linha Inferior do Método da Série (Apenas quando houver método específico) */}
+                                {(set.extraVariation || (set.method && set.method !== 'Normal')) && (
+                                  <div className="col-span-12 pt-1.5 mt-0.5 border-t border-slate-800 flex items-center justify-center sm:justify-start px-1">
+                                    <span
+                                      className="text-[10px] sm:text-xs font-bold text-amber-400 truncate max-w-full"
+                                      title={set.extraVariation || set.method}
+                                    >
+                                      Método: {set.extraVariation ? set.extraVariation.split(' • ')[0] : set.method}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Subséries Vinculadas ao Método Avançado */}
                               {hasSubsets && (
-                                <div className="ml-3 sm:ml-5 pl-2.5 sm:pl-3 border-l-2 border-purple-500/50 space-y-1.5 my-1">
+                                <div className="ml-3 sm:ml-5 pl-2.5 sm:pl-3 border-l-2 border-slate-800 space-y-1.5 my-1">
                                   {set.subSets!.map((sub, subIdx) => (
                                     <div
                                       key={sub.id || subIdx}
                                       className={`grid grid-cols-12 gap-1.5 sm:gap-2 items-center p-2 sm:p-2.5 lg:p-3 rounded-xl transition-all ${
                                         sub.completed
-                                          ? 'bg-purple-950/40 border border-purple-500/50 shadow-sm'
-                                          : 'bg-slate-950/70 border border-purple-500/30'
+                                          ? 'bg-purple-950/40 border border-slate-800 '
+                                          : 'bg-slate-950/70 border border-slate-800'
                                       }`}
                                     >
                                       {/* Col 1: Subsérie label */}
@@ -3576,14 +3572,6 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                         <span className="text-[10px] sm:text-xs font-black text-purple-300 tabular-nums">
                                           ↳ Sub {sub.subSetNumber}
                                         </span>
-                                        {sub.note && (
-                                          <span
-                                            className="text-[8px] sm:text-[9px] text-slate-400 block truncate max-w-[65px] sm:max-w-[90px]"
-                                            title={sub.note}
-                                          >
-                                            {sub.note}
-                                          </span>
-                                        )}
                                       </div>
 
                                       {/* Col 2: Reps & Zona Alvo (Abre Modal de Repetições) */}
@@ -3593,7 +3581,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleOpenRepsModal(exIndex, setIndex, subIdx)
                                           }
-                                          className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                          className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-700 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer  ${
                                             !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                           }`}
                                         >
@@ -3601,7 +3589,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                             {sub.completedReps}
                                           </span>
                                           <span className="text-[8px] sm:text-[9px] text-purple-300/90 font-semibold leading-none mt-1 truncate max-w-full">
-                                            Alvo: {sub.repZone}
+                                            {sub.repZone}
                                           </span>
                                         </button>
                                       </div>
@@ -3613,7 +3601,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleOpenWeightModal(exIndex, setIndex, subIdx)
                                           }
-                                          className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-purple-500/50 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer shadow-inner ${
+                                          className={`w-full max-w-[74px] sm:max-w-[88px] h-9 sm:h-10 px-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-700 flex flex-col items-center justify-center transition-all active:scale-95 touch-manipulation cursor-pointer  ${
                                             !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                                           }`}
                                         >
@@ -3651,11 +3639,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           onClick={() =>
                                             handleToggleSubSetCheck(exIndex, setIndex, subIdx)
                                           }
-                                          className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center shadow transition-all active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
+                                          className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center  transition-all active:scale-90 cursor-pointer touch-manipulation shrink-0 ${
                                             !session.isStarted ? 'opacity-60 cursor-not-allowed ' : ''
                                           }${
                                             sub.completed
-                                              ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                              ? 'bg-purple-600 text-white  '
                                               : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
                                           }`}
                                           title={
@@ -3673,6 +3661,17 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                           />
                                         </button>
                                       </div>
+
+                                      {sub.note && (
+                                        <div className="col-span-12 pt-1.5 mt-0.5 border-t border-slate-800 flex items-center justify-center sm:justify-start px-1">
+                                          <span
+                                            className="text-[10px] sm:text-xs font-semibold text-purple-300 truncate max-w-full"
+                                            title={sub.note}
+                                          >
+                                            {sub.note}
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -3684,7 +3683,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                       {/* OBSERVAÇÕES BIOMECÂNICAS / EXECUÇÃO (EXIBIDO SOMENTE SE CADASTRADO AO CRIAR O TREINO) */}
                       {ex.observations && ex.observations.trim() && (
-                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1">
+                        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
                           <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
                             Observações Biomecânicas / Execução
                           </span>
@@ -3695,7 +3694,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       )}
 
                       {/* Footer do Exercício Expandido com botão de recolher */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 gap-2 flex-wrap">
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800 gap-2 flex-wrap">
                         <span className="text-[11px] sm:text-xs text-slate-400">
                           {!session.isStarted
                             ? 'Modo Visualização • Clique em "Iniciar Treino" para registrar séries'
@@ -3716,7 +3715,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                             <button
                               type="button"
                               onClick={handleStartWorkout}
-                              className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 text-xs sm:text-sm font-black text-slate-950 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+                              className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 text-xs sm:text-sm font-black text-slate-950 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400  transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                             >
                               <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-slate-950" />
                               <span>Iniciar</span>
@@ -3726,7 +3725,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           <button
                             type="button"
                             onClick={() => handleFinishAndCollapseExercise(exIndex)}
-                            className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 lg:px-5 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 shadow-md shadow-emerald-950/40 transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+                            className="h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 lg:px-5 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-slate-800   transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
                             title="Concluir exercício, gravar séries no histórico de evolução e recolher"
                           >
                             <Check className="w-4 h-4 stroke-[3]" />
@@ -3742,10 +3741,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           </div>
 
           {/* CAMPO DE NOTAS DO TREINO & FEEDBACK TÉCNICO DO TREINADOR */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-3.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800  space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-slate-800 flex items-center justify-center text-amber-400 flex-shrink-0">
                   <PenLine className="w-4 h-4" />
                 </div>
                 <div>
@@ -3753,7 +3752,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <h4 className="text-sm font-extrabold text-white">
                       Notas do Treino & Feedback Técnico
                     </h4>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-slate-800">
                       Salvo em tempo real
                     </span>
                   </div>
@@ -3792,7 +3791,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 }}
                 placeholder="Ex: No supino, fechar pegada em 2cm para proteger o ombro. No agachamento, manteve profundidade perfeita. Aluno sentiu bom estímulo no quadríceps..."
                 rows={3}
-                className={`w-full p-3 text-xs sm:text-sm text-white bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/50 placeholder:text-slate-500 transition resize-y min-h-[80px] ${
+                className={`w-full p-3 text-xs sm:text-sm text-white bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-slate-700   placeholder:text-slate-500 transition resize-y min-h-[80px] ${
                   !session.isStarted ? 'opacity-65 cursor-not-allowed' : ''
                 }`}
               />
@@ -3816,11 +3815,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             const allCompleted = totalSets > 0 && totalCompletedSets === totalSets;
 
             return (
-              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-4">
+              <div className="p-5 sm:p-6 rounded-2xl bg-slate-900 border border-slate-800  space-y-4">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="space-y-1 text-center sm:text-left">
                     <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                      <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-slate-800">
                         <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                       </span>
                       <h4 className="text-base font-extrabold text-white">
@@ -3840,7 +3839,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <button
                       type="button"
                       onClick={handleStartWorkout}
-                      className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 lg:px-7 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/60 transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
+                      className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 lg:px-7 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm   transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0"
                     >
                       <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-slate-950" />
                       <span>Iniciar</span>
@@ -3849,10 +3848,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                     <button
                       type="button"
                       onClick={() => handleFinishWorkout()}
-                      className={`w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 lg:px-7 rounded-xl active:scale-95 font-black text-xs sm:text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0 animate-in fade-in duration-150 ${
+                      className={`w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 lg:px-7 rounded-xl active:scale-95 font-black text-xs sm:text-sm  transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-nowrap shrink-0 animate-in fade-in duration-150 ${
                         allCompleted
-                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-950/60'
-                          : 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-emerald-950/40'
+                          ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 '
+                          : 'bg-emerald-600/90 hover:bg-emerald-500 text-white border border-slate-800 '
                       }`}
                     >
                       <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -3875,10 +3874,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           <div
             className={`w-full ${
               isReportViewOpen ? 'max-w-2xl' : 'max-w-md'
-            } my-auto max-h-modal-safe sm:max-h-[90dvh] overflow-y-auto rounded-3xl bg-slate-900 border border-emerald-500/50 p-5 sm:p-6 shadow-2xl space-y-4 transition-all duration-200`}
+            } my-auto max-h-modal-safe sm:max-h-[90dvh] overflow-y-auto rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6  space-y-4 transition-all duration-200`}
           >
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border-2 border-emerald-400">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border-2 border-slate-800">
                 <Trophy className="w-7 h-7" />
               </div>
 
@@ -3914,7 +3913,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </span>
               </div>
 
-              <div className="col-span-2 p-3 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-slate-950 border border-emerald-500/30">
+              <div className="col-span-2 p-3 rounded-2xl bg-slate-900 border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase font-semibold">
                   Tonelagem Total Levantada
                 </span>
@@ -3925,7 +3924,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               </div>
 
               {workoutSummary.trainerNotes && (
-                <div className="col-span-2 p-3 rounded-2xl bg-amber-950/20 border border-amber-500/30 text-left space-y-1">
+                <div className="col-span-2 p-3 rounded-2xl bg-amber-950/20 border border-slate-800 text-left space-y-1">
                   <span className="text-[10px] text-amber-400 uppercase font-bold flex items-center gap-1">
                     <PenLine className="w-3 h-3" />
                     Feedback Técnico do Treinador Registrado:
@@ -3940,9 +3939,9 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             {/* BOTÃO PARA GERAR RELATÓRIO DE MELHORIAS (EXIBIDO SOMENTE SE HOUVER HISTÓRICO ANTERIOR) */}
             {workoutSummary.canGenerateReport && workoutSummary.feedbackReport ? (
               !isReportViewOpen ? (
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-slate-950 to-slate-950 border border-cyan-500/50 space-y-3 text-left">
+                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 text-left">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
                       <BarChart3 className="w-5 h-5" />
                     </div>
                     <div className="space-y-0.5">
@@ -3962,7 +3961,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   <button
                     type="button"
                     onClick={handleGenerateFeedbackReport}
-                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-950/50 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs sm:text-sm   active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <BarChart3 className="w-4 h-4 stroke-[2.5]" />
                     <span>Gerar Relatório de Evolução</span>
@@ -3970,10 +3969,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </div>
               ) : (
                 /* RELATÓRIO DE EVOLUÇÃO E MELHORIA EXPANDIDO */
-                <div className="p-4 rounded-2xl bg-slate-950 border border-cyan-500/50 text-left space-y-4 animate-in fade-in duration-200">
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-4 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-slate-800 text-cyan-400 flex items-center justify-center">
                         <TrendingUp className="w-4 h-4" />
                       </div>
                       <div>
@@ -3989,7 +3988,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       </div>
                     </div>
 
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-black text-emerald-300">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-slate-800 text-[11px] font-black text-emerald-300">
                       {workoutSummary.feedbackReport.exercisesImprovedCount} de{' '}
                       {workoutSummary.feedbackReport.exerciseComparisons.length} exercícios evoluíram
                     </span>
@@ -4082,7 +4081,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         key={`${item.exerciseName}-${idx}`}
                         className={`p-3 rounded-xl border space-y-2 ${
                           item.hasAnyImprovement
-                            ? 'bg-emerald-950/20 border-emerald-500/40'
+                            ? 'bg-emerald-950/20 border-slate-800'
                             : 'bg-slate-900/90 border-slate-800'
                         }`}
                       >
@@ -4099,7 +4098,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                           </div>
 
                           {item.hasAnyImprovement ? (
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300 shrink-0">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-slate-800 text-[10px] font-black text-emerald-300 shrink-0">
                               ★ Melhoria Detectada
                             </span>
                           ) : (
@@ -4111,7 +4110,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
                         {item.hasPreviousHistory && (
                           <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
                               <span className="text-[9px] uppercase text-slate-400 font-bold block">
                                 Carga (%)
                               </span>
@@ -4134,7 +4133,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               </span>
                             </div>
 
-                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
                               <span className="text-[9px] uppercase text-slate-400 font-bold block">
                                 Repetições
                               </span>
@@ -4156,7 +4155,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               </span>
                             </div>
 
-                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
                               <span className="text-[9px] uppercase text-slate-400 font-bold block">
                                 Volume
                               </span>
@@ -4184,11 +4183,11 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                         <div
                           className={`px-2.5 py-1.5 rounded-lg border text-[11px] flex items-center justify-between gap-2 ${
                             item.pseLoadStatus === 'improved'
-                              ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-200'
+                              ? 'bg-cyan-950/40 border-slate-800 text-cyan-200'
                               : item.pseLoadStatus === 'progressed'
-                              ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
+                              ? 'bg-emerald-950/30 border-slate-800 text-emerald-200'
                               : item.pseLoadStatus === 'demanding'
-                              ? 'bg-amber-950/30 border-amber-500/30 text-amber-200'
+                              ? 'bg-amber-950/30 border-slate-800 text-amber-200'
                               : 'bg-slate-950 border-slate-800 text-slate-300'
                           }`}
                         >
@@ -4224,7 +4223,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             )}
 
             {/* CAMPO DE DESCRIÇÃO PARA A PRÓXIMA META DO TREINO (SALVO NO HISTÓRICO PARA ANÁLISE PRÉ-TREINO) */}
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/40 text-left space-y-2">
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <label className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Target className="w-4 h-4 text-amber-400" />
@@ -4239,7 +4238,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 onChange={(e) => setNextWorkoutGoalText(e.target.value)}
                 placeholder="Descreva a próxima meta (ex: Aumentar 5% da carga no Supino Reto mantendo PSE ≤ 8; buscar 12 repetições completas no Agachamento)..."
                 rows={2}
-                className="w-full p-2.5 text-xs sm:text-sm text-white bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-amber-500 placeholder:text-slate-500 resize-y"
+                className="w-full p-2.5 text-xs sm:text-sm text-white bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-slate-700 placeholder:text-slate-500 resize-y"
               />
             </div>
 
@@ -4250,7 +4249,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
                       registerInAgendaConfirmed
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-slate-800 '
                         : 'bg-slate-800 text-slate-500 border-slate-700'
                     }`}
                   >
@@ -4279,7 +4278,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 >
                   <span
                     aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white   transition duration-200 ease-in-out ${
                       registerInAgendaConfirmed ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
@@ -4287,7 +4286,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               </div>
 
               {registerInAgendaConfirmed ? (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-300 font-semibold animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-emerald-950/40 border border-slate-800 text-[11px] text-emerald-300 font-semibold animate-in fade-in duration-150">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span className="truncate">
                     Agenda: <strong className="text-white">{workoutSummary.clientName}</strong> em{' '}
@@ -4304,7 +4303,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
             <button
               type="button"
               onClick={handleConfirmFinishWorkout}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm   active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Salvar Feedback, Meta e Concluir</span>
@@ -4321,7 +4320,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl my-auto max-h-modal-safe sm:max-h-[90dvh] overflow-y-auto rounded-3xl bg-slate-900 border border-cyan-500/50 p-5 sm:p-6 shadow-2xl space-y-4"
+            className="w-full max-w-2xl my-auto max-h-modal-safe sm:max-h-[90dvh] overflow-y-auto rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6  space-y-4"
           >
             {(() => {
               const analysis = storage.getPreWorkoutHistoryAnalysis(
@@ -4347,7 +4346,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 <>
                   <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
                         <BarChart3 className="w-5 h-5" />
                       </div>
                       <div>
@@ -4400,7 +4399,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                                 }
                                 className={`px-3 py-2 rounded-xl border text-xs font-bold shrink-0 transition cursor-pointer flex items-center gap-1.5 ${
                                   isSelected
-                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md'
+                                    ? 'bg-cyan-500 text-slate-950 border-slate-800 '
                                     : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                                 }`}
                               >
@@ -4422,7 +4421,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                       {activeRecord && (
                         <div className="space-y-4">
                           {/* Meta deixada naquele treino */}
-                          <div className="p-3.5 rounded-2xl bg-amber-950/25 border border-amber-500/40 space-y-1">
+                          <div className="p-3.5 rounded-2xl bg-amber-950/25 border border-slate-800 space-y-1">
                             <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                               <Target className="w-3.5 h-3.5" />
                               <span>Próxima Meta Registrada em {activeRecord.date}:</span>
@@ -4674,10 +4673,10 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-5 sm:p-6 space-y-5"
+              className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-3xl bg-slate-900 border border-slate-800  p-5 sm:p-6 space-y-5"
             >
               <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-slate-800 flex items-center justify-center shrink-0 text-amber-400">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div className="space-y-1.5">
@@ -4690,7 +4689,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-2.5">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-slate-400 font-semibold">Atual:</span>
                   <span className="font-bold text-slate-200 truncate">
@@ -4698,7 +4697,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   </span>
                 </div>
                 <div className="flex items-center justify-center">
-                  <div className="p-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                  <div className="p-1 rounded-lg bg-cyan-500/10 border border-slate-800 text-cyan-400">
                     <ArrowLeftRight className="w-3.5 h-3.5" />
                   </div>
                 </div>
@@ -4721,7 +4720,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                 <button
                   type="button"
                   onClick={handleConfirmSwapSubstitute}
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-cyan-950/50 transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs   transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Confirmar Troca</span>
@@ -4734,8 +4733,8 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
 
       {/* Toast Feedback ao clicar em Concluir e Recolher */}
       {exerciseFinishedToast && (
-        <div className="fixed bottom-[calc(5rem+var(--sab))] sm:bottom-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-emerald-500/60 text-emerald-200 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-4 duration-200 max-w-[92vw]">
-          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/40">
+        <div className="fixed bottom-[calc(5rem+var(--sab))] sm:bottom-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-950/95 border border-slate-800 text-emerald-200 px-4 py-3 rounded-2xl  backdrop-blur-md flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-bottom-4 duration-200 max-w-[92vw]">
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-slate-800">
             <Check className="w-3.5 h-3.5 stroke-[3]" />
           </div>
           <span>{exerciseFinishedToast}</span>
@@ -4772,12 +4771,12 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
           onClick={() => setIsViewModeModalOpen(false)}
         >
           <div
-            className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-2xl bg-slate-900 border border-amber-500/40 p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+            className="w-full max-w-md max-h-modal-safe overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6  space-y-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-slate-800 shrink-0">
                   <Info className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
@@ -4803,7 +4802,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
               <p>
                 Você está no <strong>Modo de Consulta Pré-Treino</strong>. Pode expandir, recolher e abrir qualquer exercício para revisar as instruções biomecânicas, histórico de cargas, número de séries, repetições alvo e observações cadastradas.
               </p>
-              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-slate-800 text-amber-200 text-xs flex items-start gap-2.5">
                 <Play className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 fill-amber-400" />
                 <span>
                   O cronômetro e a edição de repetições, cargas, PSE e marcação de séries serão liberados imediatamente ao clicar em <strong>Iniciar</strong>.
@@ -4825,7 +4824,7 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                   setIsViewModeModalOpen(false);
                   handleStartWorkout();
                 }}
-                className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-md active:scale-95 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm  active:scale-95 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
                 <span>Iniciar Treino Agora</span>

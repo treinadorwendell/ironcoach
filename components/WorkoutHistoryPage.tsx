@@ -235,13 +235,13 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-200">
       {/* Top Navigation & Action Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-900 border border-slate-800 ">
         <div className="flex items-center gap-3">
           {!hideBackButton && (
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white border border-slate-700 transition flex-shrink-0 group shadow-md"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white border border-slate-700 transition flex-shrink-0 group "
               title="Voltar para a Lista de Alunos"
             >
               <ArrowLeft className="w-5 h-5 text-amber-400 group-hover:-translate-x-0.5 transition-transform" />
@@ -257,7 +257,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                   {currentClient ? ` • ${currentClient.name}` : ''}
                 </span>
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-[11px] border border-amber-500/30">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold text-[11px] border border-slate-800">
                 {filteredWorkouts.length} {filteredWorkouts.length === 1 ? 'sessão' : 'sessões'}
               </span>
             </div>
@@ -275,7 +275,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition active:scale-95 "
             title="Imprimir relatório do histórico de treinos"
           >
             <Printer className="w-3.5 h-3.5 text-cyan-400" />
@@ -286,7 +286,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
             <button
               type="button"
               onClick={() => onStartWorkoutForClient(currentClient)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-950/40 transition active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold   transition active:scale-95"
             >
               <Play className="w-3.5 h-3.5 fill-white" />
               <span>Novo Treino</span>
@@ -297,14 +297,14 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
       {/* Student Profile Identity Card */}
       {currentClient && (
-        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-3">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800  space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-md flex-shrink-0 ${
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg text-white  flex-shrink-0 ${
                   currentClient.gender === 'Feminino'
-                    ? 'bg-gradient-to-tr from-pink-600 to-rose-500'
-                    : 'bg-gradient-to-tr from-blue-600 to-cyan-500'
+                    ? 'bg-pink-600'
+                    : 'bg-blue-600'
                 }`}
               >
                 {currentClient.name.charAt(0)}
@@ -317,13 +317,13 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       currentClient.gender === 'Feminino'
-                        ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20'
-                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        ? 'bg-pink-500/10 text-pink-400 border border-slate-800'
+                        : 'bg-blue-500/10 text-blue-400 border border-slate-800'
                     }`}
                   >
                     {currentClient.gender}
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-slate-800">
                     Histórico Vinculado ao Perfil
                   </span>
                 </div>
@@ -345,7 +345,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
               <button
                 type="button"
                 onClick={() => onStartWorkoutForClient(currentClient)}
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-950/40 active:scale-95 transition"
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs   active:scale-95 transition"
               >
                 <Play className="w-3.5 h-3.5 fill-white" />
                 <span>Iniciar Treino com {currentClient.name.split(' ')[0]}</span>
@@ -354,7 +354,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
           </div>
 
           {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/80">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800">
             <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60 text-center">
               <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
                 <Weight className="w-3 h-3 text-cyan-400" /> Peso Corporal
@@ -405,7 +405,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
       )}
 
       {/* KPI Performance Summary Card */}
-      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-md flex items-center justify-between">
+      <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800  flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Award className="w-4 h-4 text-amber-400" />
           <span>Treinos Realizados</span>
@@ -419,7 +419,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
       </div>
 
       {/* Filter and Search Bar (Exclusivo para este perfil) */}
-      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md space-y-3">
+      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800  space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Search by Query */}
           <div className="space-y-1">
@@ -434,7 +434,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                 placeholder="Ex: Supino, Peitoral, Treino A..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-700 transition"
               />
               {searchTerm && (
                 <button
@@ -457,7 +457,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value as 'all' | '7d' | '30d' | 'this_month')}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-amber-400 transition"
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-slate-700 transition"
             >
               <option value="all">Todo o Histórico deste Aluno</option>
               <option value="7d">Últimos 7 dias</option>
@@ -536,7 +536,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                 <button
                   type="button"
                   onClick={() => onStartWorkoutForClient(currentClient)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md shadow-emerald-950/40 flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition   flex items-center gap-1.5"
                 >
                   <Play className="w-3.5 h-3.5 fill-white" />
                   <span>Iniciar Treino com {currentClient.name.split(' ')[0]}</span>
@@ -555,7 +555,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
             return (
               <div
                 key={workout.id}
-                className="rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 shadow-lg transition-all overflow-hidden"
+                className="rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700  transition-all overflow-hidden"
               >
                 {/* Workout Card Header */}
                 <div
@@ -563,7 +563,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                   className="p-4 cursor-pointer hover:bg-slate-800/40 transition select-none flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="flex items-start sm:items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center font-black text-sm flex-shrink-0">
+                    <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-400 border border-slate-800 flex items-center justify-center font-black text-sm flex-shrink-0">
                       <Flame className="w-5 h-5 text-amber-400" />
                     </div>
 
@@ -652,7 +652,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
                       {/* Trainer Technical Notes & Biomechanical Feedback */}
                       {workout.trainerNotes && (
-                        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+                        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-slate-800 space-y-1">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
                             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                             <span>Anotações Técnicas do Treinador:</span>
@@ -679,7 +679,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                             return (
                               <div
                                 key={ex.exerciseId || `${workout.id}-ex-${exIdx}`}
-                                className="p-3.5 rounded-xl bg-slate-900 border border-slate-800/80 space-y-2.5"
+                                className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5"
                               >
                                 {/* Exercise Header */}
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-800 pb-2">
@@ -690,11 +690,11 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                                     <h4 className="text-sm font-bold text-white">
                                       {ex.name}
                                     </h4>
-                                    <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 text-[10px] font-bold border border-cyan-500/30">
+                                    <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 text-[10px] font-bold border border-slate-800">
                                       {ex.muscleGroup}
                                     </span>
                                     {ex.method && ex.method !== 'Normal' && (
-                                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-extrabold border border-purple-500/30">
+                                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-extrabold border border-slate-800">
                                         {ex.method}
                                       </span>
                                     )}
@@ -718,11 +718,11 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                                       key={set.setNumber}
                                       className={`p-2 rounded-lg border text-center transition ${
                                         set.completed
-                                          ? 'bg-slate-950 border-emerald-500/40 text-slate-200'
+                                          ? 'bg-slate-950 border-slate-800 text-slate-200'
                                           : 'bg-slate-950/40 border-slate-800 text-slate-500 opacity-60'
                                       }`}
                                     >
-                                      <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 border-b border-slate-800/80 mb-1">
+                                      <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 border-b border-slate-800 mb-1">
                                         <span className="font-bold">Série {set.setNumber}</span>
                                         {set.completed && (
                                           <CheckCircle2 className="w-3 h-3 text-emerald-400" />
@@ -743,7 +743,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
                                       {set.pse != null && (
                                         <div className="mt-1">
-                                          <span className="inline-block text-[9px] font-mono font-bold text-amber-400 bg-amber-950/60 border border-amber-500/30 px-1.5 py-0.5 rounded-md">
+                                          <span className="inline-block text-[9px] font-mono font-bold text-amber-400 bg-amber-950/60 border border-slate-800 px-1.5 py-0.5 rounded-md">
                                             PSE: {set.pse}/10
                                           </span>
                                         </div>
@@ -783,9 +783,9 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
       {/* Confirmation Modal to Delete Workout */}
       {workoutToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-2xl">
+          <div className="w-full max-w-md p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 ">
             <div className="flex items-center gap-3 text-rose-400">
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-slate-800">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
@@ -809,7 +809,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
               <button
                 type="button"
                 onClick={() => handleDeleteWorkout(workoutToDelete.id)}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-md shadow-rose-950/50"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition  "
               >
                 Sim, Excluir Registro
               </button>

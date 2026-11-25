@@ -753,7 +753,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
         </div>
 
         {saveToast && (
-          <div className="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-xs font-bold text-emerald-300 flex items-center gap-2">
+          <div className="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-slate-800 text-xs font-bold text-emerald-300 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{saveToast}</span>
           </div>
@@ -763,7 +763,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
       {/* ====================================================================
           PAINEL EM TEMPO REAL: MACRONUTRIENTES + EXPANSÃO DE MICRONUTRIENTES (IDR)
       ==================================================================== */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800  space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
           <div>
             <div className="flex items-center gap-2">
@@ -783,7 +783,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
           <button
             type="button"
             onClick={() => setIsIdrExpanded((prev) => !prev)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold transition cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-slate-800 text-xs font-extrabold transition cursor-pointer shrink-0"
           >
             <Sparkles className="w-4 h-4 text-emerald-400" />
             <span>
@@ -1019,7 +1019,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
           onClick={() => setActiveTab('prescricao')}
           className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
             activeTab === 'prescricao'
-              ? 'bg-emerald-600/20 border-emerald-500 text-white shadow-md'
+              ? 'bg-emerald-600/20 border-slate-800 text-white '
               : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
           }`}
         >
@@ -1039,7 +1039,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
           onClick={() => setActiveTab('metabolico')}
           className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
             activeTab === 'metabolico'
-              ? 'bg-cyan-600/20 border-cyan-500 text-white shadow-md'
+              ? 'bg-cyan-600/20 border-slate-800 text-white '
               : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
           }`}
         >
@@ -1059,7 +1059,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
           onClick={() => setActiveTab('idr')}
           className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
             activeTab === 'idr'
-              ? 'bg-amber-600/20 border-amber-500 text-white shadow-md'
+              ? 'bg-amber-600/20 border-slate-800 text-white '
               : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
           }`}
         >
@@ -1079,7 +1079,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
           onClick={() => setActiveTab('hidratacao')}
           className={`p-3.5 rounded-2xl border text-left transition flex items-center gap-3 cursor-pointer ${
             activeTab === 'hidratacao'
-              ? 'bg-blue-600/20 border-blue-500 text-white shadow-md'
+              ? 'bg-blue-600/20 border-slate-800 text-white '
               : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
           }`}
         >
@@ -1110,7 +1110,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                     type="button"
                     onClick={() => setIsScheduleDropdownOpen((prev) => !prev)}
                     aria-expanded={isScheduleDropdownOpen}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-md text-xs font-extrabold flex items-center gap-2.5 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-slate-800  text-xs font-extrabold flex items-center gap-2.5 transition cursor-pointer"
                   >
                     <Utensils className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
                     <span className="truncate max-w-[240px] sm:max-w-[320px]">
@@ -1124,8 +1124,8 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                   </button>
 
                   {isScheduleDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-slate-950 border border-slate-800 shadow-2xl p-2 z-40 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                      <div className="px-2.5 py-1.5 border-b border-slate-800/80 flex items-center justify-between">
+                    <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-slate-950 border border-slate-800  p-2 z-40 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="px-2.5 py-1.5 border-b border-slate-800 flex items-center justify-between">
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                           Cardápios do Cliente ({dietPlan.schedules.length})
                         </span>
@@ -1158,7 +1158,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                               }}
                               className={`w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer border ${
                                 isSelected
-                                  ? 'bg-emerald-600/20 text-white border-emerald-500/60'
+                                  ? 'bg-emerald-600/20 text-white border-slate-800'
                                   : 'bg-slate-900/70 hover:bg-slate-900 text-slate-300 border-transparent'
                               }`}
                             >
@@ -1179,14 +1179,14 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                         })}
                       </div>
 
-                      <div className="pt-1.5 border-t border-slate-800/80">
+                      <div className="pt-1.5 border-t border-slate-800">
                         <button
                           type="button"
                           onClick={() => {
                             setIsScheduleDropdownOpen(false);
                             setIsNewScheduleOpen(true);
                           }}
-                          className="w-full px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition"
+                          className="w-full px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-slate-800 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>Novo Cardápio por Dias</span>
@@ -1199,7 +1199,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                 <button
                   type="button"
                   onClick={() => setIsNewScheduleOpen((prev) => !prev)}
-                  className="px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-emerald-400 border border-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Novo Cardápio por Dias</span>
@@ -1221,7 +1221,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                       onClick={() => handleToggleDayInSchedule(d.day)}
                       className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                         active
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-slate-800'
                           : 'bg-slate-950 text-slate-500 border border-slate-800'
                       }`}
                       title={d.full}
@@ -1277,13 +1277,13 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                   value={newMealName}
                   onChange={(e) => setNewMealName(e.target.value)}
                   placeholder="Nome da refeição (ex: Pós-Treino)..."
-                  className="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                 />
 
                 <button
                   type="button"
                   onClick={handleAddMeal}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-1.5  cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Adicionar Horário / Refeição</span>
@@ -1323,7 +1323,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
               return (
                 <div
                   key={meal.id}
-                  className={`rounded-3xl bg-slate-900 border shadow-lg overflow-hidden ${
+                  className={`rounded-3xl bg-slate-900 border  overflow-hidden ${
                     mealIndex === 1 ? 'border-[#ffffff]' : 'border-slate-800'
                   }`}
                   style={mealIndex === 1 ? { borderColor: '#ffffff' } : undefined}
@@ -1337,7 +1337,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-extrabold text-xs tabular-nums flex items-center gap-1.5">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-slate-800 text-emerald-300 font-extrabold text-xs tabular-nums flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 shrink-0" />
                           {editingMealTimeId === meal.id ? (
                             <span className="inline-flex items-center gap-1.5">
@@ -1354,7 +1354,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                                   }
                                 }}
                                 autoFocus
-                                className="bg-slate-900 border border-emerald-500/50 rounded-md px-1.5 py-0.5 text-xs font-extrabold text-white tabular-nums focus:outline-none focus:border-emerald-400"
+                                className="bg-slate-900 border border-slate-800 rounded-md px-1.5 py-0.5 text-xs font-extrabold text-white tabular-nums focus:outline-none focus:border-slate-700"
                               />
                               <button
                                 type="button"
@@ -1435,7 +1435,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                             originalNutrients: mealNutrients,
                           })
                         }
-                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                         title="Trocar refeição inteira por receita do sistema com comparação de macros"
                       >
                         <ArrowLeftRight className="w-3.5 h-3.5" />
@@ -1830,7 +1830,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                                       originalNutrients: item.nutrients,
                                     })
                                   }
-                                  className="px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                                  className="px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <ArrowLeftRight className="w-3.5 h-3.5" />
                                   <span>Substituir</span>
@@ -1856,7 +1856,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                                 {item.substitutions.map((sub) => (
                                   <div
                                     key={sub.id}
-                                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-800/80 text-xs"
+                                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs"
                                   >
                                     <div className="tabular-nums text-slate-300">
                                       <strong className="text-emerald-300">
@@ -1937,7 +1937,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                                   ),
                                 }));
                               }}
-                              className="px-2.5 py-1.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold shrink-0 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-xl bg-emerald-600/20 text-emerald-300 border border-slate-800 text-[11px] font-bold shrink-0 cursor-pointer"
                             >
                               Aplicar na Refeição
                             </button>
@@ -1990,7 +1990,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-950 border border-cyan-500/40">
+              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800">
                 <label className="text-[10px] font-bold uppercase text-cyan-400 block">
                   % Gordura (BF%)
                 </label>
@@ -2039,7 +2039,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                       }
                       className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between gap-3 cursor-pointer ${
                         isSelected
-                          ? 'bg-cyan-600/20 border-cyan-500 text-white'
+                          ? 'bg-cyan-600/20 border-slate-800 text-white'
                           : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                       }`}
                     >
@@ -2092,7 +2092,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                     }
                     className={`px-2.5 py-2 rounded-xl text-xs font-bold border cursor-pointer ${
                       dietPlan.metabolicConfig.goalDeltaKcal < 0
-                        ? 'bg-rose-600/20 text-rose-300 border-rose-500/50'
+                        ? 'bg-rose-600/20 text-rose-300 border-slate-800'
                         : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
@@ -2108,7 +2108,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                     }
                     className={`px-2.5 py-2 rounded-xl text-xs font-bold border cursor-pointer ${
                       dietPlan.metabolicConfig.goalDeltaKcal === 0
-                        ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50'
+                        ? 'bg-emerald-600/20 text-emerald-300 border-slate-800'
                         : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
@@ -2124,7 +2124,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                     }
                     className={`px-2.5 py-2 rounded-xl text-xs font-bold border cursor-pointer ${
                       dietPlan.metabolicConfig.goalDeltaKcal > 0
-                        ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/50'
+                        ? 'bg-cyan-600/20 text-cyan-300 border-slate-800'
                         : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
@@ -2215,7 +2215,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                     onClick={() => updateMetabolicConfig({ formula: fMeta.id })}
                     className={`w-full p-4 rounded-2xl border text-left transition flex items-center justify-between gap-3 cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-600/20 border-emerald-500 text-white shadow-md'
+                        ? 'bg-emerald-600/20 border-slate-800 text-white '
                         : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                     }`}
                   >
@@ -2330,7 +2330,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
               </div>
 
               {/* Destaque da Meta Calculada */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-950/60 to-slate-950 border border-blue-500/30 flex items-center justify-between gap-3 tabular-nums">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 tabular-nums">
                 <div>
                   <span className="text-xs font-bold text-blue-300 uppercase tracking-wider block">
                     Meta Diária Recomendada
@@ -2347,7 +2347,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                     {hydrationMetrics.breakdownText}
                   </p>
                 </div>
-                <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-300 border border-slate-800">
                   <Droplet className="w-8 h-8 text-blue-400 animate-pulse" />
                 </div>
               </div>
@@ -2368,7 +2368,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                           onClick={() => updateHydrationConfig({ mlPerKg: val })}
                           className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
                             active
-                              ? 'bg-blue-600 text-white border-blue-400 shadow-md'
+                              ? 'bg-blue-600 text-white border-slate-800 '
                               : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                           }`}
                         >
@@ -2446,7 +2446,7 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
                 </div>
                 <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300"
+                    className="h-full bg-cyan-500 rounded-full transition-all duration-300"
                     style={{
                       width: `${Math.min(
                         100,
@@ -2522,13 +2522,13 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
       {/* ====================================================================
           BARRA FINAL: SALVAR PRESCRIÇÃO DA DIETA DO CLIENTE
       ==================================================================== */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800  flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs sm:text-sm font-extrabold text-white">
               Prescrição Nutricional de {client.name}
             </span>
-            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 tabular-nums">
+            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-slate-800 text-[11px] font-bold text-emerald-300 tabular-nums">
               {activeSchedule?.name} · {activeSchedule?.meals.length || 0} refeições ·{' '}
               {Math.round(dayTotals.energyKcal)} kcal
             </span>
@@ -2547,10 +2547,10 @@ export const ClientNutritionWorkspace: React.FC<ClientNutritionWorkspaceProps> =
         <button
           type="button"
           onClick={handleSaveDietPrescription}
-          className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg transition active:scale-95 cursor-pointer touch-manipulation shrink-0 ${
+          className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5  transition active:scale-95 cursor-pointer touch-manipulation shrink-0 ${
             isPrescriptionSaved
-              ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/25'
-              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/60'
+              ? 'bg-emerald-500 text-slate-950 '
+              : 'bg-emerald-600 hover:bg-emerald-500 text-white '
           }`}
         >
           {isPrescriptionSaved ? (

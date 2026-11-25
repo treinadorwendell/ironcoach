@@ -184,11 +184,11 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-5 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[90dvh]">
+      <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800  overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[90dvh]">
         {/* Header */}
-        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-5 py-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-2xl overflow-hidden bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-950/50 ring-1 ring-white/10 shrink-0">
+            <div className="w-11 h-11 rounded-2xl overflow-hidden bg-cyan-600 flex items-center justify-center     shrink-0">
               {trainerProfile?.logoDataUrl ? (
                 <img
                   src={trainerProfile.logoDataUrl}
@@ -225,14 +225,14 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
         {/* Scrollable Content */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-5 flex-1">
           {errorMessage && (
-            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-slate-800 text-rose-200 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3.5 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-emerald-950/60 border border-slate-800 text-emerald-200 text-xs flex items-center gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{successMessage}</span>
             </div>
@@ -256,7 +256,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Seu nome completo"
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
               />
             </div>
 
@@ -271,7 +271,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                   required
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
 
@@ -286,7 +286,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(11) 99999-9999"
-                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
             </div>
@@ -302,7 +302,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seuemail@exemplo.com"
-                className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
               />
             </div>
 
@@ -320,7 +320,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   placeholder="75"
-                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
 
@@ -337,14 +337,14 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                   value={height}
                   onChange={(e) => setHeight(e.target.value)}
                   placeholder="175"
-                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
             </div>
           </div>
 
           {/* Segurança e Senha */}
-          <div className="pt-3 border-t border-slate-800/80 space-y-3.5">
+          <div className="pt-3 border-t border-slate-800 space-y-3.5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5" />
@@ -367,7 +367,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
                   />
                   <button
                     type="button"
@@ -394,7 +394,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repita a nova senha"
-                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                  className="w-full h-11 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-slate-700   transition"
                 />
               </div>
             </div>
@@ -402,8 +402,8 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
 
           {/* Sair da Conta */}
           {onLogout && (
-            <div className="pt-3 border-t border-slate-800/80">
-              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800/90 flex items-center justify-between gap-3">
+            <div className="pt-3 border-t border-slate-800">
+              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                     Sessão Conectada
@@ -415,7 +415,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/40 text-rose-200 text-xs font-bold transition active:scale-95 cursor-pointer shrink-0"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 border border-slate-800 text-rose-200 text-xs font-bold transition active:scale-95 cursor-pointer shrink-0"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-400" />
                   <span>Sair da Conta</span>
@@ -425,7 +425,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
           )}
 
           {/* Footer Buttons */}
-          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-end gap-2.5">
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
@@ -436,7 +436,7 @@ export const StudentSettingsModal: React.FC<StudentSettingsModalProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-cyan-950/60 transition active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold   transition active:scale-95 cursor-pointer"
             >
               {isSaving ? (
                 <>

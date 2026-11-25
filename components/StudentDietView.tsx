@@ -219,9 +219,9 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
   if (!dietPlan || !activeSchedule || activeSchedule.meals.length === 0) {
     return (
       <div className="space-y-4 pb-28">
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800  flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
               <Utensils className="w-5 h-5" />
             </div>
             <div>
@@ -235,8 +235,8 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
           </div>
         </div>
 
-        <div className="p-8 sm:p-12 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-3 shadow-xl">
-          <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
+        <div className="p-8 sm:p-12 text-center rounded-3xl bg-slate-900 border border-slate-800 space-y-3 ">
+          <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-slate-800 text-cyan-400 flex items-center justify-center mx-auto">
             <Utensils className="w-7 h-7" />
           </div>
           <h3 className="text-base sm:text-lg font-black text-white">
@@ -272,17 +272,17 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
     <div className="space-y-4 pb-28">
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-slate-900/95 border border-cyan-500/50 text-cyan-300 text-xs font-bold shadow-2xl flex items-center gap-2">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-slate-900/95 border border-slate-800 text-cyan-300 text-xs font-bold  flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}
 
       {/* Top Student Nutrition Banner */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 shadow-xl space-y-4">
+      <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800  space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
               <Utensils className="w-5 h-5" />
             </div>
             <div>
@@ -305,8 +305,8 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
         </div>
 
         {/* Daily Calories & Macros Summary Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-slate-800/80">
-          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-slate-800">
+          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800">
             <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
               <Flame className="w-3.5 h-3.5 text-amber-400" />
               Calorias do Cardápio
@@ -321,7 +321,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80">
+          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800">
             <span className="text-[10px] font-bold text-emerald-400 block">
               Proteínas
             </span>
@@ -337,7 +337,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80">
+          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800">
             <span className="text-[10px] font-bold text-cyan-400 block">
               Carboidratos
             </span>
@@ -353,7 +353,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80">
+          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800">
             <span className="text-[10px] font-bold text-amber-400 block">
               Gorduras
             </span>
@@ -369,7 +369,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/80 col-span-2 sm:col-span-1">
+          <div className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 col-span-2 sm:col-span-1">
             <span className="text-[10px] font-bold text-purple-400 block">
               Fibras Alimentares
             </span>
@@ -386,10 +386,10 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
       </div>
 
       {/* Interactive Daily Hydration Tracker */}
-      <div className="p-4 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-lg space-y-3">
+      <div className="p-4 rounded-2xl bg-slate-900/95 border border-slate-800  space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center shrink-0">
               <Droplet className="w-5 h-5" />
             </div>
             <div>
@@ -415,7 +415,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
         {/* Progress Bar */}
         <div className="w-full h-2.5 rounded-full bg-slate-950 border border-slate-800 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
+            className="h-full bg-cyan-500 transition-all duration-300"
             style={{ width: `${waterProgressPct}%` }}
           />
         </div>
@@ -438,7 +438,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             <button
               type="button"
               onClick={() => handleAddWaterMl(200)}
-              className="px-3 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-slate-800 text-cyan-300 text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>200ml</span>
@@ -446,7 +446,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             <button
               type="button"
               onClick={() => handleAddWaterMl(300)}
-              className="px-3 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-slate-800 text-cyan-300 text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>300ml</span>
@@ -454,7 +454,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             <button
               type="button"
               onClick={() => handleAddWaterMl(500)}
-              className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition active:scale-95 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1  transition active:scale-95 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>500ml</span>
@@ -469,18 +469,18 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
           type="button"
           onClick={() => setIsCardapioDropdownOpen((prev) => !prev)}
           aria-expanded={isCardapioDropdownOpen}
-          className={`w-full p-4 sm:p-5 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer touch-manipulation shadow-lg ${
+          className={`w-full p-4 sm:p-5 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer touch-manipulation  ${
             isCardapioDropdownOpen
-              ? 'bg-gradient-to-r from-cyan-950/90 via-slate-900 to-slate-900 border-cyan-500/60 ring-1 ring-cyan-500/30'
-              : 'bg-slate-900/95 hover:bg-slate-900 border-slate-800 hover:border-cyan-500/40'
+              ? 'bg-slate-900 border-slate-800  '
+              : 'bg-slate-900/95 hover:bg-slate-900 border-slate-800 hover:border-slate-700'
           }`}
         >
           <div className="flex items-center gap-3.5 min-w-0">
             <div
               className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border transition ${
                 isCardapioDropdownOpen
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-950/50'
-                  : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400'
+                  ? 'bg-cyan-500 text-slate-950 border-slate-800  '
+                  : 'bg-cyan-500/15 border-slate-800 text-cyan-400'
               }`}
             >
               <Utensils className="w-5 h-5" />
@@ -521,7 +521,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center border transition ${
                 isCardapioDropdownOpen
-                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                  ? 'bg-cyan-500/20 border-slate-800 text-cyan-300'
                   : 'bg-slate-950 border-slate-800 text-slate-300'
               }`}
             >
@@ -536,7 +536,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
 
         {/* Dropdown Content: Schedule Switcher (if multiple) + Chronological Meals List */}
         {isCardapioDropdownOpen && (
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-cyan-500/30 space-y-3.5 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-3.5  animate-in fade-in slide-in-from-top-2 duration-200">
             {dietPlan.schedules.length > 1 && (
               <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
                 <span className="text-[11px] font-extrabold text-slate-300 flex items-center gap-1.5">
@@ -557,7 +557,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
                         onClick={() => setSelectedScheduleId(sched.id)}
                         className={`p-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between gap-2 text-left cursor-pointer border ${
                           isSelected
-                            ? 'bg-cyan-600/20 text-white border-cyan-500 shadow-sm'
+                            ? 'bg-cyan-600/20 text-white border-slate-800 '
                             : 'bg-slate-950 text-slate-300 hover:text-white border-slate-800'
                         }`}
                       >
@@ -586,12 +586,12 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
                 return (
                   <div
                     key={meal.id || mealIdx}
-                    className="rounded-2xl bg-slate-900/95 border border-slate-800 shadow-lg overflow-hidden"
+                    className="rounded-2xl bg-slate-900/95 border border-slate-800  overflow-hidden"
                   >
               {/* Meal Header */}
-              <div className="p-4 bg-slate-950/70 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="p-4 bg-slate-950/70 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-black flex items-center gap-1.5 shrink-0">
+                  <div className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-slate-800 text-cyan-300 font-mono text-xs font-black flex items-center gap-1.5 shrink-0">
                     <Clock className="w-3.5 h-3.5 text-cyan-400" />
                     <span>{meal.time || '08:00'}</span>
                   </div>
@@ -647,7 +647,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
                     return (
                       <div
                         key={item.id}
-                        className="p-3 rounded-xl bg-slate-950/90 border border-slate-800/90 space-y-2"
+                        className="p-3 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div className="space-y-0.5 min-w-0">
@@ -702,7 +702,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
                                 }
                                 className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
                                   isSubExpanded
-                                    ? 'bg-cyan-600 text-white border-cyan-500'
+                                    ? 'bg-cyan-600 text-white border-slate-800'
                                     : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-slate-700'
                                 }`}
                               >
@@ -717,7 +717,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
 
                         {/* Expandable Approved Substitutions List */}
                         {hasSubs && isSubExpanded && (
-                          <div className="pt-2 mt-2 border-t border-slate-800/80 space-y-1.5">
+                          <div className="pt-2 mt-2 border-t border-slate-800 space-y-1.5">
                             <span className="text-[10px] font-bold text-slate-400 block">
                               Opções equivalentes autorizadas pelo seu treinador (toque para substituir no cardápio):
                             </span>
@@ -746,7 +746,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
                                         sub
                                       )
                                     }
-                                    className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 text-[11px] font-bold shrink-0 transition cursor-pointer"
+                                    className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-slate-800 text-[11px] font-bold shrink-0 transition cursor-pointer"
                                   >
                                     Usar Opção
                                   </button>
@@ -762,7 +762,7 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
 
                 {/* Whole-Meal Substitutions if configured by Trainer */}
                 {meal.mealSubstitutions && meal.mealSubstitutions.length > 0 && (
-                  <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2 mt-2">
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2 mt-2">
                     <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
                       <ChefHat className="w-3.5 h-3.5 text-amber-400" />
                       <span>Opções de Substituição da Refeição Completa:</span>
@@ -798,10 +798,10 @@ export const StudentDietView: React.FC<StudentDietViewProps> = ({ client }) => {
       {/* Recipe Instructions Modal */}
       {selectedRecipeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-5 space-y-4  max-h-[85vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-slate-800 text-amber-400 flex items-center justify-center shrink-0">
                   <ChefHat className="w-5 h-5" />
                 </div>
                 <div>

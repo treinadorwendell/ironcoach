@@ -804,7 +804,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   return (
     <div className="space-y-4 pb-24">
       {/* Top Google Agenda Style Navigation Bar */}
-      <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md space-y-3">
+      <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800  space-y-3">
         {/* View Switcher: Dia | Semana | Mês | Ano | Programação */}
         <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
           {/* Botão seletor de modo de visualização (Dia, Semana, Mês, Ano, Programação) */}
@@ -812,10 +812,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             <button
               type="button"
               onClick={() => setIsViewModeMenuOpen((prev) => !prev)}
-              className={`flex items-center gap-2 h-9 sm:h-10 lg:h-[42px] px-3.5 sm:px-4 rounded-xl font-bold text-xs sm:text-sm shadow-md border transition-all active:scale-95 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center gap-2 h-9 sm:h-10 lg:h-[42px] px-3.5 sm:px-4 rounded-xl font-bold text-xs sm:text-sm  border transition-all active:scale-95 cursor-pointer whitespace-nowrap shrink-0 ${
                 isViewModeMenuOpen
-                  ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
-                  : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
+                  ? 'bg-purple-600 text-white border-slate-800 '
+                  : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700 hover:border-slate-700'
               }`}
               aria-expanded={isViewModeMenuOpen}
               aria-haspopup="true"
@@ -844,9 +844,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             {isViewModeMenuOpen && (
               <div
                 role="menu"
-                className="absolute left-0 top-full mt-2 w-44 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                className="absolute left-0 top-full mt-2 w-44 rounded-2xl bg-slate-900 border border-slate-700  z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
               >
-                <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
+                <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1">
                   Visualização
                 </div>
                 {(
@@ -870,7 +870,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
                         isSelected
-                          ? 'bg-purple-600 text-white shadow-sm'
+                          ? 'bg-purple-600 text-white '
                           : 'text-slate-300 hover:text-white hover:bg-slate-800'
                       }`}
                     >
@@ -886,7 +886,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setIsReportModalOpen(true)}
-              className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-slate-700/80 shadow-md active:scale-95 transition whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-slate-700  active:scale-95 transition whitespace-nowrap shrink-0"
               title="Abrir Relatório de Aulas e Financeiro"
             >
               <FileText className="w-4 h-4 text-purple-400 shrink-0" />
@@ -896,7 +896,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
             <button
               onClick={() => openNewModal()}
-              className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3.5 sm:px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-950/50 active:scale-95 transition whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3.5 sm:px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm   active:scale-95 transition whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Novo Compromisso</span>
@@ -914,7 +914,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             >
               Hoje
             </button>
-            <div className="flex items-center gap-0.5 bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60 shrink-0">
+            <div className="flex items-center gap-0.5 bg-slate-800/80 rounded-lg p-0.5 border border-slate-700 shrink-0">
               <button
                 onClick={handlePrevDate}
                 className="w-7 h-7 sm:w-8 sm:h-8 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95 flex items-center justify-center"
@@ -943,7 +943,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white tabular-nums focus:outline-none focus:border-purple-500"
+            className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white tabular-nums focus:outline-none focus:border-slate-700"
           />
         </div>
         <h2 className="text-xs font-bold text-slate-300 capitalize sm:hidden">
@@ -957,7 +957,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         </h2>
 
         {/* Attendance Client & Status Filter Bar */}
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
           <span className="hidden sm:flex text-[11px] font-bold text-slate-400 items-center gap-1 shrink-0">
             <Filter className="w-3.5 h-3.5 text-purple-400" />
             <span>Filtros da Agenda:</span>
@@ -969,10 +969,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               <button
                 type="button"
                 onClick={() => setIsClientMenuOpen((prev) => !prev)}
-                className={`w-full sm:w-auto h-8 sm:h-9 flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-xs shadow-sm border transition-all active:scale-95 cursor-pointer whitespace-nowrap min-w-0 ${
+                className={`w-full sm:w-auto h-8 sm:h-9 flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-xs  border transition-all active:scale-95 cursor-pointer whitespace-nowrap min-w-0 ${
                   isClientMenuOpen || clientFilter !== 'todos'
-                    ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
-                    : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
+                    ? 'bg-purple-600 text-white border-slate-800 '
+                    : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700 hover:border-slate-700'
                 }`}
                 aria-expanded={isClientMenuOpen}
                 aria-haspopup="true"
@@ -1006,9 +1006,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               {isClientMenuOpen && (
                 <div
                   role="menu"
-                  className="absolute left-0 top-full mt-2 w-60 sm:w-64 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute left-0 top-full mt-2 w-60 sm:w-64 rounded-2xl bg-slate-900 border border-slate-700  z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
                 >
-                  <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1 flex items-center justify-between">
+                  <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1 flex items-center justify-between">
                     <span>Filtrar por Aluno</span>
                     {clientFilter !== 'todos' && (
                       <button
@@ -1033,7 +1033,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
                         clientFilter === 'todos'
-                          ? 'bg-purple-600 text-white shadow-sm'
+                          ? 'bg-purple-600 text-white '
                           : 'text-slate-300 hover:text-white hover:bg-slate-800'
                       }`}
                     >
@@ -1071,7 +1071,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
                             isSelected
-                              ? 'bg-purple-600 text-white shadow-sm'
+                              ? 'bg-purple-600 text-white '
                               : 'text-slate-300 hover:text-white hover:bg-slate-800'
                           }`}
                         >
@@ -1108,10 +1108,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               <button
                 type="button"
                 onClick={() => setIsStatusMenuOpen((prev) => !prev)}
-                className={`w-full sm:w-auto h-8 sm:h-9 flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-xs shadow-sm border transition-all active:scale-95 cursor-pointer whitespace-nowrap min-w-0 ${
+                className={`w-full sm:w-auto h-8 sm:h-9 flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-xs  border transition-all active:scale-95 cursor-pointer whitespace-nowrap min-w-0 ${
                   isStatusMenuOpen
-                    ? 'bg-purple-600 text-white border-purple-500 shadow-purple-950/50'
-                    : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700/80 hover:border-purple-500/50'
+                    ? 'bg-purple-600 text-white border-slate-800 '
+                    : 'bg-slate-950 hover:bg-slate-850 text-slate-100 hover:text-white border-slate-700 hover:border-slate-700'
                 }`}
                 aria-expanded={isStatusMenuOpen}
                 aria-haspopup="true"
@@ -1157,9 +1157,9 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               {isStatusMenuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 space-y-0.5"
+                  className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-700  z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 space-y-0.5"
                 >
-                  <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
+                  <div className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1">
                     Filtrar por Status
                   </div>
                   {[
@@ -1201,7 +1201,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition active:scale-[0.98] cursor-pointer ${
                           isSelected
-                            ? 'bg-purple-600 text-white shadow-sm'
+                            ? 'bg-purple-600 text-white '
                             : 'text-slate-300 hover:text-white hover:bg-slate-800'
                         }`}
                       >
@@ -1285,7 +1285,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       {hourEvents.length === 0 ? (
                         <button
                           onClick={() => openNewModal(selectedDate, hour)}
-                          className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-800 hover:border-purple-500/50 hover:bg-purple-950/10 text-left text-xs text-slate-600 hover:text-purple-300 transition flex items-center gap-1.5"
+                          className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-800 hover:border-slate-700 hover:bg-purple-950/10 text-left text-xs text-slate-600 hover:text-purple-300 transition flex items-center gap-1.5"
                         >
                           <Plus className="w-3.5 h-3.5 opacity-60" />
                           <span>Horário Livre (Toque para agendar)</span>
@@ -1299,17 +1299,17 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                             const isFalta = evt.status === 'falta';
 
                             const cardBgBorder = isRealizado
-                              ? 'bg-gradient-to-r from-emerald-950/40 to-slate-900 border-emerald-600/50'
+                              ? 'bg-slate-900 border-slate-800'
                               : isReagendado
-                              ? 'bg-gradient-to-r from-amber-950/40 to-slate-900 border-amber-600/50'
+                              ? 'bg-slate-900 border-slate-800'
                               : isFalta
-                              ? 'bg-gradient-to-r from-rose-950/40 to-slate-900 border-rose-600/50'
-                              : 'bg-gradient-to-r from-purple-950/60 to-slate-900 border-purple-800/50';
+                              ? 'bg-slate-900 border-slate-800'
+                              : 'bg-slate-900 border-slate-800';
 
                             return (
                               <div
                                 key={evt.id}
-                                className={`p-3 rounded-xl border shadow-md space-y-2.5 transition ${cardBgBorder}`}
+                                className={`p-3 rounded-xl border  space-y-2.5 transition ${cardBgBorder}`}
                               >
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                   <div className="space-y-1">
@@ -1320,32 +1320,32 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                                       {/* Status Badge */}
                                       {isRealizado && (
-                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-slate-800">
                                           <CheckCircle2 className="w-3 h-3" />
                                           Realizado
                                         </span>
                                       )}
                                       {isReagendado && (
-                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-slate-800">
                                           <RotateCcw className="w-3 h-3" />
                                           Reagendado
                                         </span>
                                       )}
                                       {isFalta && (
-                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                        <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-slate-800">
                                           <XCircle className="w-3 h-3" />
                                           Falta
                                         </span>
                                       )}
                                       {(!evt.status || evt.status === 'confirmado') && (
-                                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-slate-800">
                                           <CalendarIcon className="w-2.5 h-2.5" />
                                           Agendado
                                         </span>
                                       )}
 
                                       {(evt.recurringParentId || (evt.recurringDays && evt.recurringDays.length > 0)) && (
-                                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                        <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-slate-800">
                                           <Repeat className="w-2.5 h-2.5" />
                                           Recorrente{evt.recurringEndDate ? ` (até ${evt.recurringEndDate.split('-').reverse().join('/')})` : ''}
                                         </span>
@@ -1363,7 +1363,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                                     {/* Informações de Reagendamento */}
                                     {isReagendado && (evt.rescheduledDate || evt.rescheduledTime) && (
-                                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-500/30">
+                                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-1 rounded-lg border border-slate-800">
                                         <CalendarClock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                                         <span>
                                           Novo horário agendado: {evt.rescheduledDate ? evt.rescheduledDate : ''}{' '}
@@ -1380,11 +1380,11 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                   </div>
 
                                   {/* Options on Card: Iniciar Treino, Editar, Excluir */}
-                                  <div className="flex items-center gap-1.5 sm:gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80 self-end sm:self-center shrink-0">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800 self-end sm:self-center shrink-0">
                                     {client && (
                                       <button
                                         onClick={() => onStartWorkoutForClient(client)}
-                                        className="flex items-center gap-1.5 h-8 sm:h-9 lg:h-10 px-3 sm:px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition whitespace-nowrap shrink-0"
+                                        className="flex items-center gap-1.5 h-8 sm:h-9 lg:h-10 px-3 sm:px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs  active:scale-95 transition whitespace-nowrap shrink-0"
                                         title="Iniciar Treino Imediatamente"
                                       >
                                         <Play className="w-3.5 h-3.5 fill-white shrink-0" />
@@ -1409,7 +1409,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                 </div>
 
                                 {/* Barra Rápida de Alteração de Status da Aula (1 Toque) */}
-                                <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/70">
+                                <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800">
                                   <span className="text-[10px] font-bold text-slate-400 mr-1">
                                     Alterar Status:
                                   </span>
@@ -1419,7 +1419,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                     onClick={() => handleQuickStatusChange(evt, 'realizado', selectedDate)}
                                     className={`h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-extrabold transition flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 ${
                                       isRealizado
-                                        ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                                        ? 'bg-emerald-600 text-white   '
                                         : 'bg-slate-900/90 hover:bg-emerald-950/50 text-slate-300 hover:text-emerald-300 border border-slate-800'
                                     }`}
                                     title="Marcar aula como Realizada"
@@ -1433,7 +1433,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                     onClick={() => handleQuickStatusChange(evt, 'reagendado', selectedDate)}
                                     className={`h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-extrabold transition flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 ${
                                       isReagendado
-                                        ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+                                        ? 'bg-amber-600 text-white   '
                                         : 'bg-slate-900/90 hover:bg-amber-950/50 text-slate-300 hover:text-amber-300 border border-slate-800'
                                     }`}
                                     title="Marcar aula como Reagendada"
@@ -1447,7 +1447,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                                     onClick={() => handleQuickStatusChange(evt, 'falta', selectedDate)}
                                     className={`h-7 sm:h-8 px-2.5 rounded-lg text-[10px] sm:text-xs font-extrabold transition flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 ${
                                       isFalta
-                                        ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
+                                        ? 'bg-rose-600 text-white   '
                                         : 'bg-slate-900/90 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-slate-800'
                                     }`}
                                     title="Marcar falta do aluno"
@@ -1511,7 +1511,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 key={day.dateStr}
                 className={`w-full lg:min-w-[110px] p-3 lg:p-2.5 rounded-2xl lg:rounded-xl border space-y-2.5 lg:space-y-2 flex flex-col transition ${
                   day.isToday
-                    ? 'bg-purple-950/25 border-purple-500/50 ring-1 ring-purple-500/40'
+                    ? 'bg-purple-950/25 border-slate-800  '
                     : 'bg-slate-900 border-slate-800'
                 }`}
               >
@@ -1523,7 +1523,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     <span
                       className={`px-2 py-0.5 lg:p-0 rounded-lg text-xs font-black font-mono ${
                         day.isToday
-                          ? 'bg-purple-500/20 lg:bg-transparent text-purple-300 border border-purple-500/30 lg:border-0'
+                          ? 'bg-purple-500/20 lg:bg-transparent text-purple-300 border border-slate-800 lg:border-0'
                           : 'bg-slate-800/80 lg:bg-transparent text-slate-300'
                       }`}
                     >
@@ -1547,12 +1547,12 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       const isFalta = evt.status === 'falta';
 
                       const weekCardClass = isRealizado
-                        ? 'bg-emerald-950/40 border-emerald-600/50 hover:border-emerald-400'
+                        ? 'bg-emerald-950/40 border-slate-800 hover:border-slate-700'
                         : isReagendado
-                        ? 'bg-amber-950/40 border-amber-600/50 hover:border-amber-400'
+                        ? 'bg-amber-950/40 border-slate-800 hover:border-slate-700'
                         : isFalta
-                        ? 'bg-rose-950/40 border-rose-600/50 hover:border-rose-400'
-                        : 'bg-purple-950/60 border-purple-800/40 hover:border-purple-400';
+                        ? 'bg-rose-950/40 border-slate-800 hover:border-slate-700'
+                        : 'bg-purple-950/60 border-slate-800 hover:border-slate-700';
 
                       return (
                         <div
@@ -1612,7 +1612,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
             <span className="font-black text-base tracking-wide">
               {monthData.monthName} {monthData.year}
             </span>
-            <span className="text-xs text-purple-400 font-semibold tabular-nums bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
+            <span className="text-xs text-purple-400 font-semibold tabular-nums bg-purple-500/10 px-2.5 py-1 rounded-full border border-slate-800">
               {filteredEvents.filter((e) => e.date.startsWith(`${monthData.year}-${String(monthData.monthIndex + 1).padStart(2, '0')}`)).length} agendamentos no mês
             </span>
           </div>
@@ -1684,8 +1684,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   }}
                   className={`p-1.5 sm:p-2 rounded-xl text-center transition flex flex-col items-center justify-between min-h-[56px] relative group active:scale-95 ${
                     isSelected
-                      ? 'bg-purple-600 text-white font-black ring-2 ring-purple-400 shadow-lg shadow-purple-950/60'
-                      : 'bg-slate-950/70 hover:bg-slate-800 text-slate-200 border border-slate-800/90'
+                      ? 'bg-purple-600 text-white font-black    '
+                      : 'bg-slate-950/70 hover:bg-slate-800 text-slate-200 border border-slate-800'
                   }`}
                   title={`${cell.dayNum} de ${monthData.monthName} - ${count} aula(s)`}
                 >
@@ -1694,7 +1694,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       {cell.dayNum}
                     </span>
                     {count > 0 && (
-                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-950 text-purple-300 border border-purple-800/60'}`}>
+                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-950 text-purple-300 border border-slate-800'}`}>
                         {count}
                       </span>
                     )}
@@ -1738,11 +1738,11 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   setSelectedDate(`${yearStr}-${newM}-01`);
                   setViewMode('mes');
                 }}
-                className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-purple-500 hover:bg-slate-850 cursor-pointer text-center transition active:scale-95"
+                className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 cursor-pointer text-center transition active:scale-95"
               >
                 <h4 className="text-xs font-bold text-white">{m}</h4>
                 <p className="text-[10px] text-slate-400 mt-1">{yearStr}</p>
-                <span className="mt-2 inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-purple-300 font-semibold tabular-nums border border-slate-700/60">
+                <span className="mt-2 inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-purple-300 font-semibold tabular-nums border border-slate-700">
                   {monthEvts.length} {monthEvts.length === 1 ? 'aula' : 'aulas'}
                 </span>
               </div>
@@ -1773,53 +1773,53 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               const isFalta = evt.status === 'falta';
 
               const cardBgBorder = isRealizado
-                ? 'bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border-emerald-600/50'
+                ? 'bg-slate-900 border-slate-800'
                 : isReagendado
-                ? 'bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border-amber-600/50'
+                ? 'bg-slate-900 border-slate-800'
                 : isFalta
-                ? 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-slate-900 border-rose-600/50'
+                ? 'bg-slate-900 border-slate-800'
                 : 'bg-slate-900 border-slate-800';
 
               return (
                 <div
                   key={evt.id}
-                  className={`p-4 rounded-2xl border shadow-md space-y-3 transition ${cardBgBorder}`}
+                  className={`p-4 rounded-2xl border  space-y-3 transition ${cardBgBorder}`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
+                        <span className="font-mono text-xs font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-slate-800">
                           {evt.date} • {evt.startTime} - {evt.endTime}
                         </span>
                         <strong className="text-sm font-bold text-white">{evt.clientName}</strong>
 
                         {/* Status Badge */}
                         {isRealizado && (
-                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-slate-800">
                             <CheckCircle2 className="w-3 h-3" />
                             Realizado
                           </span>
                         )}
                         {isReagendado && (
-                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-slate-800">
                             <RotateCcw className="w-3 h-3" />
                             Reagendado
                           </span>
                         )}
                         {isFalta && (
-                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          <span className="flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-slate-800">
                             <XCircle className="w-3 h-3" />
                             Falta
                           </span>
                         )}
                         {(!evt.status || evt.status === 'confirmado') && (
-                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-slate-800">
                             <CalendarIcon className="w-2.5 h-2.5" />
                             Agendado
                           </span>
                         )}
                         {(evt.recurringParentId || (evt.recurringDays && evt.recurringDays.length > 0)) && (
-                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-slate-800">
                             <Repeat className="w-2.5 h-2.5" />
                             Recorrente{evt.recurringEndDate ? ` (até ${evt.recurringEndDate.split('-').reverse().join('/')})` : ''}
                           </span>
@@ -1829,7 +1829,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       <p className="text-xs text-slate-300">{evt.title}</p>
 
                       {isReagendado && (evt.rescheduledDate || evt.rescheduledTime) && (
-                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-500/30">
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-1 rounded-lg border border-slate-800">
                           <CalendarClock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                           <span>
                             Novo horário: {evt.rescheduledDate ? evt.rescheduledDate : ''}{' '}
@@ -1849,7 +1849,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       {client && (
                         <button
                           onClick={() => onStartWorkoutForClient(client)}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 active:scale-95 shadow-md"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 active:scale-95 "
                         >
                           <Play className="w-3.5 h-3.5 fill-white" />
                           <span>Iniciar</span>
@@ -1873,7 +1873,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   </div>
 
                   {/* Barra Rápida de Alteração de Status */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800">
                     <span className="text-[10px] font-bold text-slate-400 mr-1">
                       Status da Aula:
                     </span>
@@ -1882,7 +1882,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       onClick={() => handleQuickStatusChange(evt, 'realizado', evt.date)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                         isRealizado
-                          ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                          ? 'bg-emerald-600 text-white   '
                           : 'bg-slate-900 hover:bg-emerald-950/50 text-slate-300 hover:text-emerald-300 border border-slate-800'
                       }`}
                     >
@@ -1894,7 +1894,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       onClick={() => handleQuickStatusChange(evt, 'reagendado', evt.date)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                         isReagendado
-                          ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+                          ? 'bg-amber-600 text-white   '
                           : 'bg-slate-900 hover:bg-amber-950/50 text-slate-300 hover:text-amber-300 border border-slate-800'
                       }`}
                     >
@@ -1906,7 +1906,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       onClick={() => handleQuickStatusChange(evt, 'falta', evt.date)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 active:scale-95 ${
                         isFalta
-                          ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400'
+                          ? 'bg-rose-600 text-white   '
                           : 'bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-slate-800'
                       }`}
                     >
@@ -1935,7 +1935,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-sm pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)]">
-            <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-modal-safe sm:max-h-[90dvh] overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800  flex flex-col max-h-modal-safe sm:max-h-[90dvh] overflow-hidden animate-in fade-in zoom-in-95">
               <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-900 flex items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 shrink-0">
@@ -1954,7 +1954,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   aria-label="Fechar modal"
-                  className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition touch-manipulation cursor-pointer"
+                  className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition touch-manipulation cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1963,17 +1963,17 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1 min-h-0">
               {/* Selecionar Cliente */}
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Selecionar Aluno *
                 </label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <div className="relative w-full min-w-0">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <select
                     required
                     value={selectedClientId}
                     onChange={(e) => setSelectedClientId(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500 font-medium"
+                    className="block w-full min-w-0 max-w-full h-10 sm:h-11 pl-10 pr-8 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-slate-700 font-medium truncate box-border"
                   >
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1985,7 +1985,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               </div>
 
               {/* Título / Objetivo do Horário */}
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Título da Aula
                 </label>
@@ -1994,13 +1994,13 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   placeholder="Ex: Treino A - Peitoral e Tríceps"
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-purple-500"
+                  className="block w-full min-w-0 max-w-full h-10 sm:h-11 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-slate-700 box-border"
                 />
               </div>
 
               {/* Data e Horário (Início/Fim) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Data *
                   </label>
@@ -2009,10 +2009,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     required
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="block w-full min-w-0 max-w-full h-10 sm:h-11 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-slate-700 font-mono appearance-none box-border"
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Início *
                   </label>
@@ -2021,10 +2021,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    className="block w-full min-w-0 max-w-full h-10 sm:h-11 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-slate-700 font-mono appearance-none box-border"
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Fim *
                   </label>
@@ -2033,14 +2033,14 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    className="block w-full min-w-0 max-w-full h-10 sm:h-11 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white focus:outline-none focus:border-slate-700 font-mono appearance-none box-border"
                   />
                 </div>
               </div>
 
               {/* Alerta de chave única duplicada (mesmo aluno no mesmo dia) */}
               {duplicateConflict && (
-                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 flex items-start gap-2.5 text-xs text-amber-200 animate-in fade-in">
+                <div className="p-3 rounded-xl bg-amber-950/40 border border-slate-800 flex items-start gap-2.5 text-xs text-amber-200 animate-in fade-in">
                   <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center justify-between">
@@ -2058,7 +2058,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       <button
                         type="button"
                         onClick={() => openEditModal(duplicateConflict)}
-                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] transition active:scale-95 shadow-sm"
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] transition active:scale-95 "
                       >
                         Abrir e Editar Agendamento Existente
                       </button>
@@ -2068,7 +2068,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
               )}
 
               {duplicateError && (
-                <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-500/50 flex items-center gap-2 text-xs text-rose-200 animate-in fade-in">
+                <div className="p-3 rounded-xl bg-rose-950/50 border border-slate-800 flex items-center gap-2 text-xs text-rose-200 animate-in fade-in">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                   <span>{duplicateError}</span>
                 </div>
@@ -2090,15 +2090,15 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   aria-expanded={isRecurringExpanded}
                   className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl border text-left transition active:scale-[0.99] cursor-pointer ${
                     isRecurringExpanded || recurringDays.length > 0
-                      ? 'bg-purple-600/15 border-purple-500/60 text-white shadow-sm ring-1 ring-purple-500/30'
-                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-purple-500/40 hover:text-white'
+                      ? 'bg-purple-600/15 border-slate-800 text-white   '
+                      : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       className={`w-5 h-5 rounded-md flex items-center justify-center border transition shrink-0 ${
                         isRecurringExpanded || recurringDays.length > 0
-                          ? 'bg-purple-600 border-purple-400 text-white'
+                          ? 'bg-purple-600 border-slate-800 text-white'
                           : 'bg-slate-900 border-slate-700 text-transparent'
                       }`}
                     >
@@ -2130,7 +2130,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                 {/* Painel Expansível: Dias da Semana + Data Limite da Recorrência */}
                 {isRecurringExpanded && (
-                  <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-purple-500/30 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
                     <div>
                       <span className="block text-[11px] font-bold text-slate-300 mb-2">
                         Selecione os dias da semana para agendamento:
@@ -2145,7 +2145,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                               onClick={() => toggleRecurringDay(idx)}
                               className={`py-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer ${
                                 isSelected
-                                  ? 'bg-purple-600 text-white shadow-md ring-1 ring-purple-400'
+                                  ? 'bg-purple-600 text-white   '
                                   : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white hover:border-slate-700'
                               }`}
                             >
@@ -2158,7 +2158,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                     {/* Data Limite da Recorrência (Obrigatória quando houver dias selecionados) */}
                     {recurringDays.length > 0 && (
-                      <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/40 space-y-2 animate-in fade-in">
+                      <div className="p-3 rounded-xl bg-purple-950/30 border border-slate-800 space-y-2 animate-in fade-in">
                         <div className="flex items-center justify-between">
                           <label
                             htmlFor="recurringEndDateInput"
@@ -2167,7 +2167,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                             <CalendarIcon className="w-3.5 h-3.5 text-purple-400" />
                             <span>Até qual data a recorrência fica ativa? *</span>
                           </label>
-                          <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+                          <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-slate-800">
                             Obrigatório
                           </span>
                         </div>
@@ -2182,7 +2182,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                               setRecurringEndDate(e.target.value);
                               if (duplicateError) setDuplicateError(null);
                             }}
-                            className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-purple-500/50 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-purple-500/60 focus:border-purple-400 transition"
+                            className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-semibold text-white focus:outline-none   focus:border-slate-700 transition"
                           />
                         </div>
                         <p className="text-[11px] text-purple-300/80 leading-relaxed">
@@ -2205,33 +2205,33 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                       value: 'realizado',
                       label: 'Realizado',
                       icon: CheckCircle2,
-                      activeClass: 'bg-emerald-600 text-white ring-2 ring-emerald-400 shadow-md',
+                      activeClass: 'bg-emerald-600 text-white   ',
                       inactiveClass:
-                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-emerald-500/50',
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-slate-700',
                     },
                     {
                       value: 'reagendado',
                       label: 'Reagendado',
                       icon: RotateCcw,
-                      activeClass: 'bg-amber-600 text-white ring-2 ring-amber-400 shadow-md',
+                      activeClass: 'bg-amber-600 text-white   ',
                       inactiveClass:
-                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-amber-500/50',
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-slate-700',
                     },
                     {
                       value: 'falta',
                       label: 'Falta',
                       icon: XCircle,
-                      activeClass: 'bg-rose-600 text-white ring-2 ring-rose-400 shadow-md',
+                      activeClass: 'bg-rose-600 text-white   ',
                       inactiveClass:
-                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-rose-500/50',
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-slate-700',
                     },
                     {
                       value: 'confirmado',
                       label: 'Agendado',
                       icon: CalendarIcon,
-                      activeClass: 'bg-purple-600 text-white ring-2 ring-purple-400 shadow-md',
+                      activeClass: 'bg-purple-600 text-white   ',
                       inactiveClass:
-                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-purple-500/50',
+                        'bg-slate-950 text-slate-300 border border-slate-800 hover:border-slate-700',
                     },
                   ].map((opt) => {
                     const isSelected = eventStatus === opt.value;
@@ -2254,7 +2254,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
 
                 {/* Campos adicionais quando status for 'Reagendado' */}
                 {eventStatus === 'reagendado' && (
-                  <div className="mt-2.5 p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-2 animate-in fade-in duration-150">
+                  <div className="mt-2.5 p-3 rounded-xl bg-amber-950/20 border border-slate-800 space-y-2 animate-in fade-in duration-150">
                     <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
                       <CalendarClock className="w-3.5 h-3.5 text-amber-400" />
                       Novo Horário da Aula Reagendada (Opcional):
@@ -2266,7 +2266,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                           type="date"
                           value={rescheduledDate}
                           onChange={(e) => setRescheduledDate(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                         />
                       </div>
                       <div>
@@ -2275,7 +2275,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                           type="time"
                           value={rescheduledTime}
                           onChange={(e) => setRescheduledTime(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-slate-700"
                         />
                       </div>
                     </div>
@@ -2293,7 +2293,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   placeholder="Ex: Focar no aquecimento de ombro..."
                   value={eventNotes}
                   onChange={(e) => setEventNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                 />
               </div>
 
@@ -2308,7 +2308,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                         setEventToDelete(editingEvent);
                         setIsModalOpen(false);
                       }}
-                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold transition active:scale-95 whitespace-nowrap touch-manipulation cursor-pointer"
+                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3.5 rounded-xl bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-slate-800 text-xs font-bold transition active:scale-95 whitespace-nowrap touch-manipulation cursor-pointer"
                       title="Excluir este agendamento"
                     >
                       <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -2329,10 +2329,10 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                     <button
                       type="submit"
                       disabled={Boolean(duplicateConflict)}
-                      className={`w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3 sm:px-5 rounded-xl text-xs font-bold shadow-lg transition whitespace-nowrap touch-manipulation ${
+                      className={`w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 sm:h-9 px-3 sm:px-5 rounded-xl text-xs font-bold  transition whitespace-nowrap touch-manipulation ${
                         duplicateConflict
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                          : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-950/50 active:scale-95 cursor-pointer'
+                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                          : 'bg-purple-600 hover:bg-purple-500 text-white  active:scale-95 cursor-pointer'
                       }`}
                     >
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -2351,8 +2351,8 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 backdrop-blur-sm pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] animate-in fade-in duration-200">
-            <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-rose-500/50 p-6 shadow-2xl space-y-4 text-center max-h-modal-safe overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
+            <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-6  space-y-4 text-center max-h-modal-safe overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-slate-800">
               <Trash2 className="w-7 h-7" />
             </div>
 
@@ -2382,7 +2382,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   onDeleteEvent(eventToDelete.id);
                   setEventToDelete(null);
                 }}
-                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 active:scale-95 transition"
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs   active:scale-95 transition"
               >
                 Sim, Excluir
               </button>
@@ -2397,11 +2397,11 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div className="fixed inset-0 z-[95] flex items-center justify-center pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[90dvh] animate-in zoom-in-95 duration-150">
+            <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800  overflow-hidden flex flex-col max-h-modal-safe sm:max-h-[90dvh] animate-in zoom-in-95 duration-150">
               {/* Header */}
               <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/80 shrink-0">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-slate-800 shrink-0">
                     <Repeat className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
@@ -2418,7 +2418,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                   type="button"
                   onClick={() => setRecurringScopePrompt(null)}
                   aria-label="Fechar modal"
-                  className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition touch-manipulation cursor-pointer"
+                  className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition touch-manipulation cursor-pointer"
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -2450,7 +2450,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 <button
                   type="button"
                   onClick={handleApplyScopeThisEventOnly}
-                  className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-between gap-3 text-left cursor-pointer group"
+                  className="w-full p-3.5 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-[0.98] text-white font-bold text-xs sm:text-sm  transition flex items-center justify-between gap-3 text-left cursor-pointer group"
                 >
                   <div className="space-y-0.5 min-w-0">
                     <span className="block font-black tracking-tight text-white">
@@ -2467,7 +2467,7 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
                 <button
                   type="button"
                   onClick={handleApplyScopeAllEvents}
-                  className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-750 hover:border-slate-700 active:scale-[0.98] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-slate-700/80 transition flex items-center justify-between gap-3 text-left cursor-pointer"
+                  className="w-full p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-750 hover:border-slate-700 active:scale-[0.98] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-slate-700 transition flex items-center justify-between gap-3 text-left cursor-pointer"
                 >
                   <div className="space-y-0.5 min-w-0">
                     <span className="block font-black tracking-tight text-white">

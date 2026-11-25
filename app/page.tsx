@@ -646,8 +646,8 @@ export default function Home() {
           {(isStudentAccountLocked || appRole === 'student') ? (
             /* VISÃO DO ALUNO (PORTAL DE RECEBIMENTO E EXECUÇÃO) */
             !effectiveStudent ? (
-              <div className="max-w-xl mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
-                <div className="w-14 h-14 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto">
+              <div className="max-w-xl mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 ">
+                <div className="w-14 h-14 rounded-2xl bg-cyan-500/15 border border-slate-800 text-cyan-400 flex items-center justify-center mx-auto">
                   <GraduationCap className="w-7 h-7" />
                 </div>
                 <div className="space-y-1.5">
@@ -665,7 +665,7 @@ export default function Home() {
                       handleChangeRole('trainer');
                       setCurrentSection('cliente');
                     }}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/50 transition active:scale-95 cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs   transition active:scale-95 cursor-pointer"
                   >
                     <ShieldCheck className="w-4 h-4" />
                     <span>Ir para Perfil Treinador e Cadastrar Aluno</span>
@@ -846,7 +846,7 @@ export default function Home() {
 
         {/* Toast Notificação de Sincronização após Inatividade com o Firestore */}
         {syncNotice && (
-          <div className="fixed top-[calc(var(--sat)+4.25rem)] left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-md text-emerald-300 text-xs font-bold animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-none max-w-[92vw]">
+          <div className="fixed top-[calc(var(--sat)+4.25rem)] left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/95 border border-slate-800  backdrop-blur-md text-emerald-300 text-xs font-bold animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-none max-w-[92vw]">
             <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 shrink-0 ${isResumingSync ? 'animate-spin' : ''}`} />
             <span className="truncate">{syncNotice}</span>
           </div>

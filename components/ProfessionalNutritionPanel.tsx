@@ -425,7 +425,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
           </div>
 
           {savedToast && (
-            <div className="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-xs font-bold text-emerald-300 flex items-center gap-2">
+            <div className="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-slate-800 text-xs font-bold text-emerald-300 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{savedToast}</span>
             </div>
@@ -439,7 +439,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
             onClick={() => setSubTab('receitas')}
             className={`py-3 px-3.5 rounded-2xl border text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer ${
               subTab === 'receitas'
-                ? 'bg-emerald-600 text-white border-emerald-400 shadow-md'
+                ? 'bg-emerald-600 text-white border-slate-800 '
                 : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
             }`}
           >
@@ -452,7 +452,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
             onClick={() => setSubTab('alimentos')}
             className={`py-3 px-3.5 rounded-2xl border text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer ${
               subTab === 'alimentos'
-                ? 'bg-cyan-600 text-white border-cyan-400 shadow-md'
+                ? 'bg-cyan-600 text-white border-slate-800 '
                 : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
             }`}
           >
@@ -465,7 +465,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
             onClick={() => setSubTab('refeicoes')}
             className={`py-3 px-3.5 rounded-2xl border text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer ${
               subTab === 'refeicoes'
-                ? 'bg-amber-600 text-white border-amber-400 shadow-md'
+                ? 'bg-amber-600 text-white border-slate-800 '
                 : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
             }`}
           >
@@ -478,7 +478,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
             onClick={() => setSubTab('porcoes')}
             className={`py-3 px-3.5 rounded-2xl border text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer ${
               subTab === 'porcoes'
-                ? 'bg-violet-600 text-white border-violet-400 shadow-md'
+                ? 'bg-violet-600 text-white border-slate-800 '
                 : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
             }`}
           >
@@ -514,7 +514,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                   value={recipeName}
                   onChange={(e) => setRecipeName(e.target.value)}
                   placeholder="Ex: Bolinho Proteico de Aveia, Cacau e Banana"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                 />
               </div>
 
@@ -526,7 +526,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                   <select
                     value={recipeCategory}
                     onChange={(e) => setRecipeCategory(e.target.value as RecipeCategory)}
-                    className="w-full px-2.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-2.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-slate-700"
                   >
                     {RECIPE_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
@@ -545,7 +545,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                     min="1"
                     value={recipeServings}
                     onChange={(e) => setRecipeServings(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white tabular-nums focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -558,7 +558,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                     min="1"
                     value={recipePrepTime}
                     onChange={(e) => setRecipePrepTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white tabular-nums focus:outline-none focus:border-slate-700"
                   />
                 </div>
               </div>
@@ -576,7 +576,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                     value={ingSearch}
                     onChange={(e) => setIngSearch(e.target.value)}
                     placeholder="Filtrar ingrediente (ex: aveia, ovo, frango, whey)..."
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -671,13 +671,13 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                   value={recipeInstructions}
                   onChange={(e) => setRecipeInstructions(e.target.value)}
                   placeholder="Descreva o passo a passo da receita para o cliente..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2  cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Salvar Receita no Sistema</span>
@@ -757,7 +757,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                     value={foodName}
                     onChange={(e) => setFoodName(e.target.value)}
                     placeholder="Ex: Iogurte Grego Zero Proteico"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -935,7 +935,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs flex items-center justify-center gap-2  cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Cadastrar Alimento na Biblioteca</span>
@@ -1104,7 +1104,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs flex items-center justify-center gap-2  cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Salvar Refeição Pré-definida</span>
@@ -1226,7 +1226,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                  className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs flex items-center justify-center gap-2  cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Cadastrar Medida Personalizada</span>
@@ -1372,7 +1372,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                       key={m.id}
                       className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 tabular-nums ${
                         m.isReferenceMeasure
-                          ? 'bg-emerald-950/20 border-emerald-500/40'
+                          ? 'bg-emerald-950/20 border-slate-800'
                           : 'bg-slate-950 border-slate-800'
                       }`}
                     >
@@ -1401,7 +1401,7 @@ export const ProfessionalNutritionPanel: React.FC<ProfessionalNutritionPanelProp
                         onClick={() =>
                           handleClonePofMeasureToCustom(activeExplorerFood, m)
                         }
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-violet-600/20 text-slate-300 hover:text-violet-300 border border-slate-800 hover:border-violet-500/40 text-[11px] font-bold shrink-0 cursor-pointer transition"
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-violet-600/20 text-slate-300 hover:text-violet-300 border border-slate-800 hover:border-slate-700 text-[11px] font-bold shrink-0 cursor-pointer transition"
                         title="Carregar esta medida no formulário de porções personalizadas"
                       >
                         Clonar

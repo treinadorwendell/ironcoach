@@ -75,7 +75,7 @@ const CustomChartTooltip: React.FC<CustomTooltipProps> = ({
     const showPse = selectedMetrics?.pse ?? true;
 
     return (
-      <div className="p-3.5 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl backdrop-blur-md text-xs space-y-2 min-w-[210px]">
+      <div className="p-3.5 rounded-2xl bg-slate-900/95 border border-slate-700  backdrop-blur-md text-xs space-y-2 min-w-[210px]">
         <div className="flex items-center justify-between text-slate-400 font-mono text-[11px] border-b border-slate-800 pb-1.5">
           <span className="flex items-center gap-1.5 font-bold text-white">
             <Calendar className="w-3.5 h-3.5 text-cyan-400" />
@@ -124,7 +124,7 @@ const CustomChartTooltip: React.FC<CustomTooltipProps> = ({
           )}
 
           {showPse && data.pse != null && (
-            <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800/80">
+            <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800">
               <span className="text-amber-400 font-semibold flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                 PSE (Esforço):
@@ -233,11 +233,11 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-5 animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col sm:rounded-3xl bg-slate-900 border border-emerald-500/40 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+      <div className="w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col sm:rounded-3xl bg-slate-900 border border-slate-800  overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header da Página de Evolução da Série */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/90 flex items-center justify-between shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-lg shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-slate-800 flex items-center justify-center  shrink-0">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -245,7 +245,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                 <h3 className="text-base sm:text-lg font-black text-white truncate">
                   Evolução da Série {activeSetNumber}
                 </h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30 shrink-0">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-slate-800 shrink-0">
                   {exerciseName}
                 </span>
               </div>
@@ -284,7 +284,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                   onClick={() => handleSelectSet(num)}
                   className={`px-3 py-1 rounded-xl text-xs font-bold transition active:scale-95 shrink-0 ${
                     isCurrent
-                      ? 'bg-emerald-600 text-white shadow-md ring-1 ring-emerald-400'
+                      ? 'bg-emerald-600 text-white   '
                       : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
                   }`}
                 >
@@ -336,7 +336,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                     onClick={() => toggleMetric('weight')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 ${
                       selectedMetrics.weight
-                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-500 shadow-sm'
+                        ? 'bg-emerald-950 text-emerald-300 border border-slate-800 '
                         : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
                     }`}
                   >
@@ -351,7 +351,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                     onClick={() => toggleMetric('reps')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 ${
                       selectedMetrics.reps
-                        ? 'bg-rose-950 text-rose-300 border border-rose-500 shadow-sm'
+                        ? 'bg-rose-950 text-rose-300 border border-slate-800 '
                         : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
                     }`}
                   >
@@ -366,7 +366,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                     onClick={() => toggleMetric('volume')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 ${
                       selectedMetrics.volume
-                        ? 'bg-blue-950 text-blue-300 border border-blue-500 shadow-sm'
+                        ? 'bg-blue-950 text-blue-300 border border-slate-800 '
                         : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
                     }`}
                   >
@@ -381,7 +381,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                     onClick={() => toggleMetric('pse')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 ${
                       selectedMetrics.pse
-                        ? 'bg-amber-950 text-amber-300 border border-amber-500 shadow-sm'
+                        ? 'bg-amber-950 text-amber-300 border border-slate-800 '
                         : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300'
                     }`}
                   >
@@ -402,7 +402,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                 <div
                   className={`p-3 rounded-2xl border transition ${
                     selectedMetrics.weight
-                      ? 'bg-slate-950 border-emerald-500/40 ring-1 ring-emerald-500/20'
+                      ? 'bg-slate-950 border-slate-800  '
                       : 'bg-slate-950/50 border-slate-800 opacity-60'
                   }`}
                 >
@@ -426,7 +426,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                 <div
                   className={`p-3 rounded-2xl border transition ${
                     selectedMetrics.reps
-                      ? 'bg-slate-950 border-rose-500/40 ring-1 ring-rose-500/20'
+                      ? 'bg-slate-950 border-slate-800  '
                       : 'bg-slate-950/50 border-slate-800 opacity-60'
                   }`}
                 >
@@ -446,7 +446,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                 <div
                   className={`p-3 rounded-2xl border transition ${
                     selectedMetrics.volume
-                      ? 'bg-slate-950 border-blue-500/40 ring-1 ring-blue-500/20'
+                      ? 'bg-slate-950 border-slate-800  '
                       : 'bg-slate-950/50 border-slate-800 opacity-60'
                   }`}
                 >
@@ -705,7 +705,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                           Vol: {item.volumeKg.toLocaleString('pt-BR')} kg
                         </span>
                         {item.pse != null && (
-                          <span className="text-[10px] font-bold font-mono text-amber-400 bg-amber-950/60 border border-amber-500/30 px-1.5 py-0.2 rounded-md">
+                          <span className="text-[10px] font-bold font-mono text-amber-400 bg-amber-950/60 border border-slate-800 px-1.5 py-0.2 rounded-md">
                             PSE {item.pse}
                           </span>
                         )}

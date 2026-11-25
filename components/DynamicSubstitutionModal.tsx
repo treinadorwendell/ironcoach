@@ -249,11 +249,11 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-5 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] overflow-y-auto">
-      <div className="w-full max-w-4xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden my-auto max-h-modal-safe sm:max-h-[90dvh] flex flex-col">
+      <div className="w-full max-w-4xl rounded-3xl bg-slate-900 border border-slate-800  overflow-hidden my-auto max-h-modal-safe sm:max-h-[90dvh] flex flex-col">
         {/* Top Header */}
         <div className="px-5 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-slate-800 text-emerald-400 flex items-center justify-center shrink-0">
               <ArrowLeftRight className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -287,7 +287,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
               onClick={() => setSourceTab('recipe')}
               className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                 sourceTab === 'recipe'
-                  ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/60 shadow-md'
+                  ? 'bg-emerald-600/20 text-emerald-300 border-slate-800 '
                   : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
               }`}
             >
@@ -300,7 +300,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
               onClick={() => setSourceTab('food')}
               className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl border text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                 sourceTab === 'food'
-                  ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/60 shadow-md'
+                  ? 'bg-cyan-600/20 text-cyan-300 border-slate-800 '
                   : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
               }`}
             >
@@ -343,7 +343,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                     }}
                     className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                       active
-                        ? 'bg-emerald-600/20 border-emerald-500 text-white'
+                        ? 'bg-emerald-600/20 border-slate-800 text-white'
                         : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
                     }`}
                   >
@@ -375,7 +375,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                         ? 'Buscar receita por nome ou categoria...'
                         : 'Buscar alimento na base TACO ou customizados...'
                     }
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                   />
                 </div>
 
@@ -383,7 +383,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                   <select
                     value={selectedRecipeCategory}
                     onChange={(e) => setSelectedRecipeCategory(e.target.value)}
-                    className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 focus:outline-none focus:border-slate-700"
                   >
                     <option value="Todas">Todas Categorias</option>
                     {RECIPE_CATEGORIES.map((c: RecipeCategory) => (
@@ -396,7 +396,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                   <select
                     value={selectedFoodCategory}
                     onChange={(e) => setSelectedFoodCategory(e.target.value)}
-                    className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 focus:outline-none focus:border-emerald-500 max-w-[180px]"
+                    className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 focus:outline-none focus:border-slate-700 max-w-[180px]"
                   >
                     {foodCategories.map((c) => (
                       <option key={c} value={c}>
@@ -503,7 +503,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                     <select
                       value={activeMeasure?.id || ''}
                       onChange={(e) => setSelectedMeasureId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-white focus:outline-none focus:border-slate-700"
                     >
                       {activeFood.measures.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -547,10 +547,10 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                       min="0.1"
                       value={manualQuantity}
                       onChange={(e) => setManualQuantity(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/60 text-xs font-extrabold text-emerald-300 tabular-nums focus:outline-none"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-extrabold text-emerald-300 tabular-nums focus:outline-none"
                     />
                   ) : (
-                    <div className="px-3 py-2 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-xs font-extrabold text-emerald-300 tabular-nums flex items-center justify-between">
+                    <div className="px-3 py-2 rounded-xl bg-emerald-950/30 border border-slate-800 text-xs font-extrabold text-emerald-300 tabular-nums flex items-center justify-between">
                       <span>
                         {comparison.suggestedQuantity} × {comparison.measureLabel}
                       </span>
@@ -708,7 +708,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                       onClose();
                     }
                   }}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60 active:scale-98 transition cursor-pointer"
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2   active:scale-98 transition cursor-pointer"
                 >
                   <ArrowLeftRight className="w-4 h-4" />
                   <span>
@@ -727,7 +727,7 @@ export const DynamicSubstitutionModal: React.FC<DynamicSubstitutionModalProps> =
                       onClose();
                     }
                   }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center justify-center gap-2 active:scale-98 transition cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-slate-800 font-bold text-xs flex items-center justify-center gap-2 active:scale-98 transition cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Anexar como Opção de Substituição no Cardápio</span>

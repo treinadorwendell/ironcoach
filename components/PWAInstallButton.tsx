@@ -25,7 +25,7 @@ export const PWAInstallButton: React.FC = () => {
     return (
       <button
         onClick={install}
-        className="flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-10 lg:h-[42px] rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 hover:from-emerald-500 hover:to-teal-500 active:scale-95 transition-all whitespace-nowrap shrink-0 cursor-pointer"
+        className="flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-10 lg:h-[42px] rounded-xl bg-emerald-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white     active:scale-95 transition-all whitespace-nowrap shrink-0 cursor-pointer"
         title="Instalar App no Tablet para uso 100% Offline"
       >
         <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-200" />
@@ -50,7 +50,7 @@ export const PWAInstallButton: React.FC = () => {
 
         {showIOSGuide && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">
+            <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-6 ">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
@@ -83,7 +83,7 @@ export const PWAInstallButton: React.FC = () => {
 
               <button
                 onClick={() => setShowIOSGuide(false)}
-                className="mt-5 w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold text-white shadow-lg active:scale-95 transition flex items-center justify-center cursor-pointer"
+                className="mt-5 w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold text-white  active:scale-95 transition flex items-center justify-center cursor-pointer"
               >
                 Entendido
               </button>

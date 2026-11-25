@@ -112,10 +112,10 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
         {user ? (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`flex items-center justify-center h-9 sm:h-10 lg:h-[42px] px-2.5 sm:px-3.5 rounded-xl border transition active:scale-95 shadow-sm cursor-pointer shrink-0 ${
+            className={`flex items-center justify-center h-9 sm:h-10 lg:h-[42px] px-2.5 sm:px-3.5 rounded-xl border transition active:scale-95  cursor-pointer shrink-0 ${
               pendingQueueCount > 0
-                ? 'border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300'
-                : 'border-emerald-500/30 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300'
+                ? 'border-slate-800 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300'
+                : 'border-slate-800 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300'
             }`}
             title={
               pendingQueueCount > 0
@@ -151,7 +151,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
           <button
             onClick={handleOpenAuth}
             disabled={isBusy}
-            className="flex items-center justify-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3 sm:px-4 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/80 to-teal-950/80 hover:from-emerald-900/90 hover:to-teal-900/90 text-emerald-200 text-xs sm:text-sm font-extrabold transition active:scale-95 shadow-md shadow-emerald-950/40 whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 h-9 sm:h-10 lg:h-[42px] px-3 sm:px-4 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-emerald-200 text-xs sm:text-sm font-extrabold transition active:scale-95   whitespace-nowrap shrink-0 cursor-pointer"
             title="Entrar ou Cadastrar com E-mail e Senha para sincronizar dados no Firebase"
           >
             <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
@@ -167,10 +167,10 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-slate-900 border border-slate-700/80 p-4 shadow-2xl z-50 text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-slate-900 border border-slate-700 p-4  z-50 text-slate-100 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm ring-1 ring-emerald-500/40 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm   shrink-0">
                     {user.email?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <div className="min-w-0">
@@ -183,7 +183,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-slate-800">
                     Data Persist
                   </span>
                   <button
@@ -213,7 +213,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   <span
                     className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${
                       pendingQueueCount > 0
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        ? 'bg-amber-500/20 text-amber-300 border border-slate-800'
                         : 'bg-emerald-500/15 text-emerald-400'
                     }`}
                   >
@@ -224,7 +224,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                 </div>
 
                 {errorMessage && (
-                  <div className="p-2 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-[11px] flex items-center gap-1.5">
+                  <div className="p-2 rounded-xl bg-rose-950/60 border border-slate-800 text-rose-300 text-[11px] flex items-center gap-1.5">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
@@ -236,7 +236,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   type="button"
                   onClick={handleForceSyncFromCloud}
                   disabled={isBusy}
-                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer"
+                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-slate-800 text-emerald-300 text-xs font-bold transition active:scale-95  cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isBusy ? 'animate-spin' : ''}`} />
                   <span>
@@ -260,7 +260,7 @@ export const CloudSyncBadge: React.FC<CloudSyncBadgeProps> = ({ onManualSyncTrig
                   type="button"
                   onClick={handleLogout}
                   disabled={isBusy}
-                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 text-xs font-semibold transition active:scale-95 cursor-pointer"
+                  className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-slate-800 text-rose-300 text-xs font-semibold transition active:scale-95 cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-400" />
                   <span>Sair da Conta (Logout)</span>

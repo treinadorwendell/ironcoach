@@ -650,12 +650,12 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-md pl-[max(0.5rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:px-4 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] print:p-0 print:bg-white print:static print:inset-auto">
       {/* Container Principal do Modal de Relatório */}
-      <div className="w-full max-w-5xl rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-modal-safe sm:max-h-[92dvh] overflow-hidden print:max-h-none print:overflow-visible print:shadow-none print:border-none print:bg-white print:text-black print:rounded-none">
+      <div className="w-full max-w-5xl rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800  flex flex-col max-h-modal-safe sm:max-h-[92dvh] overflow-hidden print:max-h-none print:overflow-visible print: print:border-none print:bg-white print:text-black print:rounded-none">
         
         {/* CABEÇALHO DO MODAL */}
         <div className="p-3.5 sm:p-6 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-900 print:border-b-2 print:border-black print:pb-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shrink-0 print:hidden">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white  shrink-0 print:hidden">
               <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
@@ -663,7 +663,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 <h2 className="text-sm sm:text-xl font-black text-white truncate print:text-black">
                   Relatório de Aulas & Financeiro
                 </h2>
-                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 shrink-0 print:hidden">
+                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-slate-800 shrink-0 print:hidden">
                   Agenda Pro
                 </span>
               </div>
@@ -682,7 +682,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Fechar Relatório"
-              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-95 touch-manipulation cursor-pointer shrink-0"
               title="Fechar Relatório"
             >
               <X className="w-5 h-5" />
@@ -734,7 +734,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700 font-mono"
                   />
                 </div>
               </div>
@@ -749,7 +749,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700 font-mono"
                   />
                 </div>
               </div>
@@ -762,7 +762,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 <select
                   value={selectedClientId}
                   onChange={(e) => setSelectedClientId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                 >
                   <option value="todos">Todos os Alunos ({clients.length})</option>
                   {clients.map((c) => (
@@ -775,7 +775,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
             </div>
 
             {/* Checkboxes de Status (Realizadas, Agendadas, Reagendadas, Faltas) */}
-            <div className="flex items-center gap-3 pt-2 border-t border-slate-800/80 flex-wrap">
+            <div className="flex items-center gap-3 pt-2 border-t border-slate-800 flex-wrap">
               <span className="text-[11px] font-bold text-slate-400">Incluir no Relatório:</span>
               
               <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-300 hover:text-white">
@@ -785,7 +785,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   onChange={(e) =>
                     setIncludedStatuses((prev) => ({ ...prev, realizado: e.target.checked }))
                   }
-                  className="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 w-3.5 h-3.5"
+                  className="rounded bg-slate-900 border-slate-700 text-emerald-500  w-3.5 h-3.5"
                 />
                 <span className="flex items-center gap-1 text-emerald-400 tabular-nums">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -800,7 +800,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   onChange={(e) =>
                     setIncludedStatuses((prev) => ({ ...prev, confirmado: e.target.checked }))
                   }
-                  className="rounded bg-slate-900 border-slate-700 text-purple-500 focus:ring-0 w-3.5 h-3.5"
+                  className="rounded bg-slate-900 border-slate-700 text-purple-500  w-3.5 h-3.5"
                 />
                 <span className="flex items-center gap-1 text-purple-400 tabular-nums">
                   <Calendar className="w-3.5 h-3.5" />
@@ -815,7 +815,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   onChange={(e) =>
                     setIncludedStatuses((prev) => ({ ...prev, reagendado: e.target.checked }))
                   }
-                  className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-0 w-3.5 h-3.5"
+                  className="rounded bg-slate-900 border-slate-700 text-amber-500  w-3.5 h-3.5"
                 />
                 <span className="flex items-center gap-1 text-amber-400 tabular-nums">
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -830,7 +830,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   onChange={(e) =>
                     setIncludedStatuses((prev) => ({ ...prev, falta: e.target.checked }))
                   }
-                  className="rounded bg-slate-900 border-slate-700 text-rose-500 focus:ring-0 w-3.5 h-3.5"
+                  className="rounded bg-slate-900 border-slate-700 text-rose-500  w-3.5 h-3.5"
                 />
                 <span className="flex items-center gap-1 text-rose-400 tabular-nums">
                   <XCircle className="w-3.5 h-3.5" />
@@ -850,7 +850,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
             {/* Painel Expansível de Ajuste de Valores por Aluno */}
             {showValueAdjustments && (
-              <div className="p-3.5 rounded-xl bg-slate-900 border border-purple-500/30 space-y-2 animate-in fade-in duration-150">
+              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 animate-in fade-in duration-150">
                 <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1">
                   <DollarSign className="w-3.5 h-3.5 text-purple-400" />
                   Valores dos Alunos (Obtidos do cadastro • Ajuste se necessário para este cálculo):
@@ -871,7 +871,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                           type="number"
                           value={getClientValue(c)}
                           onChange={(e) => handleUpdateCustomValue(c.id, parseFloat(e.target.value) || 0)}
-                          className="w-16 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white text-right focus:outline-none focus:border-purple-400"
+                          className="w-16 px-1.5 py-1 rounded bg-slate-900 border border-slate-700 text-xs font-mono text-white text-right focus:outline-none focus:border-slate-700"
                         />
                       </div>
                     </div>
@@ -895,7 +895,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
             <div className={`grid grid-cols-2 ${financialSummary.alunosOnlineCount > 0 ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-4'} gap-3`}>
               {/* Card 1: Aulas Avulsas (Soma do valor das realizadas + agendadas conforme solicitado pelo usuário) */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 print:bg-white print:border print:border-black">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide block print:text-black">
                   Aulas Avulsas
                 </span>
@@ -908,7 +908,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               </div>
 
               {/* Card 2: Planos Semanais */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-500/30 print:bg-white print:border print:border-black">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wide block print:text-black">
                   Planos Semanais
                 </span>
@@ -921,7 +921,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               </div>
 
               {/* Card 3: Planos Mensais */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 print:bg-white print:border print:border-black">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wide block print:text-black">
                   Planos Mensais
                 </span>
@@ -935,7 +935,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
               {/* Card 4: Planos Online (quando houver) */}
               {financialSummary.alunosOnlineCount > 0 && (
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-950 border border-cyan-500/30 print:bg-white print:border print:border-black">
+                <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 print:bg-white print:border print:border-black">
                   <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wide block print:text-black">
                     Planos Online
                   </span>
@@ -949,7 +949,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               )}
 
               {/* Card Final: Faturamento Total Consolidado */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/40 print:bg-white print:border print:border-black">
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 print:bg-white print:border print:border-black">
                 <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wide block print:text-black">
                   Receita Consolidada
                 </span>
@@ -964,28 +964,28 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
             {/* Fita de Status das Aulas */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-center">
-              <div className="py-2 px-3 rounded-xl bg-emerald-950/20 border border-emerald-500/20 flex items-center justify-center gap-2 print:border-black">
+              <div className="py-2 px-3 rounded-xl bg-emerald-950/20 border border-slate-800 flex items-center justify-center gap-2 print:border-black">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 print:text-black" />
                 <span className="text-xs font-bold tabular-nums text-emerald-300 print:text-black">
                   {financialSummary.realizadas} Realizadas
                 </span>
               </div>
 
-              <div className="py-2 px-3 rounded-xl bg-purple-950/20 border border-purple-500/20 flex items-center justify-center gap-2 print:border-black">
+              <div className="py-2 px-3 rounded-xl bg-purple-950/20 border border-slate-800 flex items-center justify-center gap-2 print:border-black">
                 <Calendar className="w-3.5 h-3.5 text-purple-400 print:text-black" />
                 <span className="text-xs font-bold tabular-nums text-purple-300 print:text-black">
                   {financialSummary.agendadas} Agendadas (a realizar)
                 </span>
               </div>
 
-              <div className="py-2 px-3 rounded-xl bg-amber-950/20 border border-amber-500/20 flex items-center justify-center gap-2 print:border-black">
+              <div className="py-2 px-3 rounded-xl bg-amber-950/20 border border-slate-800 flex items-center justify-center gap-2 print:border-black">
                 <RotateCcw className="w-3.5 h-3.5 text-amber-400 print:text-black" />
                 <span className="text-xs font-bold tabular-nums text-amber-300 print:text-black">
                   {financialSummary.reagendadas} Reagendadas
                 </span>
               </div>
 
-              <div className="py-2 px-3 rounded-xl bg-rose-950/20 border border-rose-500/20 flex items-center justify-center gap-2 print:border-black">
+              <div className="py-2 px-3 rounded-xl bg-rose-950/20 border border-slate-800 flex items-center justify-center gap-2 print:border-black">
                 <XCircle className="w-3.5 h-3.5 text-rose-400 print:text-black" />
                 <span className="text-xs font-bold tabular-nums text-rose-300 print:text-black">
                   {financialSummary.faltas} Faltas
@@ -1032,22 +1032,22 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                       const statusMap = {
                         realizado: {
                           label: 'Realizada',
-                          cls: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 print:text-black',
+                          cls: 'bg-emerald-500/10 text-emerald-400 border border-slate-800 print:text-black',
                           icon: CheckCircle2,
                         },
                         reagendado: {
                           label: 'Reagendada',
-                          cls: 'bg-amber-500/10 text-amber-400 border border-amber-500/30 print:text-black',
+                          cls: 'bg-amber-500/10 text-amber-400 border border-slate-800 print:text-black',
                           icon: RotateCcw,
                         },
                         falta: {
                           label: 'Falta',
-                          cls: 'bg-rose-500/10 text-rose-400 border border-rose-500/30 print:text-black',
+                          cls: 'bg-rose-500/10 text-rose-400 border border-slate-800 print:text-black',
                           icon: XCircle,
                         },
                         confirmado: {
                           label: 'Agendada (A realizar)',
-                          cls: 'bg-purple-500/10 text-purple-400 border border-purple-500/30 print:text-black',
+                          cls: 'bg-purple-500/10 text-purple-400 border border-slate-800 print:text-black',
                           icon: Calendar,
                         },
                         cancelado: {
@@ -1087,12 +1087,12 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                           <td className="p-3 whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                               contract === 'Avulsa' || contract === 'Presencial - Avulsa'
-                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                                ? 'bg-amber-500/10 text-amber-300 border border-slate-800'
                                 : contract === 'Semanal' || contract === 'Presencial - Semanal'
-                                ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
+                                ? 'bg-indigo-500/10 text-indigo-300 border border-slate-800'
                                 : contract.startsWith('Online')
-                                ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
-                                : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
+                                ? 'bg-cyan-500/10 text-cyan-300 border border-slate-800'
+                                : 'bg-purple-500/10 text-purple-300 border border-slate-800'
                             } print:border-black print:text-black`}>
                               {contract}
                             </span>
@@ -1185,10 +1185,10 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
 
         {/* PAINEL EXPANSÍVEL DE ENVIO VIA WHATSAPP (PDF + MENSAGEM EDITÁVEL) */}
         {isWhatsappModalOpen && (
-          <div className="p-3.5 sm:p-5 border-t border-emerald-500/30 bg-slate-900/95 space-y-3.5 sm:space-y-4 max-h-[45dvh] overflow-y-auto shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden">
+          <div className="p-3.5 sm:p-5 border-t border-slate-800 bg-slate-900/95 space-y-3.5 sm:space-y-4 max-h-[45dvh] overflow-y-auto shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150 print:hidden">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-slate-800 flex items-center justify-center text-emerald-400">
                   <MessageCircle className="w-4 h-4" />
                 </div>
                 <div>
@@ -1219,7 +1219,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 <select
                   value={whatsappRecipientId}
                   onChange={(e) => handleChangeWhatsappRecipient(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-slate-700"
                 >
                   <option value="todos">Geral / Informar número manualmente</option>
                   {clients.map((c) => (
@@ -1242,7 +1242,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                     value={whatsappPhone}
                     onChange={(e) => setWhatsappPhone(e.target.value)}
                     placeholder="Ex: (11) 99999-9999"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-emerald-500"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-slate-700"
                   />
                 </div>
               </div>
@@ -1286,12 +1286,12 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 rows={6}
                 value={whatsappMessage}
                 onChange={(e) => setWhatsappMessage(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 leading-relaxed focus:outline-none focus:border-emerald-500 resize-y"
+                className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 leading-relaxed focus:outline-none focus:border-slate-700 resize-y"
               />
             </div>
 
             {whatsappFeedback && (
-              <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200 flex items-start gap-2">
+              <div className="p-3 rounded-xl bg-emerald-950/40 border border-slate-800 text-xs text-emerald-200 flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <span>{whatsappFeedback}</span>
               </div>
@@ -1302,7 +1302,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 type="button"
                 onClick={handleShareWhatsappNativeFile}
                 disabled={isGeneratingPdf}
-                className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 text-[11px] sm:text-xs font-bold border border-emerald-500/30 transition active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 text-[11px] sm:text-xs font-bold border border-slate-800 transition active:scale-95 disabled:opacity-50 whitespace-nowrap"
                 title="Compartilhar arquivo PDF diretamente pelo aplicativo no celular"
               >
                 <Share2 className="w-3.5 h-3.5 shrink-0" />
@@ -1314,7 +1314,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                 type="button"
                 onClick={handleSendWhatsappDirect}
                 disabled={isGeneratingPdf}
-                className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-emerald-950/50 transition active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold   transition active:scale-95 disabled:opacity-50 whitespace-nowrap"
                 title="Baixar o PDF automaticamente e abrir a conversa do aluno no WhatsApp com a mensagem preenchida"
               >
                 <Send className="w-3.5 h-3.5 shrink-0" />
@@ -1356,7 +1356,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
                   handleOpenWhatsappPanel();
                 }
               }}
-              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-emerald-950/50 active:scale-95 transition whitespace-nowrap touch-manipulation cursor-pointer"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-bold   active:scale-95 transition whitespace-nowrap touch-manipulation cursor-pointer"
               title="Enviar relatório em PDF pelo WhatsApp com mensagem personalizada"
             >
               <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
@@ -1367,7 +1367,7 @@ export const AgendaReportModal: React.FC<AgendaReportModalProps> = ({
               type="button"
               onClick={handleExportPdf}
               disabled={isGeneratingPdf}
-              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] sm:text-xs font-bold shadow-lg shadow-purple-950/50 active:scale-95 transition disabled:opacity-50 whitespace-nowrap touch-manipulation cursor-pointer"
+              className="flex items-center justify-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] sm:text-xs font-bold   active:scale-95 transition disabled:opacity-50 whitespace-nowrap touch-manipulation cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="sm:hidden">{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>

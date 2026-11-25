@@ -77,8 +77,10 @@
 }
 
 @layer base {
-  * {
+  *, *::before, *::after {
     -webkit-tap-highlight-color: transparent;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
   html, body {
