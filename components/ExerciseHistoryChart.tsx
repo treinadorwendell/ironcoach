@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ResponsiveContainer,
   LineChart,
@@ -194,7 +195,7 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
 
   const hasHistory = seriesData.length > 0;
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const toggleMetric = (key: keyof SelectedMetricsState) => {
     const activeCount = Object.values(selectedMetrics).filter(Boolean).length;
@@ -231,9 +232,15 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
   const lastVol = volumes.length ? volumes[volumes.length - 1] : 0;
   const maxVolume = volumes.length ? Math.max(...volumes) : 0;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-5 animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col sm:rounded-3xl bg-slate-900 border border-slate-800  overflow-hidden animate-in zoom-in-95 duration-150">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/85 backdrop-blur-md pl-[max(0.75rem,var(--sal))] pr-[max(0.75rem,var(--sar))] sm:px-5 pt-[calc(var(--sat)+0.5rem)] pb-[calc(var(--sab)+0.5rem)] animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-3xl max-h-modal-safe sm:max-h-[90dvh] flex flex-col rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-150"
+      >
         {/* Header da Página de Evolução da Série */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/90 flex items-center justify-between shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -517,11 +524,12 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                           yAxisId="weight"
                           orientation="left"
                           stroke="#10b981"
-                          domain={[Math.max(0, minWeight - 5), maxWeight + 5]}
+                          domain={[Math.max(0, minWeight - 5), Math.max(10, maxWeight + 5)]}
                           tick={{ fill: '#10b981', fontSize: 10, fontFamily: 'monospace' }}
                           tickLine={false}
                           axisLine={{ stroke: '#064e3b' }}
                           unit="kg"
+                          width={42}
                         />
                       )}
 
@@ -531,11 +539,12 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                           yAxisId="reps"
                           orientation="right"
                           stroke="#ef4444"
-                          domain={[0, Math.ceil(maxReps * 1.25)]}
+                          domain={[0, Math.max(10, Math.ceil(maxReps * 1.25))]}
                           tick={{ fill: '#ef4444', fontSize: 10, fontFamily: 'monospace' }}
                           tickLine={false}
                           axisLine={{ stroke: '#7f1d1d' }}
                           unit="r"
+                          width={34}
                         />
                       )}
 
@@ -544,12 +553,16 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                         <YAxis
                           yAxisId="volume"
                           orientation={selectedMetrics.weight ? 'right' : 'left'}
+                          hide={selectedMetrics.weight && selectedMetrics.reps}
                           stroke="#3b82f6"
-                          domain={[0, Math.ceil(maxVolume * 1.15)]}
+                          domain={[0, Math.max(100, Math.ceil(maxVolume * 1.15))]}
                           tick={{ fill: '#3b82f6', fontSize: 10, fontFamily: 'monospace' }}
                           tickLine={false}
                           axisLine={{ stroke: '#1e3a8a' }}
-                          tickFormatter={(val) => `${(val / 1000).toFixed(1)}k`}
+                          width={44}
+                          tickFormatter={(val) =>
+                            val >= 1000 ? `${(val / 1000).toFixed(1)}k` : `${val}`
+                          }
                         />
                       )}
 
@@ -558,12 +571,14 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
                         <YAxis
                           yAxisId="pse"
                           orientation={selectedMetrics.reps || selectedMetrics.volume ? 'left' : 'right'}
+                          hide={selectedMetrics.weight && (selectedMetrics.reps || selectedMetrics.volume)}
                           stroke="#f59e0b"
                           domain={[0, 10]}
                           ticks={[0, 2, 4, 6, 8, 10]}
                           tick={{ fill: '#f59e0b', fontSize: 10, fontFamily: 'monospace' }}
                           tickLine={false}
                           axisLine={{ stroke: '#78350f' }}
+                          width={28}
                         />
                       )}
 
@@ -725,7 +740,8 @@ export const SeriesHistoryModal: React.FC<SeriesHistoryModalProps> = ({
           </span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

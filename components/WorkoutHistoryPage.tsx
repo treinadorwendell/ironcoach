@@ -32,7 +32,9 @@ import {
   Ruler,
   Mail,
   DollarSign,
+  TrendingUp,
 } from 'lucide-react';
+import { SeriesHistoryModal } from './ExerciseHistoryChart';
 
 // Pure helper functions declared outside component render
 const calculateAge = (bDate?: string): number | null => {
@@ -94,6 +96,12 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d' | 'this_month'>('all');
   const [workoutToDelete, setWorkoutToDelete] = useState<CompletedWorkoutRecord | null>(null);
+  const [seriesChartModal, setSeriesChartModal] = useState<{
+    isOpen: boolean;
+    exerciseName: string;
+    setNumber: number;
+    totalSets: number;
+  } | null>(null);
 
   // Expanded workouts set (default first workout expanded if available)
   const [expandedWorkoutIds, setExpandedWorkoutIds] = useState<Set<string>>(() => {
@@ -700,9 +708,27 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                                     )}
                                   </div>
 
-                                  <span className="text-[11px] font-semibold text-emerald-400">
-                                    {completedSetsCount} de {ex.sets.length} séries finalizadas
-                                  </span>
+                                  <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+                                    <span className="text-[11px] font-semibold text-emerald-400">
+                                      {completedSetsCount} de {ex.sets.length} séries finalizadas
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSeriesChartModal({
+                                          isOpen: true,
+                                          exerciseName: ex.name,
+                                          setNumber: 1,
+                                          totalSets: Math.max(1, ex.sets.length),
+                                        })
+                                      }
+                                      className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-800 hover:border-slate-700 text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                      title="Abrir gráfico Recharts de evolução por série deste exercício"
+                                    >
+                                      <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+                                      <span>Gráfico de Evolução</span>
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {ex.observations && (
@@ -713,10 +739,20 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
 
                                 {/* Sets Grid / Table */}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                  {ex.sets.map((set) => (
-                                    <div
-                                      key={set.setNumber}
-                                      className={`p-2 rounded-lg border text-center transition ${
+                                  {ex.sets.map((set, setIdx) => (
+                                    <button
+                                      type="button"
+                                      key={set.setNumber || setIdx}
+                                      onClick={() =>
+                                        setSeriesChartModal({
+                                          isOpen: true,
+                                          exerciseName: ex.name,
+                                          setNumber: set.setNumber || setIdx + 1,
+                                          totalSets: Math.max(1, ex.sets.length),
+                                        })
+                                      }
+                                      title={`Ver gráfico de evolução da Série ${set.setNumber || setIdx + 1}`}
+                                      className={`p-2 rounded-lg border text-center transition cursor-pointer hover:border-slate-700 active:scale-95 ${
                                         set.completed
                                           ? 'bg-slate-950 border-slate-800 text-slate-200'
                                           : 'bg-slate-950/40 border-slate-800 text-slate-500 opacity-60'
@@ -763,7 +799,7 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
                                           ))}
                                         </div>
                                       )}
-                                    </div>
+                                    </button>
                                   ))}
                                 </div>
                               </div>
@@ -816,6 +852,23 @@ export const WorkoutHistoryPage: React.FC<WorkoutHistoryPageProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Gráfico Recharts de Evolução por Série */}
+      {seriesChartModal && seriesChartModal.isOpen && (
+        <SeriesHistoryModal
+          isOpen={seriesChartModal.isOpen}
+          onClose={() => setSeriesChartModal(null)}
+          exerciseName={seriesChartModal.exerciseName}
+          setNumber={seriesChartModal.setNumber}
+          totalSets={seriesChartModal.totalSets}
+          clientId={currentClient?.id}
+          onSelectSetNumber={(newNum) => {
+            setSeriesChartModal((prev) =>
+              prev ? { ...prev, setNumber: newNum } : null
+            );
+          }}
+        />
       )}
     </div>
   );

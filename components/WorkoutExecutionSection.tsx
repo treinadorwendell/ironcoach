@@ -3343,6 +3343,19 @@ export const WorkoutExecutionSection: React.FC<WorkoutExecutionSectionProps> = (
                               );
                             })()}
 
+                            {/* 2.5 Gráfico de Evolução por Série (Recharts) */}
+                            <ExecutionIconButtonWithTooltip
+                              icon={<TrendingUp className="w-4 h-4" />}
+                              tooltipText="Gráfico de evolução por série"
+                              tooltipAlign="center"
+                              tooltipPosition="top"
+                              variant="cyan"
+                              ariaLabel="Gráfico de evolução por série"
+                              onClick={() =>
+                                handleOpenSeriesHistory(ex.exerciseName, 1, ex.sets.length)
+                              }
+                            />
+
                             {/* 3. Página Completa */}
                             <ExecutionIconButtonWithTooltip
                               icon={<Maximize2 className="w-4 h-4" />}

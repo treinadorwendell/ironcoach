@@ -852,7 +852,7 @@ export const storage = {
         pse?: number | null;
       }> = [];
 
-      const registeredTimestamps = new Set<string>();
+      const registeredKeys = new Set<string>();
 
       // 1. Buscar snapshots gravados via "Concluir e Recolher" (global + Data Persist independente do aluno)
       const snapData = localStorage.getItem(STORAGE_KEYS.EXERCISE_FINISHED_SNAPSHOTS);
@@ -882,27 +882,37 @@ export const storage = {
               snap.exerciseName?.trim().toLowerCase() === cleanName
           )
           .forEach((snap: any) => {
-              if (Array.isArray(snap.sets)) {
-                const s = snap.sets.find((item: any) => item.setNumber === setNumber);
-                if (s && ((typeof s.weightKg === 'number' && s.weightKg > 0) || (typeof s.pse === 'number') || s.completed)) {
-                  const reps = Number(s.completedReps) || 10;
-                  const w = typeof s.weightKg === 'number' ? s.weightKg : 0;
-                  const vol = s.volumeKg != null ? Number(s.volumeKg) : w * reps;
-                  const pseVal = typeof s.pse === 'number' ? s.pse : null;
-                  const ts = snap.timestamp || new Date().toISOString();
-                  registeredTimestamps.add(ts.substring(0, 16)); // chave por minuto para deduplicar
-                  points.push({
-                    date: snap.date || 'Hoje',
-                    timestamp: ts,
-                    weightKg: w,
-                    reps,
-                    volumeKg: vol,
-                    setNumber,
-                    pse: pseVal,
-                  });
-                }
+            if (Array.isArray(snap.sets)) {
+              const s =
+                snap.sets.find((item: any) => Number(item.setNumber) === Number(setNumber)) ||
+                snap.sets[setNumber - 1];
+              if (
+                s &&
+                ((typeof s.weightKg === 'number' && s.weightKg >= 0) ||
+                  typeof s.completedReps === 'number' ||
+                  typeof s.pse === 'number' ||
+                  s.completed)
+              ) {
+                const reps = Number(s.completedReps) || Number(s.targetReps) || 10;
+                const w = typeof s.weightKg === 'number' && !isNaN(s.weightKg) ? s.weightKg : 0;
+                const vol = s.volumeKg != null ? Number(s.volumeKg) : w * reps;
+                const pseVal = typeof s.pse === 'number' ? s.pse : null;
+                const ts = snap.timestamp || new Date().toISOString();
+                const dedupKey = `${cleanName}::${setNumber}::${ts.substring(0, 16)}`;
+                if (registeredKeys.has(dedupKey)) return;
+                registeredKeys.add(dedupKey);
+                points.push({
+                  date: snap.date || 'Hoje',
+                  timestamp: ts,
+                  weightKg: w,
+                  reps,
+                  volumeKg: vol,
+                  setNumber,
+                  pse: pseVal,
+                });
               }
-            });
+            }
+          });
       }
 
       // 2. Buscar nos treinos finalizados sincronizados no Firestore ("completedWorkouts")
@@ -911,19 +921,28 @@ export const storage = {
         completedList.forEach((cw) => {
           const ts = cw.completedAt || new Date().toISOString();
           const minuteKey = ts.substring(0, 16);
-          // Se já registrou pelo snapshot no mesmo minuto, pula para evitar duplicata
-          if (registeredTimestamps.has(minuteKey)) return;
 
           if (Array.isArray(cw.exercises)) {
             cw.exercises.forEach((ex) => {
               if (ex.name?.trim().toLowerCase() === cleanName && Array.isArray(ex.sets)) {
-                const s = ex.sets.find((item: any) => item.setNumber === setNumber);
-                if (s && ((typeof s.weightKg === 'number' && s.weightKg > 0) || (typeof s.pse === 'number') || s.completed)) {
-                  const reps = Number(s.completedReps) || 10;
-                  const w = typeof s.weightKg === 'number' ? s.weightKg : 0;
+                const s =
+                  ex.sets.find((item: any) => Number(item.setNumber) === Number(setNumber)) ||
+                  ex.sets[setNumber - 1];
+                if (
+                  s &&
+                  ((typeof s.weightKg === 'number' && s.weightKg >= 0) ||
+                    typeof s.completedReps === 'number' ||
+                    typeof s.pse === 'number' ||
+                    s.completed)
+                ) {
+                  const dedupKey = `${cleanName}::${setNumber}::${minuteKey}`;
+                  if (registeredKeys.has(dedupKey)) return;
+                  registeredKeys.add(dedupKey);
+
+                  const reps = Number(s.completedReps) || Number(s.targetReps) || 10;
+                  const w = typeof s.weightKg === 'number' && !isNaN(s.weightKg) ? s.weightKg : 0;
                   const vol = w * reps;
                   const pseVal = typeof s.pse === 'number' ? s.pse : null;
-                  registeredTimestamps.add(minuteKey);
                   points.push({
                     date: cw.date || 'Hoje',
                     timestamp: ts,
